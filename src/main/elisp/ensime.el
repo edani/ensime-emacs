@@ -1372,7 +1372,10 @@ This is automatically synchronized from Lisp.")
 (ensime-def-connection-var ensime-machine-instance nil
   "The name of the (remote) machine running the Lisp process.")
 
-(ensime-def-connection-var ensime-compiler-notes nil
+(ensime-def-connection-var ensime-scala-compiler-notes nil
+  "Warnings, Errors, and other notes produced by the analyzer.")
+
+(ensime-def-connection-var ensime-java-compiler-notes nil
   "Warnings, Errors, and other notes produced by the analyzer.")
 
 (ensime-def-connection-var ensime-builder-changed-files nil
@@ -1809,8 +1812,23 @@ This idiom is preferred over `lexical-let'."
 	   (ensime-event-sig :compiler-ready status))
 	  ((:indexer-ready status)
 	   (ensime-event-sig :indexer-ready status))
-	  ((:typecheck-result result)
-	   (ensime-handle-typecheck-result result))
+
+	  ((:scala-notes result)
+	   (ensime-add-notes 'scala result))
+	  ((:java-notes result)
+	   (ensime-add-notes 'java result))
+
+	  ((:clear-scala-notes result)
+	   (ensime-clear-notes 'scala result))
+	  ((:clear-java-notes result)
+	   (ensime-clear-notes 'java result))
+
+	  ((:clear-all-scala-notes result)
+	   (ensime-clear-notes 'scala result t))
+	  ((:clear-all-java-notes result)
+	   (ensime-clear-notes 'java result t))
+
+
 	  ((:channel-send id msg)
 	   (ensime-channel-send (or (ensime-find-channel id)
 				    (error "Invalid channel id: %S %S" id msg))
@@ -1885,23 +1903,41 @@ This idiom is preferred over `lexical-let'."
 ;; Compiler Notes (Error/Warning overlays)
 
 ;; Note: This might better be a connection-local variable, but
-;; a afraid that might lead to hanging overlays..
+;; afraid that might lead to hanging overlays..
 
 (defvar ensime-note-overlays '()
   "The overlay structures created to highlight notes.")
 
-(defun ensime-handle-typecheck-result (result)
-
+(defun ensime-add-notes (lang result)
   (let ((is-full (plist-get result :is-full))
 	(notes (plist-get result :notes)))
+    (cond
+     ((equal lang 'scala)
+      (setf (ensime-scala-compiler-notes (ensime-connection))
+	    (append
+	     (ensime-scala-compiler-notes (ensime-connection))
+	     notes)))
+     ((equal lang 'java)
+      (setf (ensime-java-compiler-notes (ensime-connection))
+	    (append
+	     (ensime-java-compiler-notes (ensime-connection))
+	     notes))))
 
-    (setf (ensime-compiler-notes (ensime-connection)) notes)
     (ensime-refresh-note-overlays)
 
     (when is-full
       (ensime-event-sig :full-typecheck-finished result))
-
     ))
+
+(defun ensime-clear-notes (lang files &optional all)
+  ;; TODO: should be able to clear only those things in files
+  (cond
+   ((equal lang 'scala)
+    (setf (ensime-scala-compiler-notes (ensime-connection)) nil))
+   ((equal lang 'java)
+    (setf (ensime-java-compiler-notes (ensime-connection)) nil)))
+  (ensime-refresh-note-overlays)
+  )
 
 
 (defun ensime-make-overlay-at (file line b e msg face)
@@ -1922,7 +1958,9 @@ any buffer visiting the given file."
 
 (defun ensime-refresh-note-overlays ()
   (let ((notes (if (ensime-connected-p)
-		   (ensime-compiler-notes (ensime-current-connection))
+		   (append
+		    (ensime-java-compiler-notes (ensime-current-connection))
+		    (ensime-scala-compiler-notes (ensime-current-connection)))
 		 )))
     (ensime-clear-note-overlays)
     (dolist (note notes)
@@ -2041,7 +2079,8 @@ any buffer visiting the given file."
 (defun ensime-goto-next-note (forward)
   "Helper to move point to next note. Go forward if forward is non-nil."
   (let* ((conn (ensime-current-connection))
-	 (notes (ensime-compiler-notes conn))
+	 (notes (append (ensime-java-compiler-notes conn)
+			(ensime-scala-compiler-notes conn)))
 	 (next-note (ensime-next-note-in-current-buffer notes forward)))
     (if next-note
 	(progn
@@ -2404,9 +2443,7 @@ any buffer visiting the given file."
   (dolist (con (ensime-connections-for-source-file buffer-file-name))
     (let ((ensime-dispatching-connection con))
       (ensime-rpc-async-typecheck-file
-       buffer-file-name
-       '(lambda (result)
-	  (ensime-handle-typecheck-result result))
+       buffer-file-name 'identity
        ))))
 
 (defun ensime-typecheck-all ()
@@ -2417,7 +2454,7 @@ any buffer visiting the given file."
   (if (buffer-modified-p) (ensime-write-buffer nil t))
   (ensime-rpc-async-typecheck-all
    '(lambda (result)
-      (ensime-handle-typecheck-result result)
+      (ensime-add-notes 'scala result)
       (let ((notes (plist-get result :notes)))
 	(if notes
 	    (ensime-show-compile-result-buffer
@@ -3016,7 +3053,7 @@ with the current project's dependencies loaded. Returns a property list."
 (defun ensime-inspect-java-type-at-point ()
   "Use the global index to search for type at point.
  Inspect the type selected by user."
-    (let* ((sym (ensime-sym-at-point))
+  (let* ((sym (ensime-sym-at-point))
 	 (name (plist-get sym :name))
 	 (name-start (plist-get sym :start))
 	 (name-end (plist-get sym :end))
@@ -3029,8 +3066,8 @@ with the current project's dependencies loaded. Returns a property list."
 				   (plist-get s :local-name)))
 		     (apply 'append suggestions)))
 	     (selected-name
-		(popup-menu*
-		 names :point (point))))
+	      (popup-menu*
+	       names :point (point))))
 	(when selected-name
 	  (ensime-inspect-by-path
 	   (ensime-kill-txt-props selected-name))
