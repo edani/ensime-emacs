@@ -225,6 +225,7 @@ Do not show 'Writing..' message."
       (define-key prefix-map (kbd "C-v o") 'ensime-inspect-project-package)
       (define-key prefix-map (kbd "C-v c") 'ensime-typecheck-current-file)
       (define-key prefix-map (kbd "C-v a") 'ensime-typecheck-all)
+      (define-key prefix-map (kbd "C-v e") 'ensime-show-all-errors-and-warnings)
       (define-key prefix-map (kbd "C-v r") 'ensime-show-uses-of-symbol-at-point)
       (define-key prefix-map (kbd "C-v s") 'ensime-sbt-switch)
       (define-key prefix-map (kbd "C-v z") 'ensime-inf-switch)
@@ -292,6 +293,7 @@ Do not show 'Writing..' message."
      ["Inspect project package" ensime-inspect-project-package]
      ["Typecheck file" ensime-typecheck-current-file]
      ["Typecheck project" ensime-typecheck-all]
+     ["Show all errors and warnings" ensime-show-all-errors-and-warnings]
      ["Undo source change" ensime-undo-peek])
 
     ("Refactor"
@@ -2372,13 +2374,13 @@ any buffer visiting the given file."
    (ensime-compile-result-buffer-name t t)
    (use-local-map ensime-compile-result-map)
    (ensime-insert-with-face
-    "Result of Compilation (q to quit, TAB to jump to next error)"
+    "Latest Compilation Results (q to quit, TAB to jump to next error)"
     'font-lock-constant-face)
    (ensime-insert-with-face
     "\n----------------------------------------\n\n"
     'font-lock-comment-face)
    (if (null notes-in)
-       (insert "Finished with 0 errors, 0 warnings.")
+       (insert "0 errors, 0 warnings.")
      (save-excursion
 
        ;; Group notes by their file and sort by
@@ -2452,15 +2454,15 @@ any buffer visiting the given file."
   (interactive)
   (message "Checking entire project...")
   (if (buffer-modified-p) (ensime-write-buffer nil t))
-  (ensime-rpc-async-typecheck-all
-   '(lambda (result)
-      (ensime-add-notes 'scala result)
-      (let ((notes (plist-get result :notes)))
-	(if notes
-	    (ensime-show-compile-result-buffer
-	     notes)
-	  (message "No issues found."))))
-   ))
+  (ensime-rpc-async-typecheck-all 'identity))
+
+(defun ensime-show-all-errors-and-warnings ()
+  "Show a summary of all compilation notes."
+  (interactive)
+  (let ((notes (append (ensime-java-compiler-notes (ensime-connection))
+		       (ensime-scala-compiler-notes (ensime-connection)))))
+    (ensime-show-compile-result-buffer
+     notes)))
 
 
 (defun ensime-sym-at-point ()
