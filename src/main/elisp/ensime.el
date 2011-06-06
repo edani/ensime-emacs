@@ -1809,14 +1809,20 @@ This idiom is preferred over `lexical-let'."
 			(ensime-event-sig :return-value value))
 		   (t
 		    (error "Unexpected reply: %S %S" id value)))))
+
+	  ((:full-typecheck-finished val)
+	   (ensime-event-sig :full-typecheck-finished val))
+
 	  ((:compiler-ready status)
 	   (message "ENSIME ready. %s" (ensime-random-words-of-encouragement))
 	   (ensime-event-sig :compiler-ready status))
+
 	  ((:indexer-ready status)
 	   (ensime-event-sig :indexer-ready status))
 
 	  ((:scala-notes result)
 	   (ensime-add-notes 'scala result))
+
 	  ((:java-notes result)
 	   (ensime-add-notes 'java result))
 
@@ -1910,6 +1916,10 @@ This idiom is preferred over `lexical-let'."
 (defvar ensime-note-overlays '()
   "The overlay structures created to highlight notes.")
 
+(defun ensime-all-notes ()
+  (append (ensime-scala-compiler-notes (ensime-connection))
+	  (ensime-java-compiler-notes (ensime-connection))))
+
 (defun ensime-add-notes (lang result)
   (let ((is-full (plist-get result :is-full))
 	(notes (plist-get result :notes)))
@@ -1919,6 +1929,7 @@ This idiom is preferred over `lexical-let'."
 	    (append
 	     (ensime-scala-compiler-notes (ensime-connection))
 	     notes)))
+
      ((equal lang 'java)
       (setf (ensime-java-compiler-notes (ensime-connection))
 	    (append
@@ -1926,9 +1937,6 @@ This idiom is preferred over `lexical-let'."
 	     notes))))
 
     (ensime-refresh-note-overlays)
-
-    (when is-full
-      (ensime-event-sig :full-typecheck-finished result))
     ))
 
 (defun ensime-clear-notes (lang files &optional all)
