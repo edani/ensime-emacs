@@ -748,7 +748,6 @@
       (ensime-test-eat-mark "1")
       (forward-char)
       (ensime-save-buffer-no-hooks)
-      (save-buffer)
       (ensime-refactor-rename "DudeFace")))
 
     ((:refactor-at-confirm-buffer val)
@@ -836,7 +835,7 @@
     ((:full-typecheck-finished val)
      (ensime-test-with-proj
       (proj src-files)
-      (let* ((notes (plist-get val :notes)))
+      (let* ((notes (ensime-all-notes)))
 	(ensime-assert-equal (length notes) 0))
       (ensime-test-cleanup proj)
       ))
@@ -870,7 +869,7 @@
     ((:full-typecheck-finished val)
      (ensime-test-with-proj
       (proj src-files)
-      (let* ((notes (plist-get val :notes)))
+      (let* ((notes (ensime-all-notes)))
 	(ensime-assert-equal (length notes) 0))
       (kill-buffer nil)
       (delete-file (car src-files))
@@ -878,7 +877,7 @@
       (ensime-rpc-async-typecheck-all #'identity)
       ))
 
-    ((:return-value val)
+    ((:full-typecheck-finished val)
      (ensime-test-with-proj
       (proj src-files)
       (let* ((notes (plist-get (cadr val) :notes)))
@@ -986,7 +985,7 @@
     ((:full-typecheck-finished val)
      (ensime-test-with-proj
       (proj src-files)
-      (let* ((notes (plist-get val :notes)))
+      (let* ((notes (ensime-all-notes)))
 	(ensime-assert-equal (length notes) 0)
 	(find-file (car src-files))
 	(goto-char (point-min))
@@ -1000,7 +999,7 @@
      (ensime-test-with-proj
       (proj src-files)
       (let ((proj (ensime-test-var-get :proj))
-	    (notes (plist-get val :notes)))
+	    (notes (ensime-all-notes)))
 	(ensime-assert (> (length notes) 0))
 	(ensime-test-cleanup proj)
 	)))
@@ -1186,7 +1185,7 @@
     ((:full-typecheck-finished val)
      (ensime-test-with-proj
       (proj src-files)
-      (let* ((notes (plist-get val :notes)))
+      (let* ((notes (ensime-all-notes)))
 	(ensime-assert-equal (length notes) 0))
       (ensime-test-cleanup proj t)
       ))
