@@ -792,7 +792,11 @@
      (ensime-test-with-proj
       (proj src-files)
       (ensime-test-eat-mark "1")
-      (ensime-save-buffer-no-hooks)
+      (save-buffer)))
+
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
       (ensime-show-uses-of-symbol-at-point)))
 
     ((:references-buffer-shown val)
@@ -880,7 +884,7 @@
     ((:full-typecheck-finished val)
      (ensime-test-with-proj
       (proj src-files)
-      (let* ((notes (plist-get (cadr val) :notes)))
+      (let* ((notes (ensime-all-notes)))
 	(ensime-assert (> (length notes) 0)))
       (ensime-test-cleanup proj)
       ))
