@@ -466,17 +466,20 @@ Do not show 'Writing..' message."
               "[ENSIME: "
               (or (plist-get (ensime-config conn) :project-name)
                   "Connected")
-              (when-let (status (ensime-modeline-state-string conn))
-                (concat " (" status ")"))
-              "]"))))
+	      (let ((status (ensime-modeline-state-string conn))
+		    (unready (not (ensime-analyzer-ready conn))))
+		(cond (status (concat " (" status ")"))
+		      (unready " (analyzing)")
+		      (t "")))
+	      "]"))))
 
 
 (defun ensime-modeline-state-string (conn)
   "Return a string possibly describing CONN's state."
   (cond ((not (eq (process-status conn) 'open))
          (format "%s" (process-status conn)))
-        ((let ((pending (length (ensime-rex-continuations conn))))
-           (cond ((zerop pending) nil)
+	((let ((pending (length (ensime-rex-continuations conn))))
+	   (cond ((zerop pending) nil)
                  (t (format "%s" pending)))))))
 
 ;; Startup
@@ -1374,6 +1377,9 @@ This is automatically synchronized from Lisp.")
 (ensime-def-connection-var ensime-machine-instance nil
   "The name of the (remote) machine running the Lisp process.")
 
+(ensime-def-connection-var ensime-analyzer-ready nil
+  "Whether the analyzer has finished its initial run.")
+
 (ensime-def-connection-var ensime-scala-compiler-notes nil
   "Warnings, Errors, and other notes produced by the analyzer.")
 
@@ -1815,6 +1821,7 @@ This idiom is preferred over `lexical-let'."
 
 	  ((:compiler-ready status)
 	   (message "ENSIME ready. %s" (ensime-random-words-of-encouragement))
+           (setf (ensime-analyzer-ready process) t)
 	   (ensime-event-sig :compiler-ready status))
 
 	  ((:indexer-ready status)
