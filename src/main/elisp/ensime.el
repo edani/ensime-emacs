@@ -354,7 +354,7 @@ Do not show 'Writing..' message."
           (setq tooltip-delay 1.0)
           (define-key ensime-mode-map [mouse-movement] 'ensime-mouse-motion))
 
-        (ensime-refresh-note-overlays))
+        (ensime-refresh-all-note-overlays))
     (progn
       (ensime-ac-disable)
       (remove-hook 'after-save-hook 'ensime-run-after-save-hooks t)
@@ -1833,16 +1833,11 @@ This idiom is preferred over `lexical-let'."
 	  ((:java-notes result)
 	   (ensime-add-notes 'java result))
 
-	  ((:clear-scala-notes result)
-	   (ensime-clear-notes 'scala result))
-	  ((:clear-java-notes result)
-	   (ensime-clear-notes 'java result))
-
 	  ((:clear-all-scala-notes result)
-	   (ensime-clear-notes 'scala result t))
-	  ((:clear-all-java-notes result)
-	   (ensime-clear-notes 'java result t))
+	   (ensime-clear-notes 'scala))
 
+	  ((:clear-all-java-notes result)
+	   (ensime-clear-notes 'java))
 
 	  ((:channel-send id msg)
 	   (ensime-channel-send (or (ensime-find-channel id)
@@ -1927,6 +1922,7 @@ This idiom is preferred over `lexical-let'."
   (append (ensime-scala-compiler-notes (ensime-connection))
 	  (ensime-java-compiler-notes (ensime-connection))))
 
+
 (defun ensime-add-notes (lang result)
   (let ((is-full (plist-get result :is-full))
 	(notes (plist-get result :notes)))
@@ -1943,18 +1939,17 @@ This idiom is preferred over `lexical-let'."
 	     (ensime-java-compiler-notes (ensime-connection))
 	     notes))))
 
-    (ensime-refresh-note-overlays)
+    (ensime-make-note-overlays notes)
     ))
 
-(defun ensime-clear-notes (lang files &optional all)
-  ;; TODO: should be able to clear only those things in files
+
+(defun ensime-clear-notes (lang)
   (cond
    ((equal lang 'scala)
     (setf (ensime-scala-compiler-notes (ensime-connection)) nil))
    ((equal lang 'java)
     (setf (ensime-java-compiler-notes (ensime-connection)) nil)))
-  (ensime-refresh-note-overlays)
-  )
+  (ensime-clear-note-overlays))
 
 
 (defun ensime-make-overlay-at (file line b e msg face)
@@ -1963,55 +1958,70 @@ any buffer visiting the given file."
   (let ((beg b)
 	(end e))
     (when-let (buf (find-buffer-visiting file))
-      (with-current-buffer buf
-	(when (integerp line)
+
+      ;; If line provided, use line to define region
+      (when (integerp line)
+	(with-current-buffer buf
 	  (save-excursion
 	    (goto-line line)
 	    (setq beg (point-at-bol))
-	    (setq end (point-at-eol))))
-	(ensime-make-overlay beg end msg face nil))
-      )))
+	    (setq end (point-at-eol)))))
+
+      ;; If DOS eol's, fix the positioning
+      (when (eq 1 (coding-system-eol-type
+		   (buffer-local-value
+		    'buffer-file-coding-system buf
+		    )))
+	(with-current-buffer buf
+	  (setq beg (- beg (- (line-number-at-pos beg) 1)))
+	  (setq end (- end (- (line-number-at-pos end) 1)))))
 
 
-(defun ensime-refresh-note-overlays ()
+      (ensime-make-overlay beg end msg face nil buf))
+    ))
+
+
+
+(defun ensime-make-note-overlays (notes)
+  (dolist (note notes)
+    (destructuring-bind
+	(&key severity msg beg end line col file &allow-other-keys) note
+
+      ;; No empty note overlays!
+      (when (eq beg end)
+	(setq beg (- beg 1)))
+
+      (cond
+       ((equal severity 'error)
+	(progn
+	  (when-let (ov (ensime-make-overlay-at
+			 file nil
+			 (+ beg ensime-ch-fix)
+			 (+ end ensime-ch-fix)
+			 msg 'ensime-errline-highlight))
+	    (push ov ensime-note-overlays))
+	  ))
+
+       (t (progn
+	    (when-let (ov (ensime-make-overlay-at
+			   file nil
+			   (+ beg ensime-ch-fix)
+			   (+ end ensime-ch-fix)
+			   msg 'ensime-warnline-highlight))
+	      (push ov ensime-note-overlays))
+	    ))
+       ))))
+
+
+(defun ensime-refresh-all-note-overlays ()
   (let ((notes (if (ensime-connected-p)
 		   (append
 		    (ensime-java-compiler-notes (ensime-current-connection))
 		    (ensime-scala-compiler-notes (ensime-current-connection)))
 		 )))
     (ensime-clear-note-overlays)
-    (dolist (note notes)
-      (destructuring-bind
-	  (&key severity msg beg end line col file &allow-other-keys) note
-	(cond
-	 ((equal severity 'error)
-	  (progn
-	    (when-let (ov (ensime-make-overlay-at
-			   file line nil nil msg
-			   'ensime-errline))
-	      (push ov ensime-note-overlays))
-	    (when-let (ov (ensime-make-overlay-at
-			   file nil
-			   (+ beg ensime-ch-fix)
-			   (+ end ensime-ch-fix)
-			   msg 'ensime-errline-highlight))
-	      (push ov ensime-note-overlays))
-	    ))
-
-	 (t (progn
-	      (when-let (ov (ensime-make-overlay-at
-			     file line nil nil msg
-			     'ensime-warnline))
-		(push ov ensime-note-overlays))
-	      (when-let (ov (ensime-make-overlay-at
-			     file nil
-			     (+ beg ensime-ch-fix)
-			     (+ end ensime-ch-fix)
-			     msg 'ensime-warnline-highlight))
-		(push ov ensime-note-overlays))
-	      ))
-
-	 )))))
+    (ensime-make-note-overlays notes)
+    ))
 
 
 (defface ensime-errline
@@ -2043,10 +2053,9 @@ any buffer visiting the given file."
   :group 'ensime-ui)
 
 
-
-(defun ensime-make-overlay (beg end tooltip-text face mouse-face)
+(defun ensime-make-overlay (beg end tooltip-text face &optional mouse-face buf)
   "Allocate a ensime overlay in range BEG and END."
-  (let ((ov (make-overlay beg end nil t t)))
+  (let ((ov (make-overlay beg end buf t t)))
     (overlay-put ov 'face           face)
     (overlay-put ov 'mouse-face     mouse-face)
     (overlay-put ov 'help-echo      tooltip-text)
