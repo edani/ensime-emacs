@@ -1389,6 +1389,8 @@ This is automatically synchronized from Lisp.")
 (ensime-def-connection-var ensime-builder-changed-files nil
   "Files that have changed since the last rebuild.")
 
+(ensime-def-connection-var ensime-awaiting-full-typecheck nil
+  "Should we show the errors and warnings report on next full-typecheck event?")
 
 (defvar ensime-dispatching-connection nil
   "Network process currently executing.
@@ -1817,6 +1819,11 @@ This idiom is preferred over `lexical-let'."
 		    (error "Unexpected reply: %S %S" id value)))))
 
 	  ((:full-typecheck-finished val)
+	   (when (ensime-awaiting-full-typecheck (ensime-connection))
+	     (message "Typecheck finished.")
+	     (setf (ensime-awaiting-full-typecheck
+		    (ensime-connection)) nil)
+	     (ensime-show-all-errors-and-warnings))
 	   (ensime-event-sig :full-typecheck-finished val))
 
 	  ((:compiler-ready status)
@@ -2478,6 +2485,7 @@ any buffer visiting the given file."
   (interactive)
   (message "Checking entire project...")
   (if (buffer-modified-p) (ensime-write-buffer nil t))
+  (setf (ensime-awaiting-full-typecheck (ensime-connection)) t)
   (ensime-rpc-async-typecheck-all 'identity))
 
 (defun ensime-show-all-errors-and-warnings ()
