@@ -161,11 +161,17 @@ argument is supplied) is a .scala or .java file."
     (when file
       (integerp (string-match "\\(?:\\.scala$\\|\\.java$\\)" file)))))
 
+(defun ensime-java-file-p (f)
+  (string-match "\\.java$" f))
+
+(defun ensime-scala-file-p (f)
+  (string-match "\\.scala$" f))
+
 (defun ensime-visiting-java-file-p ()
-  (string-match "\\.java$" buffer-file-name))
+  (ensime-java-file-p buffer-file-name))
 
 (defun ensime-visiting-scala-file-p ()
-  (string-match "\\.scala$" buffer-file-name))
+  (ensime-scala-file-p buffer-file-name))
 
 (defun ensime-scala-mode-hook ()
   "Conveniance hook function that just starts ensime-mode."
@@ -1455,9 +1461,10 @@ overrides `ensime-buffer-connection'.")
     (catch 'return
       (dolist (p ensime-net-processes)
 	(let* ((config (ensime-config p))
-	       (dir (plist-get config :root-dir)))
-	  (when (ensime-file-in-directory-p file dir)
-	    (throw 'return p)))))
+	       (source-roots (plist-get config :source-roots)))
+	  (dolist (dir source-roots)
+	    (when (ensime-file-in-directory-p file dir)
+	      (throw 'return p))))))
     ))
 
 
@@ -1956,7 +1963,7 @@ This idiom is preferred over `lexical-let'."
     (setf (ensime-scala-compiler-notes (ensime-connection)) nil))
    ((equal lang 'java)
     (setf (ensime-java-compiler-notes (ensime-connection)) nil)))
-  (ensime-clear-note-overlays))
+  (ensime-clear-note-overlays lang))
 
 
 (defun ensime-make-overlay-at (file line b e msg face)
@@ -1998,26 +2005,27 @@ any buffer visiting the given file."
       (when (eq beg end)
 	(setq beg (- beg 1)))
 
-      (cond
-       ((equal severity 'error)
-	(progn
-	  (when-let (ov (ensime-make-overlay-at
-			 file nil
-			 (+ beg ensime-ch-fix)
-			 (+ end ensime-ch-fix)
-			 msg 'ensime-errline-highlight))
-	    (push ov ensime-note-overlays))
-	  ))
+      (let ((lang
+	     (cond
+	      ((ensime-java-file-p file) 'java)
+	      ((ensime-scala-file-p file) 'scala)
+	      (t 'scala)))
+	    (face
+	     (cond
+	      ((equal severity 'error)
+	       'ensime-errline-highlight)
+	      (t
+	       'ensime-warnline-highlight))))
 
-       (t (progn
-	    (when-let (ov (ensime-make-overlay-at
-			   file nil
-			   (+ beg ensime-ch-fix)
-			   (+ end ensime-ch-fix)
-			   msg 'ensime-warnline-highlight))
-	      (push ov ensime-note-overlays))
-	    ))
-       ))))
+	(when-let (ov (ensime-make-overlay-at
+		       file nil
+		       (+ beg ensime-ch-fix)
+		       (+ end ensime-ch-fix)
+		       msg face))
+	  (overlay-put ov 'lang lang)
+	  (push ov ensime-note-overlays))
+
+	))))
 
 
 (defun ensime-refresh-all-note-overlays ()
@@ -2079,10 +2087,16 @@ any buffer visiting the given file."
      ovs)
     ))
 
-(defun ensime-clear-note-overlays ()
-  "Delete the existing note overlays."
-  (mapc #'delete-overlay ensime-note-overlays)
-  (setq ensime-note-overlays '()))
+(defun ensime-clear-note-overlays (&optional lang)
+  "Delete note overlays language. If lang is nil, delete all
+ overlays."
+  (let ((revised '()))
+    (dolist (ov ensime-note-overlays)
+      (if (or (null lang)
+	      (equal lang (overlay-get ov 'lang)))
+	    (delete-overlay ov)
+	(setq revised (cons ov revised))))
+    (setq ensime-note-overlays revised)))
 
 (defun ensime-next-note-in-current-buffer (notes forward)
   (let ((best-note nil)
