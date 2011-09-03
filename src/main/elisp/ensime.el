@@ -2094,7 +2094,7 @@ any buffer visiting the given file."
     (dolist (ov ensime-note-overlays)
       (if (or (null lang)
 	      (equal lang (overlay-get ov 'lang)))
-	    (delete-overlay ov)
+	  (delete-overlay ov)
 	(setq revised (cons ov revised))))
     (setq ensime-note-overlays revised)))
 
@@ -3839,7 +3839,6 @@ The buffer also uses the minor-mode `ensime-popup-buffer-mode'."
   (interactive (list (ensime-connection-at-point)))
   (let ((ensime-dispatching-connection connection)
 	(end (time-add (current-time) (seconds-to-time 3))))
-    (ensime-quit-lisp t)
     (while (memq connection ensime-net-processes)
       (when (time-less-p end (current-time))
 	(message "Quit timeout expired.  Disconnecting.")
