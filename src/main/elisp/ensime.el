@@ -154,7 +154,7 @@
   :prefix "ensime-"
   :group 'ensime)
 
-(defun ensime-is-source-file-p (&optional filename)
+(defun ensime-source-file-p (&optional filename)
   "Return t if the given filename (or the currently visited file if no
 argument is supplied) is a .scala or .java file."
   (let ((file (or filename buffer-file-name)))
@@ -463,30 +463,41 @@ Do not show 'Writing..' message."
   \"ENSIME\" only appears if we aren't connected.  If connected, include
   connection-name, and possibly some state
   information."
-  (let ((conn (ensime-current-connection)))
-    ;; Bail out early in case there's no connection, so we won't
-    ;; implicitly invoke `ensime-connection' which may query the user.
-    (if (and ensime-mode (not conn))
-        " [ENSIME: No Connection]"
-      (concat " "
-              "[ENSIME: "
-              (or (plist-get (ensime-config conn) :project-name)
-                  "Connected")
-	      (let ((status (ensime-modeline-state-string conn))
-		    (unready (not (ensime-analyzer-ready conn))))
-		(cond (status (concat " (" status ")"))
-		      (unready " (analyzing)")
-		      (t "")))
-	      "]"))))
+  (condition-case err
+      (let ((conn (ensime-current-connection)))
+	;; Bail out early in case there's no connection, so we won't
+	;; implicitly invoke `ensime-connection' which may query the user.
+	(cond ((and ensime-mode (not conn))
+	       " [ENSIME: No Connection]")
+
+	      ((and ensime-mode (ensime-connected-p conn))
+	       (concat " "
+		       "[ENSIME: "
+		       (or (plist-get (ensime-config conn) :project-name)
+			   "Connected")
+		       (let ((status (ensime-modeline-state-string conn))
+			     (unready (not (ensime-analyzer-ready conn))))
+			 (cond (status (concat " (" status ")"))
+			       (unready " (analyzing...)")
+			       (t "")))
+		       "]"))
+	      (ensime-mode " [ENSIME: Dead Connection]")
+	      ))
+    (error (progn
+	     (message "Error in modeline update: %s" err)
+	     ""
+	     ))))
+
+
 
 
 (defun ensime-modeline-state-string (conn)
   "Return a string possibly describing CONN's state."
   (cond ((not (eq (process-status conn) 'open))
-         (format "%s" (process-status conn)))
+	 (format "%s" (process-status conn)))
 	((let ((pending (length (ensime-rex-continuations conn))))
 	   (cond ((zerop pending) nil)
-                 (t (format "%s" pending)))))))
+		 (t (format "%s" pending)))))))
 
 ;; Startup
 
@@ -494,7 +505,7 @@ Do not show 'Writing..' message."
   "Read config file for settings. Then start an inferior
    ENSIME server and connect to its Swank server."
   (interactive)
-  (when (and (ensime-is-source-file-p) (not ensime-mode))
+  (when (and (ensime-source-file-p) (not ensime-mode))
     (ensime-mode 1))
   (let* ((config (ensime-config-find-and-load)))
 
@@ -519,9 +530,9 @@ Analyzer will be restarted. All source will be recompiled."
   (interactive)
   (ensime-assert-connected
    (let* ((conn (ensime-current-connection))
-          (current-conf (ensime-config conn))
-          (config (ensime-config-find-and-load
-                   (plist-get current-conf :root-dir))))
+	  (current-conf (ensime-config conn))
+	  (config (ensime-config-find-and-load
+		   (plist-get current-conf :root-dir))))
 
      (when (not (null config))
        (ensime-set-config conn config)
@@ -530,22 +541,22 @@ Analyzer will be restarted. All source will be recompiled."
 (defun ensime-maybe-start-server (program program-args env directory buffer)
   "Return a new or existing inferior server process."
   (cond ((not (comint-check-proc buffer))
-         (ensime-start-server program program-args env directory buffer))
-        ((ensime-reinitialize-inferior-server-p program program-args env buffer)
-         (when-let (conn (find (get-buffer-process buffer) ensime-net-processes
-                               :key #'ensime-server-process))
-           (ensime-net-close conn))
-         (get-buffer-process buffer))
-        (t (ensime-start-server program program-args env directory
-                                (generate-new-buffer-name buffer)))))
+	 (ensime-start-server program program-args env directory buffer))
+	((ensime-reinitialize-inferior-server-p program program-args env buffer)
+	 (when-let (conn (find (get-buffer-process buffer) ensime-net-processes
+			       :key #'ensime-server-process))
+	   (ensime-net-close conn))
+	 (get-buffer-process buffer))
+	(t (ensime-start-server program program-args env directory
+				(generate-new-buffer-name buffer)))))
 
 
 (defun ensime-reinitialize-inferior-server-p (program program-args env buffer)
   (let ((args (ensime-inferior-server-args (get-buffer-process buffer))))
     (and (equal (plist-get args :program) program)
-         (equal (plist-get args :program-args) program-args)
-         (equal (plist-get args :env) env)
-         (not (y-or-n-p "Create an additional *inferior-server*? ")))))
+	 (equal (plist-get args :program-args) program-args)
+	 (equal (plist-get args :env) env)
+	 (not (y-or-n-p "Create an additional *inferior-server*? ")))))
 
 
 (defvar ensime-server-process-start-hook nil
@@ -559,11 +570,11 @@ Analyzer will be restarted. All source will be recompiled."
       (cd (expand-file-name directory)))
     (comint-mode)
     (let ((process-environment (append env process-environment))
-          (process-connection-type nil))
+	  (process-connection-type nil))
       (set (make-local-variable 'comint-process-echoes) nil)
       (set (make-local-variable 'comint-use-prompt-regexp) nil)
       (comint-exec (current-buffer) ensime-server-buffer-name
-                   program nil program-args))
+		   program nil program-args))
     (let ((proc (get-buffer-process (current-buffer))))
       (ensime-set-query-on-exit-flag proc)
       (run-hooks 'ensime-server-process-start-hook)
@@ -595,18 +606,18 @@ See `ensime-start'.")
   "Determine if file named by file-name is contained in the
    directory named by dir-name."
   (let* ((dir (file-name-as-directory (expand-file-name dir-name)))
-         (file (expand-file-name file-name))
-         (d file))
+	 (file (expand-file-name file-name))
+	 (d file))
     (catch 'return
       (while d
-        (let ((d-original d))
-          (setq d (file-name-directory
-                   (directory-file-name d)))
-          (when (equal dir d)
-            (throw 'return t))
-          (when (equal d d-original)
-            (throw 'return nil))
-          )))))
+	(let ((d-original d))
+	  (setq d (file-name-directory
+		   (directory-file-name d)))
+	  (when (equal dir d)
+	    (throw 'return t))
+	  (when (equal d d-original)
+	    (throw 'return nil))
+	  )))))
 
 (defun ensime-configured-project-root ()
   "Return root path of the current project as defined in the
@@ -628,11 +639,11 @@ If not, message the user."
   "Surround body forms with a check to see if we're connected.
 If not, message the user."
   `(let* ((,conn-sym (or (ensime-current-connection)
-                         (ensime-prompt-for-connection))))
+			 (ensime-prompt-for-connection))))
      (if conn
-         (progn ,@body)
+	 (progn ,@body)
        (message
-        "This command requires a connection to an ENSIME server."))))
+	"This command requires a connection to an ENSIME server."))))
 
 (defun ensime-swank-port-file ()
   "Filename where the SWANK server writes its TCP port number."
@@ -645,19 +656,19 @@ If not, message the user."
       (insert-file-contents (ensime-swank-port-file))
       (goto-char (point-min))
       (let ((port (read (current-buffer))))
-        (assert (integerp port))
-        port))))
+	(assert (integerp port))
+	port))))
 
 (defun ensime-temp-file-name (name)
   "Return the path of a temp file with filename 'name'."
   (concat (file-name-as-directory (ensime-temp-directory))
-          name))
+	  name))
 
 (defun ensime-temp-directory ()
   "Return the directory name of the system's temporary file dump."
   (cond ((fboundp 'temp-directory) (temp-directory))
-        ((boundp 'temporary-file-directory) temporary-file-directory)
-        (t "/tmp/")))
+	((boundp 'temporary-file-directory) temporary-file-directory)
+	(t "/tmp/")))
 
 (defmacro* ensime-with-buffer-written-to-tmp ((file-sym) &rest body)
   "Write latest buffer state to a temp file, bind the temp filename
@@ -705,6 +716,23 @@ If not, message the user."
 	     (message "Read port %S from %S." port port-file)
 	     (ensime-delete-swank-port-file 'message)
 	     (let ((c (ensime-connect host port)))
+
+	       ;; It may take a few secs to get the
+	       ;; source roots back from the server,
+	       ;; so we won't know immediately if currently
+	       ;; visited source is part of the new
+	       ;; project.
+	       ;;
+	       ;; Make an educated guess for the sake
+	       ;; of UI snappiness (fast mode-line
+	       ;; update).
+	       (when (and (ensime-source-file-p)
+			  (plist-get config :root-dir)
+			  (ensime-file-in-directory-p
+			   buffer-file-name
+			   (plist-get config :root-dir))
+			  (not (ensime-connected-p)))
+		 (setq ensime-buffer-connection c))
 
 	       (ensime-set-config c config)
 
@@ -1428,10 +1456,10 @@ overrides `ensime-buffer-connection'.")
       ensime-buffer-connection
       (ensime-owning-connection-for-source-file buffer-file-name)))
 
-(defun ensime-connected-p ()
+(defun ensime-connected-p (&optional conn)
   "Return t if ensime-current-connection would return non-nil.
  Return nil otherwise."
-  (let ((conn (ensime-current-connection)))
+  (let ((conn (or conn (ensime-current-connection))))
     (and conn
 	 (buffer-live-p (process-buffer conn)))))
 
@@ -1846,7 +1874,7 @@ This idiom is preferred over `lexical-let'."
 
 	  ((:compiler-ready status)
 	   (message "ENSIME ready. %s" (ensime-random-words-of-encouragement))
-           (setf (ensime-analyzer-ready process) t)
+	   (setf (ensime-analyzer-ready process) t)
 	   (ensime-event-sig :compiler-ready status))
 
 	  ((:indexer-ready status)
@@ -3862,7 +3890,7 @@ The buffer also uses the minor-mode `ensime-popup-buffer-mode'."
 	(message "Quit timeout expired.  Disconnecting.")
 	(delete-process connection))
       (sit-for 0 100))
-    (force-mode-line-update)))
+    ))
 
 (defun ensime-restart-connection-at-point (connection)
   (interactive (list (ensime-connection-at-point)))

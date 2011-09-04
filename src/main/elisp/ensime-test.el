@@ -489,9 +489,9 @@
 
    (ensime-test
     "Test is source file predicate..."
-    (ensime-assert (ensime-is-source-file-p "dude.scala"))
-    (ensime-assert (ensime-is-source-file-p "dude.java"))
-    (ensime-assert (not (ensime-is-source-file-p "dude.javap"))))
+    (ensime-assert (ensime-source-file-p "dude.scala"))
+    (ensime-assert (ensime-source-file-p "dude.java"))
+    (ensime-assert (not (ensime-source-file-p "dude.javap"))))
 
    (ensime-test
     "Test relativization of paths..."
