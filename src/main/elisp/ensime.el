@@ -334,6 +334,7 @@ Do not show 'Writing..' message."
     "---"
     ["Go to SBT console" ensime-sbt-switch]
     ["Go to Scala REPL" ensime-inf-switch]
+    ["Shutdown ENSIME server" ensime-shutdown]
     ))
 
 (define-minor-mode ensime-mode
@@ -370,8 +371,7 @@ Do not show 'Writing..' message."
                    'ensime-builder-track-changed-files)
       (remove-hook 'tooltip-functions 'ensime-tooltip-handler)
       (make-local-variable 'track-mouse)
-      (setq track-mouse nil)
-      )))
+      (setq track-mouse nil))))
 
 ;;;;;; Mouse handlers
 
@@ -509,7 +509,8 @@ Do not show 'Writing..' message."
 
 	(ensime-delete-swank-port-file 'quiet)
 	(let ((server-proc (ensime-maybe-start-server cmd args env dir buffer)))
-	  (ensime-inferior-connect config server-proc))))))
+	  (ensime-inferior-connect config server-proc)))
+      )))
 
 
 (defun ensime-reload ()
@@ -567,6 +568,13 @@ Analyzer will be restarted. All source will be recompiled."
       (ensime-set-query-on-exit-flag proc)
       (run-hooks 'ensime-server-process-start-hook)
       proc)))
+
+
+(defun ensime-shutdown()
+  "Request that the current ENSIME server kill itself."
+  (interactive)
+  (ensime-quit-connection (ensime-current-connection)))
+
 
 (defvar ensime-inferior-server-args nil
   "A buffer local variable in the inferior proccess.
@@ -1459,13 +1467,16 @@ overrides `ensime-buffer-connection'.")
  that owns the given file. "
   (when file
     (catch 'return
+
+      ;; First check individual source-roots
       (dolist (p ensime-net-processes)
 	(let* ((config (ensime-config p))
 	       (source-roots (plist-get config :source-roots)))
 	  (dolist (dir source-roots)
 	    (when (ensime-file-in-directory-p file dir)
-	      (throw 'return p))))))
-    ))
+	      (throw 'return p)))))
+
+      )))
 
 
 (defun ensime-prompt-for-connection ()
@@ -3840,15 +3851,18 @@ The buffer also uses the minor-mode `ensime-popup-buffer-mode'."
 
 (defun ensime-quit-connection-at-point (connection)
   (interactive (list (ensime-connection-at-point)))
-  (let ((ensime-dispatching-connection connection)
-	(end (time-add (current-time) (seconds-to-time 3))))
-    (ensime-rpc-shutdown-server)
+  (ensime-quit-connection connection)
+  (ensime-update-connection-list))
+
+(defun ensime-quit-connection (connection)
+  (ensime-rpc-shutdown-server)
+  (let ((end (time-add (current-time) (seconds-to-time 3))))
     (while (memq connection ensime-net-processes)
       (when (time-less-p end (current-time))
 	(message "Quit timeout expired.  Disconnecting.")
 	(delete-process connection))
-      (sit-for 0 100)))
-  (ensime-update-connection-list))
+      (sit-for 0 100))
+    (force-mode-line-update)))
 
 (defun ensime-restart-connection-at-point (connection)
   (interactive (list (ensime-connection-at-point)))
