@@ -42,10 +42,8 @@
   "/home/aemon/src/misc/ensime"
   "The local development root.")
 
-(defvar ensime-test-env-classpath
-  (list (concat ensime-test-dev-home
-		"/project/boot/scala-2.8.1/lib/scala-library.jar"))
-  "Hard-code a classpath for testing purposes. Not great.")
+(defvar ensime-test-env-classpath '()
+  "Extra jars to include on testing classpath")
 
 (put 'ensime-test-assert-failed
      'error-conditions '(error ensime-test-assert-failed))
