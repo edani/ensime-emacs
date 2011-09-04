@@ -2856,6 +2856,9 @@ with the current project's dependencies loaded. Returns a property list."
 (defun ensime-rpc-refactor-cancel (proc-id)
   (ensime-eval-async `(swank:cancel-refactor ,proc-id) #'identity))
 
+(defun ensime-rpc-shutdown-server ()
+  (ensime-eval `(swank:shutdown-server)))
+
 
 
 ;; Uses UI
@@ -3839,6 +3842,7 @@ The buffer also uses the minor-mode `ensime-popup-buffer-mode'."
   (interactive (list (ensime-connection-at-point)))
   (let ((ensime-dispatching-connection connection)
 	(end (time-add (current-time) (seconds-to-time 3))))
+    (ensime-rpc-shutdown-server)
     (while (memq connection ensime-net-processes)
       (when (time-less-p end (current-time))
 	(message "Quit timeout expired.  Disconnecting.")
