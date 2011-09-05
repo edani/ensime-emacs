@@ -2898,7 +2898,9 @@ with the current project's dependencies loaded. Returns a property list."
 (defun ensime-rpc-shutdown-server ()
   (ensime-eval `(swank:shutdown-server)))
 
-
+(defun ensime-rpc-symbol-designations (file start end)
+  (ensime-eval-async `(swank:symbol-designations ,file ,start ,end)
+		     #'(lambda (info) (message "%S" info))))
 
 ;; Uses UI
 
