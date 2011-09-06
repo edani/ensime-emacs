@@ -354,6 +354,8 @@ Do not show 'Writing..' message."
                   'ensime-typecheck-current-file)
         (add-hook 'ensime-source-buffer-saved-hook
                   'ensime-builder-track-changed-files)
+        (add-hook 'ensime-source-buffer-saved-hook
+                  'ensime-sem-high-refresh-buffer t)
         (when ensime-tooltip-hints
           (add-hook 'tooltip-functions 'ensime-tooltip-handler)
           (make-local-variable 'track-mouse)
