@@ -23,12 +23,13 @@
 
 (defvar ensime-sem-high-faces
   (list
-   'method	font-lock-function-name-face
    'typeParam	font-lock-type-face
    'constructor	font-lock-type-face
-   'var		font-lock-constant-face
+   'var		font-lock-function-name-face
    'val		font-lock-variable-name-face
-   'selector	font-lock-function-name-face
+   'varField	font-lock-function-name-face
+   'valField    font-lock-variable-name-face
+   'selector	font-lock-preprocessor-face
    'param	font-lock-variable-name-face
    )
   "Symbol-to-face mapping list to use when applying
