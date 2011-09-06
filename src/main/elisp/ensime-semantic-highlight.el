@@ -48,7 +48,8 @@
 		 (face (plist-get ensime-sem-high-faces type)))
 	    (let ((ov (make-overlay start end buf)))
 	      (overlay-put ov 'face face)
-	      (overlay-put ov 'ensime-sem-high-overlay t))
+	      (overlay-put ov 'ensime-sem-high-overlay t)
+	      (overlay-put ov 'ensime-sym-type type))
 	    ))
 	))))
 
