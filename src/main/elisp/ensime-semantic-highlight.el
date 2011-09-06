@@ -24,10 +24,12 @@
 (defvar ensime-sem-high-faces
   (list
    'method	font-lock-function-name-face
-   'typeParam	font-lock-keyword-face
+   'typeParam	font-lock-type-face
+   'constructor	font-lock-type-face
    'var		font-lock-constant-face
    'val		font-lock-variable-name-face
    'selector	font-lock-function-name-face
+   'param	font-lock-variable-name-face
    )
   "Symbol-to-face mapping list to use when applying
   applying semantic highlighting.")
@@ -44,7 +46,7 @@
 		 (start (+ ensime-ch-fix (nth 1 sym)))
 		 (end (+ ensime-ch-fix (nth 2 sym)))
 		 (face (plist-get ensime-sem-high-faces type)))
-	    (let ((ov (make-overlay start end buf t t)))
+	    (let ((ov (make-overlay start end buf)))
 	      (overlay-put ov 'face face)
 	      (overlay-put ov 'ensime-sem-high-overlay t))
 	    ))
