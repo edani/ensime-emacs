@@ -258,7 +258,7 @@
    (file-exists-p (concat root "/build/ivy.xml"))))
 
 (defun ensime-config-is-sbt-test (root)
-  (or (file-exists-p (concat root "/build.sbt" ))
+  (or (not (null (directory-files root nil "\\.sbt$")))
       (file-exists-p (concat root "/project/boot" ))
       (file-exists-p (concat root "/project/build.properties" ))))
 
