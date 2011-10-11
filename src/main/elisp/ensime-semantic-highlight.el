@@ -25,11 +25,16 @@
   (list
    'typeParam	font-lock-type-face
    'constructor	font-lock-type-face
+   'class	font-lock-type-face
+   'trait	font-lock-type-face
+   'object	font-lock-type-face
+   'caseApplyOrUnapply	font-lock-type-face
+   'package	font-lock-preprocessor-face
    'var		font-lock-function-name-face
    'val		font-lock-variable-name-face
    'varField	font-lock-function-name-face
    'valField    font-lock-variable-name-face
-   'selector	font-lock-preprocessor-face
+   'method	font-lock-preprocessor-face
    'param	font-lock-variable-name-face
    )
   "Symbol-to-face mapping list to use when applying
@@ -74,6 +79,17 @@
    `(lambda (info)
       (ensime-sem-high-clear-region ,beg ,end)
       (ensime-sem-high-apply-properties info))))
+
+(defun ensime-sem-high-inspect-highlight ()
+  (interactive)
+  (let ((ovs (overlays-at (point))))
+    (message "%S" (mapcar 
+		   (lambda (ov)
+		     (format "%S %S %S" 
+			     (overlay-get ov 'face)
+			     (overlay-get ov 'ensime-sem-high-overlay)
+			     (overlay-get ov 'ensime-sym-type)))
+		   ovs))))
 
 
 (provide 'ensime-semantic-highlight)
