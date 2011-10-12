@@ -36,6 +36,7 @@
    'valField    font-lock-variable-name-face
    'method	font-lock-preprocessor-face
    'param	font-lock-variable-name-face
+   'importedName font-lock-type-face
    )
   "Symbol-to-face mapping list to use when applying
   applying semantic highlighting.")
