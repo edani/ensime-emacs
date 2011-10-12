@@ -21,25 +21,16 @@
 
 
 
-(defvar ensime-sem-high-faces
-  (list
-   'typeParam	font-lock-type-face
-   'constructor	font-lock-type-face
-   'class	font-lock-type-face
-   'trait	font-lock-type-face
-   'object	font-lock-type-face
-   'caseApplyOrUnapply	font-lock-type-face
-   'package	font-lock-preprocessor-face
-   'var		font-lock-function-name-face
-   'val		font-lock-variable-name-face
-   'varField	font-lock-function-name-face
-   'valField    font-lock-variable-name-face
-   'method	font-lock-preprocessor-face
-   'param	font-lock-variable-name-face
-   'importedName font-lock-type-face
+(defvar ensime-sem-high-colors
+  '(
+   (var . "#ff2222")
+   (val . "#eeeeee")
+   (varField . "#ff3333")
+   (valField . "#ffffff")
+   (method . "#84BEE3")
    )
-  "Symbol-to-face mapping list to use when applying
-  applying semantic highlighting.")
+  "Colors for semantic highlighting. Symbol types not mentioned here
+ will not be requested from server.")
 
 (defun ensime-sem-high-apply-properties (info)
   "Use provided info to modify font-lock properties of identifiers
@@ -52,7 +43,8 @@
 	  (let* ((type (nth 0 sym))
 		 (start (+ ensime-ch-fix (nth 1 sym)))
 		 (end (+ ensime-ch-fix (nth 2 sym)))
-		 (face (plist-get ensime-sem-high-faces type)))
+		 (color (cdr (assoc type ensime-sem-high-colors)))
+		 (face `(:foreground ,color)))
 	    (let ((ov (make-overlay start end buf)))
 	      (overlay-put ov 'face face)
 	      (overlay-put ov 'ensime-sem-high-overlay t)
@@ -69,14 +61,16 @@
       (when (overlay-get ov 'ensime-sem-high-overlay)
 	(delete-overlay ov)))))
 
-(defun ensime-sem-high-refresh-buffer ()
+(defun ensime-sem-high-refresh-buffer (&optional buffer)
   "Refresh semantic highlighting for the entire buffer."
-  (ensime-sem-high-refresh-region 0 (point-max)))
+  (with-current-buffer (or buffer (current-buffer))
+    (ensime-sem-high-refresh-region 0 (point-max))))
 
 (defun ensime-sem-high-refresh-region (beg end)
   "Refresh semantic highlighting for the given region."
   (ensime-rpc-symbol-designations
    buffer-file-name beg end
+   (mapcar 'car ensime-sem-high-colors)
    `(lambda (info)
       (ensime-sem-high-clear-region ,beg ,end)
       (ensime-sem-high-apply-properties info))))

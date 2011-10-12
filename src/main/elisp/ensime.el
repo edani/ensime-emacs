@@ -181,6 +181,9 @@ argument is supplied) is a .scala or .java file."
 (defvar ensime-source-buffer-saved-hook nil
   "Hook called whenever an ensime source buffer is saved.")
 
+(defvar ensime-source-buffer-loaded-hook nil
+  "Hook called whenever an ensime source buffer is loaded.")
+
 (defun ensime-run-after-save-hooks ()
   "Things to run whenever a source buffer is saved."
   (condition-case err-info
@@ -188,6 +191,16 @@ argument is supplied) is a .scala or .java file."
     (error
      (message
       "Error running ensime-source-buffer-saved-hook: %s"
+      err-info))))
+
+(defun ensime-run-find-file-hooks ()
+  "Things to run whenever a source buffer is opened."
+  (condition-case err-info
+      (when (ensime-source-file-p (buffer-file-name))
+	(run-hooks 'ensime-source-buffer-loaded-hook))
+    (error
+     (message
+      "Error running ensime-source-buffer-loaded-hook: %s"
       err-info))))
 
 (defun ensime-save-buffer-no-hooks ()
@@ -350,11 +363,14 @@ Do not show 'Writing..' message."
         (ensime-ac-enable)
         (easy-menu-add ensime-mode-menu ensime-mode-map)
         (add-hook 'after-save-hook 'ensime-run-after-save-hooks nil t)
+	(add-hook 'find-file-hook 'ensime-run-find-file-hooks nil t)
         (add-hook 'ensime-source-buffer-saved-hook
                   'ensime-typecheck-current-file)
         (add-hook 'ensime-source-buffer-saved-hook
                   'ensime-builder-track-changed-files)
         (add-hook 'ensime-source-buffer-saved-hook
+                  'ensime-sem-high-refresh-buffer t)
+        (add-hook 'ensime-source-buffer-loaded-hook
                   'ensime-sem-high-refresh-buffer t)
         (when ensime-tooltip-hints
           (add-hook 'tooltip-functions 'ensime-tooltip-handler)
@@ -368,10 +384,13 @@ Do not show 'Writing..' message."
     (progn
       (ensime-ac-disable)
       (remove-hook 'after-save-hook 'ensime-run-after-save-hooks t)
+      (remove-hook 'find-file-hook 'ensime-run-find-file-hooks t)
       (remove-hook 'ensime-source-buffer-saved-hook
                    'ensime-typecheck-current-file)
       (remove-hook 'ensime-source-buffer-saved-hook
                    'ensime-builder-track-changed-files)
+      (remove-hook 'ensime-source-buffer-loaded-hook
+                   'ensime-sem-high-refresh-buffer)
       (remove-hook 'tooltip-functions 'ensime-tooltip-handler)
       (make-local-variable 'track-mouse)
       (setq track-mouse nil))))
@@ -1479,6 +1498,28 @@ overrides `ensime-buffer-connection'.")
 	  (t conn))))
 
 
+(defun ensime-connection-visiting-buffers (conn)
+  "Return a list of all buffers associated with the given 
+ connection."
+  (let ((result '()))
+    (dolist (buf (buffer-list))
+      (let ((f (buffer-file-name buf)))
+	(when (and f (ensime-file-belongs-to-connection-p
+		      f conn))
+	  (setq result (cons buf result)))))
+    result))
+
+
+(defun ensime-file-belongs-to-connection-p (file conn)
+  "Does the given file belong to the given connection(project)?"
+  (let* ((config (ensime-config conn))
+	 (source-roots (plist-get config :source-roots)))
+    (catch 'return
+      (dolist (dir source-roots)
+	(when (ensime-file-in-directory-p file dir)
+	  (throw 'return t))))))
+
+
 (defun ensime-connections-for-source-file (file)
   "Return the connections corresponding to projects that contain
    the given file in their source trees."
@@ -1876,8 +1917,7 @@ This idiom is preferred over `lexical-let'."
 	   (ensime-event-sig :full-typecheck-finished val))
 
 	  ((:compiler-ready status)
-	   (message "ENSIME ready. %s" (ensime-random-words-of-encouragement))
-	   (setf (ensime-analyzer-ready process) t)
+	   (ensime-handle-compiler-ready status)
 	   (ensime-event-sig :compiler-ready status))
 
 	  ((:indexer-ready status)
@@ -1935,6 +1975,16 @@ This idiom is preferred over `lexical-let'."
   (ensime-net-send sexp (ensime-connection)))
 
 
+(defun ensime-handle-compiler-ready (status)
+  "Do any work that should be done the first time the analyzer becomes
+ ready for requests."
+  (let ((conn (ensime-current-connection)))
+    (message "ENSIME ready. %s" (ensime-random-words-of-encouragement))
+    (setf (ensime-analyzer-ready conn) t)
+    (let ((bufs (ensime-connection-visiting-buffers conn)))
+      (dolist (buf bufs)
+	(ensime-sem-high-refresh-buffer buf)))
+    ))
 
 ;;; Words of encouragement
 
@@ -2902,8 +2952,8 @@ with the current project's dependencies loaded. Returns a property list."
 (defun ensime-rpc-shutdown-server ()
   (ensime-eval `(swank:shutdown-server)))
 
-(defun ensime-rpc-symbol-designations (file start end continue)
-  (ensime-eval-async `(swank:symbol-designations ,file ,start ,end)
+(defun ensime-rpc-symbol-designations (file start end requested-types continue)
+  (ensime-eval-async `(swank:symbol-designations ,file ,start ,end ,requested-types)
 		     continue))
 
 
