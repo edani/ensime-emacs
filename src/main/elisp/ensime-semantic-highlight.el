@@ -20,16 +20,23 @@
 ;;     MA 02111-1307, USA.
 
 
-
-(defvar ensime-sem-high-colors
+(defvar ensime-sem-high-faces
   '(
-   (var . "#ff2222")
-   (val . "#eeeeee")
-   (varField . "#ff3333")
-   (valField . "#ffffff")
-   (method . "#84BEE3")
+   (var . (:foreground "#ff2222"))
+   (val . (:foreground "#dddddd"))
+   (varField . (:foreground "#ff3333"))
+   (valField . (:foreground "#dddddd"))
+   (method . (:foreground "#84BEE3"))
+   (methodWithParams . (:foreground "#84BEE3"))
+;;   (methodWithParams . (:foreground "#89A4F0"))
+   (param . (:foreground "#ffffff"))
+   (class . font-lock-type-face)
+   (trait . (:foreground "#084EA8"))
+   (object . (:foreground "#026DF7"))
+;;   (object . font-lock-string-face)
+;;   (package . font-lock-preprocessor-face)
    )
-  "Colors for semantic highlighting. Symbol types not mentioned here
+  "Faces for semantic highlighting. Symbol types not mentioned here
  will not be requested from server.")
 
 (defun ensime-sem-high-apply-properties (info)
@@ -43,8 +50,7 @@
 	  (let* ((type (nth 0 sym))
 		 (start (+ ensime-ch-fix (nth 1 sym)))
 		 (end (+ ensime-ch-fix (nth 2 sym)))
-		 (color (cdr (assoc type ensime-sem-high-colors)))
-		 (face `(:foreground ,color)))
+		 (face (cdr (assoc type ensime-sem-high-faces))))
 	    (let ((ov (make-overlay start end buf)))
 	      (overlay-put ov 'face face)
 	      (overlay-put ov 'ensime-sem-high-overlay t)
@@ -70,7 +76,7 @@
   "Refresh semantic highlighting for the given region."
   (ensime-rpc-symbol-designations
    buffer-file-name beg end
-   (mapcar 'car ensime-sem-high-colors)
+   (mapcar 'car ensime-sem-high-faces)
    `(lambda (info)
       (ensime-sem-high-clear-region ,beg ,end)
       (ensime-sem-high-apply-properties info))))
