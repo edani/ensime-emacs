@@ -210,15 +210,18 @@
       (ensime-test-output (format "OK" ))
     (ensime-test-output (format "%s\n" result))))
 
+(defun ensime-run-suite (suite)
+  "Run a sequence of tests."
+  (switch-to-buffer ensime-testing-buffer)
+  (erase-buffer)
+  (setq ensime-test-queue suite)
+  (ensime-run-next-test))
+
 
 (defmacro ensime-test-suite (&rest tests)
   "Define a sequence of tests to execute.
    Tests may be synchronous or asynchronous."
-  `(progn
-     (switch-to-buffer ensime-testing-buffer)
-     (erase-buffer)
-     (setq ensime-test-queue (list ,@tests))
-     (ensime-run-next-test)))
+  `(list ,@tests))
 
 
 (defmacro ensime-test (title &rest body)
@@ -338,10 +341,16 @@
     (setq ensime-test-queue nil))
   (switch-to-buffer ensime-testing-buffer))
 
-(defun ensime-test-eat-mark (mark)
+(defun ensime-test-eat-label (mark)
   (goto-char (point-min))
   (when (search-forward-regexp (concat "/\\*" mark "\\*/") nil t)
     (kill-backward-chars (+ 4 (length mark)))))
+
+(defun ensime-test-after-label (mark)
+  (goto-char (point-min))
+  (save-excursion
+    (when (search-forward-regexp (concat "/\\*" mark "\\*/") nil t)
+      (point))))
 
 (defmacro* ensime-test-with-proj ((proj-name src-files-name) &rest body)
   "Evaluate body in a context where the current test project is bound
@@ -373,10 +382,9 @@
 ;; ENSIME Tests ;;
 ;;;;;;;;;;;;;;;;;;
 
-(defun ensime-run-fast-tests ()
-  (interactive)
-  (ensime-test-suite
+(defvar ensime-fast-suite
 
+  (ensime-test-suite
 
    (ensime-test
     "Test loading a simple config."
@@ -512,10 +520,9 @@
 
 
 
-(defun ensime-run-slow-tests ()
-  (interactive)
-  (ensime-test-suite
+(defvar ensime-slow-suite
 
+  (ensime-test-suite
 
    (ensime-async-test
     "Test completing members."
@@ -566,28 +573,28 @@
       (find-file (car src-files))
 
       ;; object method completion
-      (ensime-test-eat-mark "1")
+      (ensime-test-eat-label "1")
       (let* ((candidates (ensime-ac-member-candidates "")))
 	(ensime-assert (member "add" candidates)))
 
       ;; Try completion when a method begins without target
       ;; on next line.
-      (ensime-test-eat-mark "2")
+      (ensime-test-eat-label "2")
       (let* ((candidates (ensime-ac-member-candidates "")))
 	(ensime-assert (member "blarg" candidates)))
 
       ;; Instance completion with prefix
-      (ensime-test-eat-mark "3")
+      (ensime-test-eat-label "3")
       (let* ((candidates (ensime-ac-member-candidates "pri")))
 	(ensime-assert (member "println" candidates)))
 
       ;; Complete member of argument
-      (ensime-test-eat-mark "4")
+      (ensime-test-eat-label "4")
       (let* ((candidates (ensime-ac-member-candidates "s")))
 	(ensime-assert (member "substring" candidates)))
 
       ;; Chaining of calls
-      (ensime-test-eat-mark "5")
+      (ensime-test-eat-label "5")
       (let* ((candidates (ensime-ac-member-candidates "hea")))
 	(ensime-assert (member "headOption" candidates)))
 
@@ -633,12 +640,12 @@
       (find-file (car src-files))
 
       ;; constructor completion
-      (ensime-test-eat-mark "1")
+      (ensime-test-eat-label "1")
       (let* ((candidates (ensime-ac-name-candidates "Fi")))
 	(ensime-assert (member "File" candidates)))
 
       ;; local method name completion.
-      (ensime-test-eat-mark "2")
+      (ensime-test-eat-label "2")
       (let* ((candidates (ensime-ac-name-candidates "bl")))
 	(ensime-assert (member "blarg" candidates)))
 
@@ -674,12 +681,12 @@
       (find-file (car src-files))
 
       ;; complete java package member
-      (ensime-test-eat-mark "1")
+      (ensime-test-eat-label "1")
       (let* ((candidates (ensime-ac-package-decl-candidates "ut")))
 	(ensime-assert (member "util" candidates)))
 
       ;; complete scala package
-      (ensime-test-eat-mark "2")
+      (ensime-test-eat-label "2")
       (let* ((candidates (ensime-ac-package-decl-candidates "sc")))
 	(ensime-assert (member "scala" candidates)))
 
@@ -743,7 +750,7 @@
     ((:full-typecheck-finished val)
      (ensime-test-with-proj
       (proj src-files)
-      (ensime-test-eat-mark "1")
+      (ensime-test-eat-label "1")
       (forward-char)
       (ensime-save-buffer-no-hooks)
       (ensime-refactor-rename "DudeFace")))
@@ -789,7 +796,7 @@
     ((:full-typecheck-finished val)
      (ensime-test-with-proj
       (proj src-files)
-      (ensime-test-eat-mark "1")
+      (ensime-test-eat-label "1")
       (save-buffer)))
 
     ((:full-typecheck-finished val)
@@ -1156,7 +1163,7 @@
       (goto-char 1)
       (ensime-assert (null (search-forward "import java.util.ArrayList" nil t)))
 
-      (ensime-test-eat-mark "1")
+      (ensime-test-eat-label "1")
       (forward-char 2)
       (ensime-import-type-at-point t)
 
@@ -1165,6 +1172,42 @@
 
       (ensime-test-cleanup proj)
       ))
+    )
+
+
+   (ensime-async-test
+    "Test semantic highlighting."
+    (let* ((proj (ensime-create-tmp-project
+		  `((:name
+		     "pack/a.scala"
+		     :contents ,(ensime-test-concat-lines
+				 "package pack"
+				 "import java.io.File"
+				 "class A(value:String){"
+				 "def hello(){"
+				 "  println(new /*1*/File(\".\"))"
+				 "}"
+				 "}"
+				 )
+		     )))
+		 ))
+      (ensime-test-init-proj proj))
+
+    ((:connected connection-info))
+
+    ((:compiler-ready status)
+     (ensime-test-with-proj
+      (proj src-files)
+      (ensime-sem-high-refresh-buffer)))
+
+    ((:region-sem-highlighted val)
+     (ensime-test-with-proj
+      (proj src-files)
+      (goto-char (ensime-test-after-label "1"))
+      (ensime-assert-equal (ensime-sem-high-sym-types-at-point) '(class))
+      (ensime-test-cleanup proj t)
+      ))
+
     )
 
 
@@ -1216,7 +1259,7 @@
     ((:compiler-ready status)
      (ensime-test-with-proj
       (proj src-files)
-      (ensime-test-eat-mark "1")
+      (ensime-test-eat-label "1")
       (ensime-save-buffer-no-hooks)
 
       ;; Expand once to include entire string
@@ -1242,17 +1285,28 @@
       ))
     )
 
-
    ))
 
-(defun ensime-run-tests ()
+
+(defun ensime-run-all-tests ()
   "Run all regression tests for ensime-mode."
   (interactive)
   (setq debug-on-error t)
-  (ensime-run-fast-tests)
-  (ensime-run-slow-tests))
+  (ensime-run-tests ensime-fast-suite)
+  (ensime-run-tests ensime-slow-suite))
 
-
+(defun ensime-run-one-test ()
+  "Run a signle test selected by title."
+  (interactive)
+  (catch 'done
+    (let ((key (read-string 
+		"Enter a regex matching a test's title: "))
+	  (tests (append ensime-fast-suite ensime-slow-suite)))
+      (dolist (test tests)
+	(let ((title (plist-get test :title)))
+	  (when (integerp (string-match key title))
+	    (ensime-run-suite (list test))
+	    (throw 'done nil)))))))
 
 
 
