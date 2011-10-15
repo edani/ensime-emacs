@@ -77,7 +77,9 @@
    (mapcar 'car ensime-sem-high-faces)
    `(lambda (info)
       (ensime-sem-high-clear-region ,beg ,end)
-      (ensime-sem-high-apply-properties info))))
+      (ensime-sem-high-apply-properties info)
+      (ensime-event-sig :region-sem-highlighted nil)
+      )))
 
 (defun ensime-sem-high-inspect-highlight ()
   (interactive)
@@ -89,6 +91,13 @@
 			     (overlay-get ov 'ensime-sem-high-overlay)
 			     (overlay-get ov 'ensime-sym-type)))
 		   ovs))))
+
+(defun ensime-sem-high-sym-types-at-point ()
+  (let ((ovs (overlays-at (point))))
+    (mapcar 
+     (lambda (ov)
+       (overlay-get ov 'ensime-sym-type))
+    ovs)))
 
 
 (provide 'ensime-semantic-highlight)
