@@ -352,6 +352,10 @@
     (when (search-forward-regexp (concat "/\\*" mark "\\*/") nil t)
       (point))))
 
+(defun ensime-test-before-label (mark)
+  (- (ensime-test-after-label mark) (+ 5 (length mark))))
+
+
 (defmacro* ensime-test-with-proj ((proj-name src-files-name) &rest body)
   "Evaluate body in a context where the current test project is bound
  to proj-name, the src-files of the project are bound to src-files-name,
@@ -1185,7 +1189,9 @@
 				 "import java.io.File"
 				 "class A(value:String){"
 				 "def hello(){"
+				 "  var tick/*2*/ = 1"
 				 "  println(new /*1*/File(\".\"))"
+				 "  /*3*/tick = /*4*/tick + 1"
 				 "}"
 				 "}"
 				 )
@@ -1203,8 +1209,19 @@
     ((:region-sem-highlighted val)
      (ensime-test-with-proj
       (proj src-files)
+
       (goto-char (ensime-test-after-label "1"))
       (ensime-assert-equal (ensime-sem-high-sym-types-at-point) '(class))
+
+      (goto-char (ensime-test-before-label "2"))
+      (ensime-assert-equal (ensime-sem-high-sym-types-at-point) '(var))
+
+      (goto-char (ensime-test-after-label "3"))
+      (ensime-assert-equal (ensime-sem-high-sym-types-at-point) '(var))
+
+      (goto-char (ensime-test-after-label "4"))
+      (ensime-assert-equal (ensime-sem-high-sym-types-at-point) '(var))
+
       (ensime-test-cleanup proj t)
       ))
 
