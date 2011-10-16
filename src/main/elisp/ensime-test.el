@@ -1187,11 +1187,16 @@
 		     :contents ,(ensime-test-concat-lines
 				 "package pack"
 				 "import java.io.File"
-				 "class A(value:String){"
+				 "class A(value:String) extends /*9*/Object{"
+				 "case class Dude(name:Integer)"
+				 "val myTick/*7*/ = 0"
+				 "var myTock/*8*/ = 0"
 				 "def hello(){"
 				 "  var tick/*2*/ = 1"
-				 "  println(new /*1*/File(\".\"))"
+				 "  val tock/*6*/ = 2"
+				 "  /*5*/println(new /*1*/File(\".\"))"
 				 "  /*3*/tick = /*4*/tick + 1"
+				 "  val d = /*10*/Dude(1)"
 				 "}"
 				 "}"
 				 )
@@ -1209,18 +1214,43 @@
     ((:region-sem-highlighted val)
      (ensime-test-with-proj
       (proj src-files)
+      
+      (let ((check-sym-is (lambda (sym-type)
+			    (ensime-assert
+			     (memq 
+			      sym-type 
+			      (ensime-sem-high-sym-types-at-point))))
+			  ))
+	(goto-char (ensime-test-after-label "1"))
+	(funcall check-sym-is 'class)
 
-      (goto-char (ensime-test-after-label "1"))
-      (ensime-assert-equal (ensime-sem-high-sym-types-at-point) '(class))
+	(goto-char (ensime-test-before-label "2"))
+	(funcall check-sym-is 'var)
 
-      (goto-char (ensime-test-before-label "2"))
-      (ensime-assert-equal (ensime-sem-high-sym-types-at-point) '(var))
+	(goto-char (ensime-test-after-label "3"))
+	(funcall check-sym-is 'var)
 
-      (goto-char (ensime-test-after-label "3"))
-      (ensime-assert-equal (ensime-sem-high-sym-types-at-point) '(var))
+	(goto-char (ensime-test-after-label "4"))
+	(funcall check-sym-is 'var)
 
-      (goto-char (ensime-test-after-label "4"))
-      (ensime-assert-equal (ensime-sem-high-sym-types-at-point) '(var))
+	(goto-char (ensime-test-after-label "5"))
+	(funcall check-sym-is 'functionCall)
+
+	(goto-char (ensime-test-before-label "6"))
+	(funcall check-sym-is 'val)
+
+	(goto-char (ensime-test-before-label "7"))
+	(funcall check-sym-is 'valField)
+
+	(goto-char (ensime-test-before-label "8"))
+	(funcall check-sym-is 'varField)
+
+	(goto-char (ensime-test-after-label "9"))
+	(funcall check-sym-is 'class)
+
+	(goto-char (ensime-test-after-label "10"))
+	(funcall check-sym-is 'object)
+	)
 
       (ensime-test-cleanup proj t)
       ))
@@ -1309,8 +1339,8 @@
   "Run all regression tests for ensime-mode."
   (interactive)
   (setq debug-on-error t)
-  (ensime-run-tests ensime-fast-suite)
-  (ensime-run-tests ensime-slow-suite))
+  (ensime-run-suite ensime-fast-suite)
+  (ensime-run-suite ensime-slow-suite))
 
 (defun ensime-run-one-test ()
   "Run a signle test selected by title."

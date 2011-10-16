@@ -18,4 +18,4 @@
 
 
 (when (y-or-n-p "Run ENSIME tests?")
-  (ensime-run-tests))
+  (ensime-run-all-tests))
