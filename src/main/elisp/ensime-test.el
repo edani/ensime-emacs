@@ -1197,6 +1197,11 @@
 				 "  /*5*/println(new /*1*/File(\".\"))"
 				 "  /*3*/tick = /*4*/tick + 1"
 				 "  val d = /*10*/Dude(1)"
+				 "  d match{"
+				 "    case /*11*/Dude(i) => {}"
+				 "    case o:/*12*/Object => {}"
+				 "    case _ => {}"
+				 "  }"
 				 "}"
 				 "}"
 				 )
@@ -1250,6 +1255,12 @@
 
 	(goto-char (ensime-test-after-label "10"))
 	(funcall check-sym-is 'object)
+
+	(goto-char (ensime-test-after-label "11"))
+	(funcall check-sym-is 'object)
+
+	(goto-char (ensime-test-after-label "12"))
+	(funcall check-sym-is 'class)
 	)
 
       (ensime-test-cleanup proj t)

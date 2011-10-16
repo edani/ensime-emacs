@@ -27,7 +27,7 @@
    (varField . (:foreground "#ff3333"))
    (valField . (:foreground "#dddddd"))
    (functionCall . (:foreground "#84BEE3"))
-   (operator . (:foreground "#84BEE3"))
+   (operator . (:foreground "#bbbbbb"))
    (param . (:foreground "#ffffff"))
    (class . font-lock-type-face)
    (trait . (:foreground "#084EA8"))
