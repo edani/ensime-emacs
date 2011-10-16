@@ -40,7 +40,7 @@
 
 (defvar ensime-test-dev-home
   "/home/aemon/src/misc/ensime"
-  "The local development root.")
+  "The local development root. This")
 
 (defvar ensime-test-env-classpath '()
   "Extra jars to include on testing classpath")
