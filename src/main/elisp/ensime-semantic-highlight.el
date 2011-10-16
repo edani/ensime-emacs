@@ -67,6 +67,7 @@
 
 (defun ensime-sem-high-refresh-buffer (&optional buffer)
   "Refresh semantic highlighting for the entire buffer."
+  (interactive)
   (with-current-buffer (or buffer (current-buffer))
     (ensime-sem-high-refresh-region 0 (point-max))))
 
