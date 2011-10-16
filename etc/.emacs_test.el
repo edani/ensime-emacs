@@ -1,6 +1,8 @@
 (add-to-list 'load-path "../dist/elisp/")
 (require 'ensime)
 (require 'ensime-test)
+(setq ensime-test-dev-home (expand-file-name "../"))
+(message "Using ensime-test-dev-home of %s" ensime-test-dev-home)
 
 (setq inhibit-startup-message t)
 (setq debug-on-error nil)
@@ -15,7 +17,6 @@
 (menu-bar-mode 0)
 (toggle-scroll-bar 0)
 (setq backup-directory-alist '(("." . (ensime-temp-directory))))
-
 
 (when (y-or-n-p "Run ENSIME tests?")
   (ensime-run-all-tests))
