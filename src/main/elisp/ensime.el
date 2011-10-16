@@ -196,8 +196,7 @@ argument is supplied) is a .scala or .java file."
 (defun ensime-run-find-file-hooks ()
   "Things to run whenever a source buffer is opened."
   (condition-case err-info
-      (when (ensime-source-file-p (buffer-file-name))
-	(run-hooks 'ensime-source-buffer-loaded-hook))
+      (run-hooks 'ensime-source-buffer-loaded-hook)
     (error
      (message
       "Error running ensime-source-buffer-loaded-hook: %s"
@@ -362,16 +361,23 @@ Do not show 'Writing..' message."
       (progn
         (ensime-ac-enable)
         (easy-menu-add ensime-mode-menu ensime-mode-map)
+
         (add-hook 'after-save-hook 'ensime-run-after-save-hooks nil t)
+
 	(add-hook 'find-file-hook 'ensime-run-find-file-hooks nil t)
+
         (add-hook 'ensime-source-buffer-saved-hook
                   'ensime-typecheck-current-file)
+
         (add-hook 'ensime-source-buffer-saved-hook
-                  'ensime-builder-track-changed-files)
+                  'ensime-builder-track-changed-files t)
+
         (add-hook 'ensime-source-buffer-saved-hook
                   'ensime-sem-high-refresh-buffer t)
+
         (add-hook 'ensime-source-buffer-loaded-hook
                   'ensime-sem-high-refresh-buffer t)
+
         (when ensime-tooltip-hints
           (add-hook 'tooltip-functions 'ensime-tooltip-handler)
           (make-local-variable 'track-mouse)
@@ -384,13 +390,21 @@ Do not show 'Writing..' message."
     (progn
       (ensime-ac-disable)
       (remove-hook 'after-save-hook 'ensime-run-after-save-hooks t)
+
       (remove-hook 'find-file-hook 'ensime-run-find-file-hooks t)
+
       (remove-hook 'ensime-source-buffer-saved-hook
                    'ensime-typecheck-current-file)
+
       (remove-hook 'ensime-source-buffer-saved-hook
                    'ensime-builder-track-changed-files)
+
+      (remove-hook 'ensime-source-buffer-saved-hook
+                   'ensime-sem-high-refresh-buffer)
+
       (remove-hook 'ensime-source-buffer-loaded-hook
                    'ensime-sem-high-refresh-buffer)
+
       (remove-hook 'tooltip-functions 'ensime-tooltip-handler)
       (make-local-variable 'track-mouse)
       (setq track-mouse nil))))
@@ -1510,9 +1524,10 @@ overrides `ensime-buffer-connection'.")
     result))
 
 
-(defun ensime-file-belongs-to-connection-p (file conn)
+(defun ensime-file-belongs-to-connection-p (file-in conn)
   "Does the given file belong to the given connection(project)?"
-  (let* ((config (ensime-config conn))
+  (let* ((file (file-truename file-in))
+	 (config (ensime-config conn))
 	 (source-roots (plist-get config :source-roots)))
     (catch 'return
       (dolist (dir source-roots)
@@ -1520,35 +1535,37 @@ overrides `ensime-buffer-connection'.")
 	  (throw 'return t))))))
 
 
-(defun ensime-connections-for-source-file (file)
+(defun ensime-connections-for-source-file (file-in)
   "Return the connections corresponding to projects that contain
    the given file in their source trees."
-  (when file
-    (let ((result '()))
-      (dolist (p ensime-net-processes)
-	(let* ((config (ensime-config p))
-	       (source-roots (plist-get config :source-roots)))
-	  (dolist (dir source-roots)
-	    (when (ensime-file-in-directory-p file dir)
-	      (setq result (cons p result))))))
-      result)))
+  (let ((file (file-truename file-in)))
+    (when file
+      (let ((result '()))
+	(dolist (p ensime-net-processes)
+	  (let* ((config (ensime-config p))
+		 (source-roots (plist-get config :source-roots)))
+	    (dolist (dir source-roots)
+	      (when (ensime-file-in-directory-p file dir)
+		(setq result (cons p result))))))
+	result))))
 
 
-(defun ensime-owning-connection-for-source-file (file)
+(defun ensime-owning-connection-for-source-file (file-in)
   "Return the connection corresponding to the single
  that owns the given file. "
-  (when file
-    (catch 'return
+  (let ((file (file-truename file-in)))
+    (when file
+      (catch 'return
 
-      ;; First check individual source-roots
-      (dolist (p ensime-net-processes)
-	(let* ((config (ensime-config p))
-	       (source-roots (plist-get config :source-roots)))
-	  (dolist (dir source-roots)
-	    (when (ensime-file-in-directory-p file dir)
-	      (throw 'return p)))))
+	;; First check individual source-roots
+	(dolist (p ensime-net-processes)
+	  (let* ((config (ensime-config p))
+		 (source-roots (plist-get config :source-roots)))
+	    (dolist (dir source-roots)
+	      (when (ensime-file-in-directory-p file dir)
+		(throw 'return p)))))
 
-      )))
+	))))
 
 
 (defun ensime-prompt-for-connection ()
@@ -2576,6 +2593,7 @@ any buffer visiting the given file."
  managing projects that contains the current file. File is saved
  first if it has unwritten modifications."
   (interactive)
+
   (if (buffer-modified-p) (ensime-write-buffer nil t))
 
   ;; Send the reload requist to all servers that might be interested.
