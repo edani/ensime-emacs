@@ -32,7 +32,7 @@
    (class . font-lock-type-face)
    (trait . (:foreground "#084EA8"))
    (object . (:foreground "#026DF7"))
-;;   (package . font-lock-preprocessor-face)
+;   (package . font-lock-preprocessor-face)
    )
   "Faces for semantic highlighting. Symbol types not mentioned here
  will not be requested from server.")
@@ -64,6 +64,17 @@
     (dolist (ov ovs)
       (when (overlay-get ov 'ensime-sem-high-overlay)
 	(delete-overlay ov)))))
+
+(defun ensime-sem-high-refresh-hook ()
+  "Update semantic highlighting for the current buffer.
+ For big buffers, update visible region first."
+  (interactive)
+  (let ((visible-size (- (window-end) (window-start)))
+	(total-size (point-max)))
+    (when (> total-size (* 5 visible-size))
+      (ensime-sem-high-refresh-region (window-start) (window-end)))
+    (ensime-sem-high-refresh-region 0 (point-max))))
+    
 
 (defun ensime-sem-high-refresh-buffer (&optional buffer)
   "Refresh semantic highlighting for the entire buffer."
