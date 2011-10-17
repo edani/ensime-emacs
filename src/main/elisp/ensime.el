@@ -373,10 +373,10 @@ Do not show 'Writing..' message."
                   'ensime-builder-track-changed-files t)
 
         (add-hook 'ensime-source-buffer-saved-hook
-                  'ensime-sem-high-refresh-buffer t)
+                  'ensime-sem-high-refresh-hook t)
 
         (add-hook 'ensime-source-buffer-loaded-hook
-                  'ensime-sem-high-refresh-buffer t)
+                  'ensime-sem-high-refresh-hook t)
 
         (when ensime-tooltip-hints
           (add-hook 'tooltip-functions 'ensime-tooltip-handler)
@@ -400,10 +400,10 @@ Do not show 'Writing..' message."
                    'ensime-builder-track-changed-files)
 
       (remove-hook 'ensime-source-buffer-saved-hook
-                   'ensime-sem-high-refresh-buffer)
+                   'ensime-sem-high-refresh-hook)
 
       (remove-hook 'ensime-source-buffer-loaded-hook
-                   'ensime-sem-high-refresh-buffer)
+                   'ensime-sem-high-refresh-hook)
 
       (remove-hook 'tooltip-functions 'ensime-tooltip-handler)
       (make-local-variable 'track-mouse)
