@@ -21,6 +21,11 @@
 
 (require 'auto-complete)
 
+(defcustom ensime-ac-enable-argument-placeholders nil
+  "If non-nil, insert placeholder arguments in the buffer on completion."
+  :type 'boolean
+  :group 'ensime-ui)
+
 (defun ensime-ac-delete-text-back-to-call-target ()
   "Assuming the point is in a member prefix, delete all text back to the
 target of the call. Point should be be over last character of call target."
@@ -258,12 +263,20 @@ be used later to give contextual help when entering arguments."
 	    ;; Insert space or parens depending on the nature of the
 	    ;; call
 	    (save-excursion
-	      (if (and (= 1 (length (car param-sections)))
-		       (null (string-match "[A-z]" name)))
-		  ;; Probably an operator..
-		  (insert " ")
-		;; Probably a normal method call
-		(insert "()" )))
+	      (let* ((is-operator
+		      (and (= 1 (length param-sections))
+			   (= 1 (length (plist-get 
+					 (car param-sections) :params)))
+			   (null (string-match "[A-z]" name)))))
+		(if ensime-ac-enable-argument-placeholders
+		    (let ((args (ensime-ac-call-info-argument-list
+				 call-info is-operator)))
+		      (cond
+		       (is-operator (insert (concat " " args)))
+		       (t (insert args))))
+		  (cond
+		   (is-operator (insert " "))
+		   (t (insert "()"))))))
 
 	    (if (car param-sections)
 		(progn
@@ -320,30 +333,39 @@ be used later to give contextual help when entering arguments."
       (remove-hook 'post-command-hook 'ensime-ac-update-param-help t))))
 
 
+(defun ensime-ac-call-info-argument-list (call-info &optional is-operator)
+  "Return a pretty string representation of argument list."
+  (let ((param-sections (plist-get call-info :param-sections)))
+    (mapconcat
+     (lambda (sect)
+       (let* ((params (plist-get sect :params))
+	      (is-implicit (plist-get sect :is-implicit))
+	      (result
+	       (concat (if is-operator "" "(")
+		       (mapconcat
+			(lambda (nm-and-tp)
+			  (format
+			   "%s:%s"
+			   (propertize (car nm-and-tp)
+				       'face font-lock-variable-name-face)
+			   (propertize (ensime-type-name-with-args
+					(cadr nm-and-tp))
+				       'face font-lock-type-face)
+			   ))
+			params ", ") (if is-operator "" ")"))))
+	 (if is-implicit 
+	     (propertize result 'face font-lock-comment-face)
+	   result)
+	 ))
+     param-sections "=>" )))
+
+
 (defun ensime-ac-call-info-signature (call-info)
   "Return a pretty string representation of a call-info object."
   (let ((param-sections (plist-get call-info :param-sections))
 	(result-type (plist-get call-info :result-type)))
     (concat
-     (mapconcat
-      (lambda (sect)
-	(let ((params (plist-get sect :params))
-	      (is-implicit (plist-get sect :is-implicit)))
-	  (propertize (concat "("
-			      (mapconcat
-			       (lambda (nm-and-tp)
-				 (format
-				  "%s:%s"
-				  (propertize (car nm-and-tp)
-					      'face font-lock-variable-name-face)
-				  (propertize (ensime-type-name-with-args
-					       (cadr nm-and-tp))
-					      'face font-lock-type-face)
-				  ))
-			       params ", ") ")")
-		      'face (when is-implicit font-lock-comment-face)
-		      )))
-      param-sections " => ")
+     (ensime-ac-call-info-argument-list call-info)
      " => "
      (propertize
       (ensime-type-name-with-args result-type)
