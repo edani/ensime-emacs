@@ -135,7 +135,7 @@
   :group 'ensime-mode
   :type 'sexp)
 
-(defvar ensime-protocol-version "0.0.1")
+(defvar ensime-protocol-version "0.7")
 
 (defvar ensime-prefer-noninteractive nil
   "State variable used for regression testing.")
@@ -1661,39 +1661,23 @@ If PROCESS is not specified, `ensime-connection' is used.
   "Initialize CONNECTION with INFO received from Lisp."
   (ensime-event-sig :connected info)
   (let ((ensime-dispatching-connection connection))
-    (destructuring-bind (&key pid style server-implementation machine
-			      features package version modules
+    (destructuring-bind (&key pid server-implementation version
 			      &allow-other-keys) info
       (ensime-check-version version connection)
-      (setf (ensime-pid) pid
-	    (ensime-communication-style) style
-	    (ensime-server-features) features)
-      (destructuring-bind (&key type name version program) server-implementation
-	(setf (ensime-server-implementation-type) type
-	      (ensime-server-implementation-version) version
-	      (ensime-server-implementation-name) name
-	      (ensime-server-implementation-program) program
+      (setf (ensime-pid) pid)
+      (destructuring-bind (&key name) server-implementation
+	(setf (ensime-server-implementation-name) name
 	      (ensime-connection-name) (ensime-generate-connection-name name)))
-      (destructuring-bind (&key instance type version) machine
-	(setf (ensime-machine-instance) instance)))
-    (let ((args (when-let (p (ensime-server-process))
-		  (ensime-inferior-server-args p))))
-      (when-let (name (plist-get args :name))
-	(unless (string= (ensime-server-implementation-name) name)
-	  (setf (ensime-connection-name)
-		(ensime-generate-connection-name (symbol-name name)))))
-      ;; TODO
-      ;;(ensime-load-contribs)
-      (run-hooks 'ensime-connected-hook)
-      (when-let (fun (plist-get args ':init-function))
-	(funcall fun)))
+      ))
 
-    (message "Connected.")
+  (run-hooks 'ensime-connected-hook)
+  (message "Connected.")
 
-    ;; Send the project initialization..
-    (let ((config (ensime-config connection)))
-      (ensime-init-project connection config))
-    ))
+  ;; Send the project initialization..
+  (let ((config (ensime-config connection)))
+    (ensime-init-project connection config))
+
+  )
 
 
 (defun ensime-init-project (conn config)
