@@ -2934,14 +2934,14 @@ with the current project's dependencies loaded. Returns a property list."
   (ensime-eval
    `(swank:exec-undo ,id)))
 
-(defun ensime-rpc-refactor-perform
+(defun ensime-rpc-refactor-prepare
   (proc-id refactor-type params non-interactive continue blocking)
   (if blocking
       (ensime-eval
-       `(swank:perform-refactor
+       `(swank:prepare-refactor
 	 ,proc-id ,refactor-type ,params ,(not non-interactive)))
     (ensime-eval-async
-     `(swank:perform-refactor
+     `(swank:prepare-refactor
        ,proc-id ,refactor-type ,params ,(not non-interactive)) continue)))
 
 (defun ensime-rpc-refactor-exec (proc-id refactor-type continue)
