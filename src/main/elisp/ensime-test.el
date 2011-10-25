@@ -1214,7 +1214,9 @@
     ((:compiler-ready status)
      (ensime-test-with-proj
       (proj src-files)
-      (ensime-sem-high-refresh-buffer)))
+      (let ((ensime-sem-high-faces
+	     ensime-sem-high-all-faces))
+	(ensime-sem-high-refresh-buffer))))
 
     ((:region-sem-highlighted val)
      (ensime-test-with-proj

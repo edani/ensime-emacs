@@ -20,22 +20,41 @@
 ;;     MA 02111-1307, USA.
 
 
-(defvar ensime-sem-high-faces
+(defvar ensime-sem-high-all-faces
   '(
-   (var . (:foreground "#ff2222"))
-   (val . (:foreground "#dddddd"))
-   (varField . (:foreground "#ff3333"))
-   (valField . (:foreground "#dddddd"))
-   (functionCall . (:foreground "#84BEE3"))
-   (operator . (:foreground "#bbbbbb"))
-   (param . (:foreground "#ffffff"))
-   (class . font-lock-type-face)
-   (trait . (:foreground "#084EA8"))
-   (object . (:foreground "#026DF7"))
-;   (package . font-lock-preprocessor-face)
-   )
+    (var . (:foreground "#ff2222"))
+    (val . (:foreground "#dddddd"))
+    (varField . (:foreground "#ff3333"))
+    (valField . (:foreground "#dddddd"))
+    (functionCall . (:foreground "#84BEE3"))
+    (operator . (:foreground "#bbbbbb"))
+    (param . (:foreground "#ffffff"))
+    (class . font-lock-type-face)
+    (trait . (:foreground "#084EA8"))
+    (object . (:foreground "#026DF7"))
+    (package . font-lock-preprocessor-face)
+    ))
+
+(defvar ensime-sem-high-default-faces
+  '())
+
+(defvar ensime-sem-high-faces 
+  ensime-sem-high-default-faces
   "Faces for semantic highlighting. Symbol types not mentioned here
  will not be requested from server.")
+
+(defun ensime-sem-high-enable-all ()
+  "Enable full semantic highlighting."
+  (interactive)
+  (setq ensime-sem-high-faces
+	ensime-sem-high-all-faces)
+  (ensime-sem-high-refresh-all-buffers))
+
+(defun ensime-sem-high-disable-all ()
+  "Disable all semantic highlighting."
+  (interactive)
+  (setq ensime-sem-high-faces '())
+  (ensime-sem-high-refresh-all-buffers))
 
 (defun ensime-sem-high-apply-properties (info)
   "Use provided info to modify font-lock properties of identifiers
@@ -74,13 +93,20 @@
     (when (> total-size (* 5 visible-size))
       (ensime-sem-high-refresh-region (window-start) (window-end)))
     (ensime-sem-high-refresh-region 0 (point-max))))
-    
+
 
 (defun ensime-sem-high-refresh-buffer (&optional buffer)
   "Refresh semantic highlighting for the entire buffer."
   (interactive)
   (with-current-buffer (or buffer (current-buffer))
     (ensime-sem-high-refresh-region 0 (point-max))))
+
+(defun ensime-sem-high-refresh-all-buffers ()
+  (interactive)
+  (let ((conn (ensime-current-connection)))
+    (let ((bufs (ensime-connection-visiting-buffers conn)))
+      (dolist (buf bufs)
+	(ensime-sem-high-refresh-buffer buf)))))
 
 (defun ensime-sem-high-refresh-region (beg end)
   "Refresh semantic highlighting for the given region."
@@ -109,7 +135,7 @@
     (mapcar 
      (lambda (ov)
        (overlay-get ov 'ensime-sym-type))
-    ovs)))
+     ovs)))
 
 
 (provide 'ensime-semantic-highlight)

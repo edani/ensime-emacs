@@ -1982,9 +1982,7 @@ This idiom is preferred over `lexical-let'."
   (let ((conn (ensime-current-connection)))
     (message "ENSIME ready. %s" (ensime-random-words-of-encouragement))
     (setf (ensime-analyzer-ready conn) t)
-    (let ((bufs (ensime-connection-visiting-buffers conn)))
-      (dolist (buf bufs)
-	(ensime-sem-high-refresh-buffer buf)))
+    (ensime-sem-high-refresh-all-buffers)
     ))
 
 ;;; Words of encouragement
