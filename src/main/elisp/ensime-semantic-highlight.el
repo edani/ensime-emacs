@@ -131,6 +131,7 @@
 		   ovs))))
 
 (defun ensime-sem-high-sym-types-at-point ()
+  (interactive)
   (let ((ovs (overlays-at (point))))
     (mapcar 
      (lambda (ov)
