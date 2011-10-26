@@ -928,6 +928,13 @@
     ((:return-value val)
      (ensime-test-with-proj
       (proj src-files)
+      
+      ;; Don't check source immediately cause it might not be rendered in buffer..."
+      (ensime-typecheck-current-file)))
+
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
       ;; Set cursor to symbol in method body..
       (find-file (car src-files))
       (let ((src (buffer-substring-no-properties
@@ -1214,14 +1221,21 @@
     ((:compiler-ready status)
      (ensime-test-with-proj
       (proj src-files)
-      (let ((ensime-sem-high-faces
-	     ensime-sem-high-all-faces))
-	(ensime-sem-high-refresh-buffer))))
+      (setq ensime-sem-high-faces ensime-sem-high-all-faces)
+      (ensime-sem-high-refresh-buffer)))
 
     ((:region-sem-highlighted val)
      (ensime-test-with-proj
       (proj src-files)
-      
+
+      ;; Don't check highlights immediately, as
+      ;; overlays might not be rendered yet... (it seems)
+      (ensime-typecheck-current-file)
+      ))
+
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
       (let ((check-sym-is (lambda (sym-type)
 			    (ensime-assert
 			     (memq 
@@ -1265,6 +1279,7 @@
 	(funcall check-sym-is 'class)
 	)
 
+      (setq ensime-sem-high-faces ensime-sem-high-default-faces)
       (ensime-test-cleanup proj t)
       ))
 
