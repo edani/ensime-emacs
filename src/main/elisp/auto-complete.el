@@ -1375,11 +1375,14 @@ that have been made before in this function."
            (prefix-def (nth 0 info))
            (point (nth 1 info))
            (sources (nth 2 info))
-           prefix
+           (prefix (or (null point)
+		       (buffer-substring-no-properties point (point))))
            (init (or force-init (not (eq ac-point point)))))
+
       (if (or (null point)
-              (member (setq prefix (buffer-substring-no-properties point (point)))
-                      ac-ignores))
+              (member prefix ac-ignores)
+	      (and (integerp ac-auto-start)
+		   (<= (length prefix) ac-auto-start)))
           (prog1 nil
             (ac-abort))
         (unless ac-cursor-color
@@ -1497,7 +1500,7 @@ that have been made before in this function."
                      ac-completing)
                  (not isearch-mode))
         (setq ac-last-point (point))
-        (ac-start :requires (unless ac-completing ac-auto-start))
+	(ac-start :requires (unless ac-completing ac-auto-start))
         (ac-inline-update))
     (error (ac-error var))))
 
