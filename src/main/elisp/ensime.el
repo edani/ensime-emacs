@@ -516,6 +516,7 @@ Do not show 'Writing..' message."
 			 (cond (status (concat " (" status ")"))
 			       (unready " (analyzing...)")
 			       (t "")))
+		       (concat (format " : %s/%s" (ensime-num-errors conn) (ensime-num-warnings)))
 		       "]"))
 	      (ensime-mode " [ENSIME: Dead Connection]")
 	      ))
@@ -1470,6 +1471,12 @@ This is automatically synchronized from Lisp.")
 (ensime-def-connection-var ensime-awaiting-full-typecheck nil
   "Should we show the errors and warnings report on next full-typecheck event?")
 
+(ensime-def-connection-var ensime-num-errors 0
+  "Current number of errors in project.")
+
+(ensime-def-connection-var ensime-num-warnings 0
+  "Current number of warnings in project.")
+
 (defvar ensime-dispatching-connection nil
   "Network process currently executing.
 This is dynamically bound while handling messages from Lisp; it
@@ -2045,6 +2052,7 @@ This idiom is preferred over `lexical-let'."
 	     notes))))
 
     (ensime-make-note-overlays notes)
+    (ensime-update-note-counts)
     ))
 
 
@@ -2054,7 +2062,8 @@ This idiom is preferred over `lexical-let'."
     (setf (ensime-scala-compiler-notes (ensime-connection)) nil))
    ((equal lang 'java)
     (setf (ensime-java-compiler-notes (ensime-connection)) nil)))
-  (ensime-clear-note-overlays lang))
+  (ensime-clear-note-overlays lang)
+  (ensime-update-note-counts))
 
 
 (defun ensime-make-overlay-at (file line b e msg face)
@@ -2117,6 +2126,23 @@ any buffer visiting the given file."
 	  (push ov ensime-note-overlays))
 
 	))))
+
+
+(defun ensime-update-note-counts ()
+  (let ((notes (ensime-all-notes))
+	(num-err 0)
+	(num-warn 0)
+	(conn (ensime-connection)))
+    (dolist (note notes)
+      (let ((severity (plist-get note :severity)))
+	(cond
+	 ((equal severity 'error)
+	  (incf num-err))
+	 ((equal severity 'error)
+	  (incf num-warn))
+	 (t))))
+    (setf (ensime-num-errors conn) num-err)
+    (setf (ensime-num-warnings conn) num-warn)))
 
 
 (defun ensime-refresh-all-note-overlays ()
