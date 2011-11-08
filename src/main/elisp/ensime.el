@@ -501,22 +501,27 @@ Do not show 'Writing..' message."
   information."
   (condition-case err
       (let ((conn (ensime-current-connection)))
-	;; Bail out early in case there's no connection, so we won't
-	;; implicitly invoke `ensime-connection' which may query the user.
 	(cond ((and ensime-mode (not conn))
-	       " [ENSIME: No Connection]")
+	       ;;
+	       (cond
+		((ensime-probable-owning-connection-for-source-file
+		  buffer-file-name)
+		 " [ENSIME: Connected...]")
+		(t " [ENSIME: No Connection]")))
 
 	      ((and ensime-mode (ensime-connected-p conn))
 	       (concat " "
 		       "[ENSIME: "
 		       (or (plist-get (ensime-config conn) :project-name)
-			   "Connected")
+			   "Connected...")
 		       (let ((status (ensime-modeline-state-string conn))
 			     (unready (not (ensime-analyzer-ready conn))))
 			 (cond (status (concat " (" status ")"))
 			       (unready " (analyzing...)")
 			       (t "")))
-		       (concat (format " : %s/%s" (ensime-num-errors conn) (ensime-num-warnings)))
+		       (concat (format " : %s/%s"
+				       (ensime-num-errors conn)
+				       (ensime-num-warnings)))
 		       "]"))
 	      (ensime-mode " [ENSIME: Dead Connection]")
 	      ))
@@ -1495,9 +1500,16 @@ overrides `ensime-buffer-connection'.")
  Return nil if there's no connection. Note, there is some loss of
  precision here, as ensime-connections-for-source-file might return
  more than one connection. "
-  (or ensime-dispatching-connection
-      ensime-buffer-connection
-      (ensime-owning-connection-for-source-file buffer-file-name)))
+  (or (ensime-validated-connection ensime-dispatching-connection)
+      (ensime-validated-connection ensime-buffer-connection)
+      (ensime-validated-connection
+       (ensime-owning-connection-for-source-file buffer-file-name))))
+
+(defun ensime-validated-connection (conn)
+  "Return conn if connection is non-nil and has a living
+ process buffer. nil otherwise."
+  (when (and conn (buffer-live-p (process-buffer conn)))
+    conn))
 
 (defun ensime-connected-p (&optional conn)
   "Return t if ensime-current-connection would return non-nil.
@@ -1520,7 +1532,7 @@ overrides `ensime-buffer-connection'.")
 
 
 (defun ensime-connection-visiting-buffers (conn)
-  "Return a list of all buffers associated with the given 
+  "Return a list of all buffers associated with the given
  connection."
   (let ((result '()))
     (dolist (buf (buffer-list))
@@ -1548,31 +1560,38 @@ overrides `ensime-buffer-connection'.")
   (let ((file (file-truename file-in)))
     (when file
       (let ((result '()))
-	(dolist (p ensime-net-processes)
-	  (let* ((config (ensime-config p))
-		 (source-roots (plist-get config :source-roots)))
-	    (dolist (dir source-roots)
-	      (when (ensime-file-in-directory-p file dir)
-		(setq result (cons p result))))))
+	(dolist (conn ensime-net-processes)
+	  (when-let (conn (ensime-validated-connection conn))
+	    (let* ((config (ensime-config conn))
+		   (source-roots (plist-get config :source-roots)))
+	      (dolist (dir source-roots)
+		(when (ensime-file-in-directory-p file dir)
+		  (setq result (cons conn result)))))))
 	result))))
 
+(defun ensime-probable-owning-connection-for-source-file
+  (file-in)
+  (ensime-owning-connection-for-source-file file-in t))
 
-(defun ensime-owning-connection-for-source-file (file-in)
-  "Return the connection corresponding to the single
- that owns the given file. "
+(defun ensime-owning-connection-for-source-file (file-in &optional loose)
+  "Return the connection corresponding to the single that
+ owns the given file. "
   (let ((file (file-truename file-in)))
     (when file
       (catch 'return
-
 	;; First check individual source-roots
-	(dolist (p ensime-net-processes)
-	  (let* ((config (ensime-config p))
-		 (source-roots (plist-get config :source-roots)))
-	    (dolist (dir source-roots)
-	      (when (ensime-file-in-directory-p file dir)
-		(throw 'return p)))))
-
+	(dolist (conn ensime-net-processes)
+	  (when-let (conn (ensime-validated-connection conn))
+	    (let* ((config (ensime-config conn))
+		   (project-root (plist-get config :root-dir))
+		   (source-roots (plist-get config :source-roots)))
+	      (if (and loose (ensime-file-in-directory-p file project-root))
+		  (throw 'return conn)
+		(dolist (dir source-roots)
+		  (when (ensime-file-in-directory-p file dir)
+		    (throw 'return conn)))))))
 	))))
+
 
 
 (defun ensime-prompt-for-connection ()
