@@ -266,9 +266,14 @@
   "Search up the directory tree starting at file-name
    for a suitable config file to load, return it's path. Return nil if
    no such file found."
+  ;;(ensime-config-find-file "~/projects/ensime/")
+  ;;(ensime-config-find-file "~/projects/ensime/src/main")
+  ;;(ensime-config-find-file "~/projects/ensime/src/main/scala")
+  ;;(ensime-config-find-file "~/projects/ensime/src/main/scala/")
+  ;;(ensime-config-find-file "~/projects/ensime/.ensime")
   (let* ((dir (file-name-directory file-name))
 	 (possible-path (concat dir ensime-config-file-name)))
-    (if (file-directory-p dir)
+    (when (and dir (file-directory-p dir))
 	(if (file-exists-p possible-path)
 	    possible-path
 	  (if (not (equal dir (directory-file-name dir)))
