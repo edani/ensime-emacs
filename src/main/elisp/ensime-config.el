@@ -279,10 +279,10 @@
 	  (if (not (equal dir (directory-file-name dir)))
 	      (ensime-config-find-file (directory-file-name dir)))))))
 
-(defun ensime-config-find-and-load (&optional default-dir)
+(defun ensime-config-find-and-load (&optional force-dir)
   "Query the user for the path to a config file, then load it."
-  (let* ((hint (or default-dir buffer-file-name))
-	 (guess (if hint (ensime-config-find-file hint)))
+  (let* ((hint (or force-dir buffer-file-name default-directory))
+	 (guess (when hint (ensime-config-find-file hint)))
 	 (file (if ensime-prefer-noninteractive guess
 		 (read-file-name
 		  "ENSIME Project file: "
