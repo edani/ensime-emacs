@@ -253,14 +253,22 @@
 
 
 
+(defvar ensime-search-selection-overlay nil
+  "Overlay that highlights the currently selected search result.")
+
 (defun ensime-search-update-result-selection ()
   "Move cursor to current result selection in target buffer."
-  (if (ensime-search-result-p ensime-search-current-selected-result)
-      (with-current-buffer ensime-search-target-buffer
-	(let ((target-point (ensime-search-result-summary-start
-			     ensime-search-current-selected-result)))
-	  (set-window-point ensime-search-target-window target-point)
-	  ))))
+  (when (ensime-search-result-p ensime-search-current-selected-result)
+    (with-current-buffer ensime-search-target-buffer
+      (when ensime-search-selection-overlay
+	(delete-overlay ensime-search-selection-overlay))
+      (let ((target-point (ensime-search-result-summary-start
+			   ensime-search-current-selected-result)))
+	(save-excursion
+	  (goto-char target-point)
+	  (setq ensime-search-selection-overlay 
+		(ensime-make-overlay target-point (point-at-eol) nil 'ensime-warnline))))
+      )))
 
 
 (defun ensime-search-auto-update (beg end lenold &optional force)
