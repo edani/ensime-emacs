@@ -349,7 +349,8 @@
   (when-let (sps (plist-get config :sbt-subprojects))
 
     ;; For testing purposes..
-    (if ensime-prefer-noninteractive
+    (if (or ensime-prefer-noninteractive
+	    (= (length sps) 1))
 	(ensime-set-key
 	 config :sbt-active-subproject
 	 (plist-get (car sps) :name))
@@ -363,7 +364,7 @@
 	     (keys (mapcar (lambda (opt) (car opt)) options)))
 	(let ((key (when keys
 		     (completing-read
-		      (concat "Which sbt subproject? ("
+		      (concat "Which sbt project? ("
 			      (mapconcat #'identity keys ", ")
 			      "): ")
 		      keys nil t (car keys)))))
