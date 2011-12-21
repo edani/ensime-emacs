@@ -338,21 +338,21 @@
 	       )))
 	;; We use the project file's location as the project root.
 	(ensime-set-key config :root-dir dir)
-	(ensime-config-maybe-set-active-sbt-subproject config)
+	(ensime-config-maybe-set-active-subproject config)
 	config)
       )))
 
-(defun ensime-config-maybe-set-active-sbt-subproject (config)
-  "If the sbt-subprojects key exists in the config, prompt the
- user for the desired subproject, and add an sbt-active-subproject
+(defun ensime-config-maybe-set-active-subproject (config)
+  "If the subprojects key exists in the config, prompt the
+ user for the desired subproject, and add an active-subproject
  value to the config."
-  (when-let (sps (plist-get config :sbt-subprojects))
+  (when-let (sps (plist-get config :subprojects))
 
     ;; For testing purposes..
     (if (or ensime-prefer-noninteractive
 	    (= (length sps) 1))
 	(ensime-set-key
-	 config :sbt-active-subproject
+	 config :active-subproject
 	 (plist-get (car sps) :name))
 
       ;; Otherwise prompt the user
@@ -364,12 +364,12 @@
 	     (keys (mapcar (lambda (opt) (car opt)) options)))
 	(let ((key (when keys
 		     (completing-read
-		      (concat "Which sbt project? ("
+		      (concat "Which project? ("
 			      (mapconcat #'identity keys ", ")
 			      "): ")
 		      keys nil t (car keys)))))
 	  (when-let (chosen (cdr (assoc key options)))
-	    (ensime-set-key config :sbt-active-subproject chosen)
+	    (ensime-set-key config :active-subproject chosen)
 	    ))
 	))))
 
