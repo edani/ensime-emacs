@@ -1935,20 +1935,20 @@ This idiom is preferred over `lexical-let'."
 		   (t
 		    (error "Unexpected reply: %S %S" id value)))))
 
-	  ((:full-typecheck-finished val)
+	  ((:full-typecheck-finished)
 	   (when (ensime-awaiting-full-typecheck (ensime-connection))
 	     (message "Typecheck finished.")
 	     (setf (ensime-awaiting-full-typecheck
 		    (ensime-connection)) nil)
 	     (ensime-show-all-errors-and-warnings))
-	   (ensime-event-sig :full-typecheck-finished val))
+	   (ensime-event-sig :full-typecheck-finished t))
 
-	  ((:compiler-ready status)
-	   (ensime-handle-compiler-ready status)
-	   (ensime-event-sig :compiler-ready status))
+	  ((:compiler-ready)
+	   (ensime-handle-compiler-ready)
+	   (ensime-event-sig :compiler-ready t))
 
-	  ((:indexer-ready status)
-	   (ensime-event-sig :indexer-ready status))
+	  ((:indexer-ready)
+	   (ensime-event-sig :indexer-ready t))
 
 	  ((:scala-notes result)
 	   (ensime-add-notes 'scala result))
@@ -1956,10 +1956,10 @@ This idiom is preferred over `lexical-let'."
 	  ((:java-notes result)
 	   (ensime-add-notes 'java result))
 
-	  ((:clear-all-scala-notes result)
+	  ((:clear-all-scala-notes)
 	   (ensime-clear-notes 'scala))
 
-	  ((:clear-all-java-notes result)
+	  ((:clear-all-java-notes)
 	   (ensime-clear-notes 'java))
 
 	  ((:channel-send id msg)
@@ -2002,7 +2002,7 @@ This idiom is preferred over `lexical-let'."
   (ensime-net-send sexp (ensime-connection)))
 
 
-(defun ensime-handle-compiler-ready (status)
+(defun ensime-handle-compiler-ready ()
   "Do any work that should be done the first time the analyzer becomes
  ready for requests."
   (let ((conn (ensime-current-connection)))
@@ -2157,7 +2157,7 @@ any buffer visiting the given file."
 	(cond
 	 ((equal severity 'error)
 	  (incf num-err))
-	 ((equal severity 'error)
+	 ((equal severity 'warn)
 	  (incf num-warn))
 	 (t))))
     (setf (ensime-num-errors conn) num-err)
