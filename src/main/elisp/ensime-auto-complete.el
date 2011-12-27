@@ -26,35 +26,13 @@
   :type 'boolean
   :group 'ensime-ui)
 
-(defun ensime-ac-delete-text-back-to-call-target ()
-  "Assuming the point is in a member prefix, delete all text back to the
-target of the call. Point should be be over last character of call target."
-  (let ((p (point)))
-    (re-search-backward "[^\\. ][\\. ]" (point-at-bol) t)
-    (let ((text (buffer-substring-no-properties (1+ (point)) p))
-	  (deactivate-mark nil))
-      (delete-region (1+ (point)) p)
-      text)))
 
-(defun ensime-ac-member-candidates (prefix)
+(defun ensime-ac-completion-candidates (prefix)
   "Return candidate list."
-  (let ((members
-	 (ensime-ac-with-buffer-copy
-
-	  ;; Make some space so trailing characters don't interfere.
-	  (save-excursion (insert " "))
-
-	  ;; Delete the member prefix
-	  (ensime-ac-delete-text-back-to-call-target)
-
-	  ;; Add a trailing '.' so singleton object accesses parse correctly
-	  ;; Move cursor forward so it will be on '.'
-	  (forward-char)
-	  (save-excursion
-	    (insert ". ()"))
-
-	  (ensime-write-buffer)
-	  (ensime-rpc-members-for-type-at-point prefix))))
+  (let ((completions
+	 (progn
+	  (ensime-write-buffer nil t)
+	  (ensime-rpc-completions-at-point))))
 
     (mapcar (lambda (m)
 	      (let* ((type-sig (plist-get m :type-sig))
@@ -62,7 +40,6 @@ target of the call. Point should be be over last character of call target."
 		     (is-callable (plist-get m :is-callable))
 		     (name (plist-get m :name))
 		     (candidate name))
-		;; Save the type for later display
 		(propertize candidate
 			    'symbol-name name
 			    'type-sig type-sig
@@ -70,7 +47,7 @@ target of the call. Point should be be over last character of call target."
 			    'is-callable is-callable
 			    'summary (ensime-ac-trunc-summary type-sig)
 			    )))
-	    members)
+	    completions)
     ))
 
 
@@ -78,7 +55,7 @@ target of the call. Point should be be over last character of call target."
   "Create a duplicate of the current buffer, copying all contents.
 Bind ensime-buffer-connection and buffer-file-name to the given values.
 Execute forms in body in the context of this new buffer. The idea is that
-We can abuse this buffer, even saving its contents to disk, and all the
+we can abuse this buffer, even saving its contents to disk, and all the
 changes will be forgotten."
   `(let ((buf (current-buffer))
 	 (file-name buffer-file-name)
@@ -97,79 +74,6 @@ changes will be forgotten."
        ;; written from temp buffer.
        (ensime-write-buffer nil t)
        )))
-
-
-(defun ensime-ac-completing-constructor-p (prefix)
-  "Are we trying to complete a call of the form 'new [prefix]' ?"
-  (save-excursion
-    (goto-char (- (point) (length prefix)))
-    (looking-back "new\\s-+" (ensime-pt-at-end-of-prev-line))
-    ))
-
-(defun ensime-ac-name-candidates (prefix)
-  "Return candidate list."
-  (let ((is-constructor (ensime-ac-completing-constructor-p prefix)))
-    (let ((names
-	   (ensime-ac-with-buffer-copy
-	    (backward-delete-char (length prefix))
-	    (insert ";{")
-	    (save-excursion
-	      ;; Insert a dummy value after (point), so that
-	      ;; if we are at the end of a method body, the
-	      ;; method context will be extended to include
-	      ;; the completion point.
-	      (insert "  ;exit()};"))
-	    (ensime-write-buffer)
-	    (ensime-rpc-name-completions-at-point
-	     prefix is-constructor))))
-
-      (mapcar (lambda (m)
-		(let* ((type-sig (plist-get m :type-sig))
-		       (type-id (plist-get m :type-id))
-		       (is-callable (plist-get m :is-callable))
-		       (name (plist-get m :name))
-		       (candidate name))
-		  ;; Save the type for later display
-		  (propertize candidate
-			      'symbol-name name
-			      'type-sig type-sig
-			      'type-id type-id
-			      'is-callable is-callable
-			      'summary (ensime-ac-trunc-summary type-sig)
-			      ))
-		) names))))
-
-
-(defun ensime-ac-package-decl-candidates (prefix)
-  "Return candidate list."
-  (when (looking-back ensime-ac-package-decl-prefix-re
-		      (ensime-pt-at-end-of-prev-line))
-    (let* ((full-match (match-string 0))
-	   (path (ensime-kill-txt-props (match-string 1)))
-
-	   (names (ensime-ac-with-buffer-copy
-		   (backward-delete-char (length full-match))
-		   (insert "object ensimesynthetic${")
-
-		   (if (eq (length path) 0)
-
-		       (progn
-			 (save-excursion
-			   (insert "  }"))
-			 (ensime-write-buffer)
-			 (ensime-rpc-name-completions-at-point prefix))
-
-		     (progn
-		       (insert path)
-		       (save-excursion
-			 (insert "  }"))
-		       (backward-char 2)
-		       (ensime-write-buffer)
-		       (ensime-rpc-members-for-type-at-point prefix))))))
-
-      (delete-dups
-       (mapcar (lambda (m) (plist-get m :name))
-	       names)))))
 
 
 (defun ensime-ac-trunc-summary (str)
@@ -194,45 +98,12 @@ changes will be forgotten."
 		   (- (point) 1)
 		   (point-at-eol))))
 
-(defun ensime-ac-member-prefix ()
-  "Starting at current point. Find the point of completion for a member access.
-   Return nil if we are not currently looking at a member access."
-  (let ((point (re-search-backward "[\\. ]+\\([^\\. ]*\\)?" (point-at-bol) t)))
-    (if point (1+ point))))
-
-
-(defvar ensime-ac-name-following-keyword-re
-  (concat
-   "\\(?:\\W\\|\\s-\\)\\(?:else\\|case\\|new\\|with\\|extends\\|yield\\)"
-   "\\s-+\\(\\w*\\)"))
-
-(defvar ensime-ac-name-following-syntax-re
-  (concat
-   "[!:=>(\\[,;}{\n+*/\\^&~%-]"
-   "\\s-*\\(\\w*\\)"))
-
-(defun ensime-ac-name-prefix ()
-  "Starting at current point - find the point of completion for a symbol.
- Return nil if we're looking at a context where symbol completion is
- inappropriate."
-  (let ((left-bound (ensime-pt-at-end-of-prev-line)))
-    (when (or (looking-back  ensime-ac-name-following-keyword-re left-bound)
-	      (looking-back ensime-ac-name-following-syntax-re left-bound))
-      (let ((point (- (point) (length (match-string 1)))))
-	(goto-char point)
-	point
-	))))
-
-(defvar ensime-ac-package-decl-prefix-re
-  "\\(?:package\\|import\\)[ ]+\\(\\(?:[a-z0-9]+\\.\\)*\\)\\([A-z0-9]*\\)")
-(defun ensime-ac-package-decl-prefix ()
-  "Starting at current point. Find the point of completion for a member access.
-   Return nil if we are not currently looking at a member access."
-  (let ((left-bound (ensime-pt-at-end-of-prev-line)))
-    (when (looking-back ensime-ac-package-decl-prefix-re left-bound)
-      (let ((point (- (point) (length (match-string 2)))))
-	(goto-char point)
-	point))))
+(defun ensime-ac-completion-prefix ()
+  "Starting at current point. Find the point of completion."
+  (let ((point (re-search-backward "\\(\\W\\|[\t ]\\)\\([^\\. ]*\\)?"
+				   (point-at-bol) t)))
+    (if point (1+ point))
+    ))
 
 
 (defun ensime-ac-complete-action ()
@@ -373,48 +244,26 @@ be used later to give contextual help when entering arguments."
      )))
 
 
-(ac-define-source ensime-members
+(ac-define-source ensime-completions
   '((document . ensime-ac-get-doc)
-    (candidates . (ensime-ac-member-candidates ac-prefix))
-    (prefix . ensime-ac-member-prefix)
+    (candidates . (ensime-ac-completion-candidates ac-prefix))
+    (prefix . ensime-ac-completion-prefix)
     (action . ensime-ac-complete-action)
     (requires . 0)
     (symbol . "f")
     (cache . t)
     ))
 
-(ac-define-source ensime-scope-names
-  '((document . ensime-ac-get-doc)
-    (candidates . (ensime-ac-name-candidates ac-prefix))
-    (prefix . ensime-ac-name-prefix)
-    (action . ensime-ac-complete-action)
-    (requires . 0)
-    (symbol . "s")
-    (cache . t)
-    ))
-
-(ac-define-source ensime-package-decl-members
-  '((candidates . (ensime-ac-package-decl-candidates ac-prefix))
-    (prefix . ensime-ac-package-decl-prefix)
-    (requires . 0)
-    (symbol . "s")
-    (cache . t)
-    ))
 
 (defun ensime-ac-enable ()
   (make-local-variable 'ac-sources)
-
-  ;; Note, we try to complete names before members.
-  ;; This simplifies the regexes.
-  (setq ac-sources '(ac-source-ensime-package-decl-members
-		     ac-source-ensime-scope-names
-		     ac-source-ensime-members ))
+  (setq ac-sources '(ac-source-ensime-completions))
 
   (make-local-variable 'ac-use-comphist)
   (setq ac-use-comphist t)
 
   (make-local-variable 'ac-auto-start)
-  (setq ac-auto-start nil)
+  (setq ac-auto-start t)
 
   (make-local-variable 'ac-expand-on-auto-complete)
   (setq ac-expand-on-auto-complete nil)
