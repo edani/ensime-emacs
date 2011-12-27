@@ -499,36 +499,37 @@ Do not show 'Writing..' message."
   \"ENSIME\" only appears if we aren't connected.  If connected, include
   connection-name, and possibly some state
   information."
-  (condition-case err
-      (let ((conn (ensime-current-connection)))
-	(cond ((and ensime-mode (not conn))
-	       ;;
-	       (cond
-		((ensime-probable-owning-connection-for-source-file
-		  buffer-file-name)
-		 " [ENSIME: Connected...]")
-		(t " [ENSIME: No Connection]")))
+  (when ensime-mode
+    (condition-case err
+	(let ((conn (ensime-current-connection)))
+	  (cond ((and ensime-mode (not conn))
+		 ;;
+		 (cond
+		  ((ensime-probable-owning-connection-for-source-file
+		    buffer-file-name)
+		   " [ENSIME: Connected...]")
+		  (t " [ENSIME: No Connection]")))
 
-	      ((and ensime-mode (ensime-connected-p conn))
-	       (concat " "
-		       "[ENSIME: "
-		       (or (plist-get (ensime-config conn) :project-name)
-			   "Connected...")
-		       (let ((status (ensime-modeline-state-string conn))
-			     (unready (not (ensime-analyzer-ready conn))))
-			 (cond (status (concat " (" status ")"))
-			       (unready " (analyzing...)")
-			       (t "")))
-		       (concat (format " : %s/%s"
-				       (ensime-num-errors conn)
-				       (ensime-num-warnings)))
-		       "]"))
-	      (ensime-mode " [ENSIME: Dead Connection]")
-	      ))
-    (error (progn
-	     (message "Error in modeline update: %s" err)
-	     ""
-	     ))))
+		((and ensime-mode (ensime-connected-p conn))
+		 (concat " "
+			 "[ENSIME: "
+			 (or (plist-get (ensime-config conn) :project-name)
+			     "Connected...")
+			 (let ((status (ensime-modeline-state-string conn))
+			       (unready (not (ensime-analyzer-ready conn))))
+			   (cond (status (concat " (" status ")"))
+				 (unready " (analyzing...)")
+				 (t "")))
+			 (concat (format " : %s/%s"
+					 (ensime-num-errors conn)
+					 (ensime-num-warnings)))
+			 "]"))
+		(ensime-mode " [ENSIME: Dead Connection]")
+		))
+      (error (progn
+	       (message "Error in modeline update: %s" err)
+	       ""
+	       )))))
 
 
 
@@ -2897,6 +2898,13 @@ with the current project's dependencies loaded. Returns a property list."
      ,(ensime-computed-point)
      ,(or prefix "")
      ,is-constructor)))
+
+(defun ensime-rpc-completions-at-point ()
+  (ensime-eval
+   `(swank:completions
+     ,buffer-file-name
+     ,(ensime-computed-point)
+     )))
 
 (defun ensime-rpc-import-suggestions-at-point (names max-results)
   (ensime-eval
