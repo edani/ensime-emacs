@@ -260,7 +260,7 @@ be used later to give contextual help when entering arguments."
   (setq ac-sources '(ac-source-ensime-completions))
 
   (make-local-variable 'ac-use-comphist)
-  (setq ac-use-comphist t)
+  (setq ac-use-comphist nil)
 
   (make-local-variable 'ac-auto-start)
   (setq ac-auto-start nil)
