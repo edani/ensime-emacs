@@ -29,10 +29,11 @@
 
 (defun ensime-ac-completion-candidates (prefix)
   "Return candidate list."
-  (let ((completions
-	 (progn
-	  (ensime-write-buffer nil t)
-	  (ensime-rpc-completions-at-point))))
+  (let* ((info
+	  (progn
+	    (ensime-write-buffer nil t)
+	    (ensime-rpc-completions-at-point)))
+	 (completions (plist-get info :completions)))
 
     (mapcar (lambda (m)
 	      (let* ((type-sig (plist-get m :type-sig))
