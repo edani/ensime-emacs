@@ -686,12 +686,12 @@
 
       ;; complete java package member
       (ensime-test-eat-label "1")
-      (let* ((candidates (ensime-ac-package-decl-candidates "ut")))
+      (let* ((candidates (ensime-ac-completion-candidates "ut")))
 	(ensime-assert (member "util" candidates)))
 
       ;; complete scala package
       (ensime-test-eat-label "2")
-      (let* ((candidates (ensime-ac-package-decl-candidates "sc")))
+      (let* ((candidates (ensime-ac-completion-candidates "sc")))
 	(ensime-assert (member "scala" candidates)))
 
       (ensime-test-cleanup proj)
