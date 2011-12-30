@@ -578,28 +578,28 @@
 
       ;; object method completion
       (ensime-test-eat-label "1")
-      (let* ((candidates (ensime-ac-member-candidates "")))
+      (let* ((candidates (ensime-ac-completion-candidates "")))
 	(ensime-assert (member "add" candidates)))
 
       ;; Try completion when a method begins without target
       ;; on next line.
       (ensime-test-eat-label "2")
-      (let* ((candidates (ensime-ac-member-candidates "")))
+      (let* ((candidates (ensime-ac-completion-candidates "")))
 	(ensime-assert (member "blarg" candidates)))
 
       ;; Instance completion with prefix
       (ensime-test-eat-label "3")
-      (let* ((candidates (ensime-ac-member-candidates "pri")))
+      (let* ((candidates (ensime-ac-completion-candidates "pri")))
 	(ensime-assert (member "println" candidates)))
 
       ;; Complete member of argument
       (ensime-test-eat-label "4")
-      (let* ((candidates (ensime-ac-member-candidates "s")))
+      (let* ((candidates (ensime-ac-completion-candidates "s")))
 	(ensime-assert (member "substring" candidates)))
 
       ;; Chaining of calls
       (ensime-test-eat-label "5")
-      (let* ((candidates (ensime-ac-member-candidates "hea")))
+      (let* ((candidates (ensime-ac-completion-candidates "hea")))
 	(ensime-assert (member "headOption" candidates)))
 
       (ensime-test-cleanup proj)
@@ -645,12 +645,12 @@
 
       ;; constructor completion
       (ensime-test-eat-label "1")
-      (let* ((candidates (ensime-ac-name-candidates "Fi")))
+      (let* ((candidates (ensime-ac-completion-candidates "Fi")))
 	(ensime-assert (member "File" candidates)))
 
       ;; local method name completion.
       (ensime-test-eat-label "2")
-      (let* ((candidates (ensime-ac-name-candidates "bl")))
+      (let* ((candidates (ensime-ac-completion-candidates "bl")))
 	(ensime-assert (member "blarg" candidates)))
 
       (ensime-test-cleanup proj)
