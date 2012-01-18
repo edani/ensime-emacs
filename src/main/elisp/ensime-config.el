@@ -164,15 +164,12 @@
     ))
 
 (defun ensime-config-build-sbt (root)
-  (let ((conf '()))
-
-    (ensime-set-key conf :project-package
-                    (ensime-config-read-proj-package))
-
-    (ensime-set-key conf :use-sbt t)
-
-    conf
-    ))
+  (message (concat
+	    "Use the sbt command 'ensime generate' to create a .ensime file."
+	    "\nThen, run M-x ensime."
+	    ))
+  nil
+  )
 
 (defun ensime-config-build-custom (root)
   (let ((conf '()))
@@ -216,13 +213,14 @@
 			 (symbol-name proj-type))))
 	 (conf (funcall builder-func root))
 	 (conf-file (concat root "/" ensime-config-file-name)))
-    (with-temp-file conf-file
-      (ensime-config-insert-config conf))
-    (message (concat "Your project config "
-		     "has been written to %s. "
-		     "Use 'M-x ensime' to launch "
-		     "ENSIME.") conf-file)
-    ))
+    (when conf
+      (with-temp-file conf-file
+	(ensime-config-insert-config conf))
+      (message (concat "Your project config "
+		       "has been written to %s. "
+		       "Use 'M-x ensime' to launch "
+		       "ENSIME.") conf-file)
+      )))
 
 (defun ensime-config-insert-config (conf)
   (insert (concat ";; This config was generated using "
@@ -274,10 +272,10 @@
   (let* ((dir (file-name-directory file-name))
 	 (possible-path (concat dir ensime-config-file-name)))
     (when (and dir (file-directory-p dir))
-	(if (file-exists-p possible-path)
-	    possible-path
-	  (if (not (equal dir (directory-file-name dir)))
-	      (ensime-config-find-file (directory-file-name dir)))))))
+      (if (file-exists-p possible-path)
+	  possible-path
+	(if (not (equal dir (directory-file-name dir)))
+	    (ensime-config-find-file (directory-file-name dir)))))))
 
 (defun ensime-config-find-and-load (&optional force-dir)
   "Query the user for the path to a config file, then load it."
