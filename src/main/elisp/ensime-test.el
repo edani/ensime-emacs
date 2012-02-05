@@ -700,6 +700,45 @@
 
 
    (ensime-async-test
+    "Test completing imports by class name."
+    (let* ((proj (ensime-create-tmp-project
+		  `((:name
+		     "hello_world.scala"
+		     :contents ,(ensime-test-concat-lines
+				 "package com.helloworld"
+				 "import Vec/*1*/"
+				 "class HelloWorld{"
+				 "}"
+				 )
+		     ))
+		  '(:disable-index-on-startup nil)
+		  ))
+	   (src-files (plist-get proj :src-files)))
+      (ensime-test-var-put :proj proj)
+      (find-file (car src-files))
+      (ensime))
+
+    ((:connected connection-info))
+
+    ((:indexer-ready status)
+     (ensime-test-with-proj
+      (proj src-files)
+
+      (find-file (car src-files))
+
+      ;; complete java package member
+      (ensime-test-eat-label "1")
+      (let* ((candidates (ensime-ac-completion-candidates "Vec"))
+	     (to-inserts (mapcar 'ensime-ac-candidate-to-insert candidates)))
+	(ensime-assert (member "java.util.Vector" to-inserts)))
+
+      (ensime-test-cleanup proj)
+      ))
+
+    )
+
+
+   (ensime-async-test
     "Test organize imports refactoring: remove unused import."
     (let* ((proj (ensime-create-tmp-project
 		  `((:name

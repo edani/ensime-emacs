@@ -1690,7 +1690,6 @@ If PROCESS is not specified, `ensime-connection' is used.
   (let ((ensime-dispatching-connection connection))
     (destructuring-bind (&key pid server-implementation version
 			      &allow-other-keys) info
-      (ensime-check-version version connection)
       (setf (ensime-pid) pid)
       (destructuring-bind (&key name) server-implementation
 	(setf (ensime-server-implementation-name) name
@@ -1729,15 +1728,6 @@ computed on server into the local config structure."
     (ensime-set-config conn config)
     (force-mode-line-update t)))
 
-
-(defun ensime-check-version (version conn)
-  (or (equal version ensime-protocol-version)
-      (equal ensime-protocol-version 'ignore)
-      (y-or-n-p
-       (format "Versions differ: %s (ensime) vs. %s (swank). Continue? "
-	       ensime-protocol-version version))
-      (ensime-net-close conn)
-      (top-level)))
 
 (defun ensime-generate-connection-name (server-name)
   (loop for i from 1
@@ -1812,10 +1802,11 @@ versions cannot deal with that."
        (ensime-rex (tag sexp)
 	   sexp
 	 ((:ok value)
-	  (unless (member tag ensime-stack-eval-tags)
-	    (error "Reply to canceled synchronous eval request tag=%S sexp=%S"
-		   tag sexp))
-	  (throw tag (list #'identity value)))
+	  (if (not (member tag ensime-stack-eval-tags))
+	      (message
+	       "Reply to canceled synchronous eval request tag=%S sexp=%S"
+	       tag sexp)
+	    (throw tag (list #'identity value))))
 	 ((:abort code reason)
 	  (throw tag (list #'error
 			   (format
@@ -2899,11 +2890,12 @@ with the current project's dependencies loaded. Returns a property list."
      ,(or prefix "")
      ,is-constructor)))
 
-(defun ensime-rpc-completions-at-point ()
+(defun ensime-rpc-completions-at-point (&optional max-results)
   (ensime-eval
    `(swank:completions
      ,buffer-file-name
      ,(ensime-computed-point)
+     ,(or max-results 0)
      )))
 
 (defun ensime-rpc-import-suggestions-at-point (names max-results)
