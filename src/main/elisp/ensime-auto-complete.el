@@ -21,7 +21,7 @@
 
 (require 'auto-complete)
 
-(defcustom ensime-ac-enable-argument-placeholders nil
+(defcustom ensime-ac-enable-argument-placeholders t
   "If non-nil, insert placeholder arguments in the buffer on completion."
   :type 'boolean
   :group 'ensime-ui)
