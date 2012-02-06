@@ -2886,20 +2886,14 @@ with the current project's dependencies loaded. Returns a property list."
    :end
    ))
 
-(defun ensime-rpc-name-completions-at-point (&optional prefix is-constructor)
-  (ensime-eval
-   `(swank:scope-completion
-     ,buffer-file-name
-     ,(ensime-computed-point)
-     ,(or prefix "")
-     ,is-constructor)))
 
-(defun ensime-rpc-completions-at-point (&optional max-results)
+(defun ensime-rpc-completions-at-point (&optional max-results case-sens)
   (ensime-eval
    `(swank:completions
      ,buffer-file-name
      ,(ensime-computed-point)
      ,(or max-results 0)
+     ,case-sens
      )))
 
 (defun ensime-rpc-import-suggestions-at-point (names max-results)
@@ -2925,13 +2919,6 @@ with the current project's dependencies loaded. Returns a property list."
      ,buffer-file-name
      ,(ensime-computed-point)
      )))
-
-(defun ensime-rpc-members-for-type-at-point (&optional prefix)
-  (ensime-eval
-   `(swank:type-completion
-     ,buffer-file-name
-     ,(ensime-computed-point)
-     ,(or prefix ""))))
 
 (defun ensime-rpc-package-member-completions (path &optional prefix)
   (ensime-eval
