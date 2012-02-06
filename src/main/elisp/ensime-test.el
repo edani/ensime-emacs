@@ -666,48 +666,10 @@
 		     :contents ,(ensime-test-concat-lines
 				 "package com.helloworld"
 				 "import java.ut/*1*/"
+				 "import Vec/*3*/"
+				 "import java.util.{ List, Vec/*4*/}"
 				 "class HelloWorld{"
 				 "import sc/*2*/"
-				 "}"
-				 )
-		     ))))
-	   (src-files (plist-get proj :src-files)))
-      (ensime-test-var-put :proj proj)
-      (find-file (car src-files))
-      (ensime))
-
-    ((:connected connection-info))
-
-    ((:full-typecheck-finished val)
-     (ensime-test-with-proj
-      (proj src-files)
-
-      (find-file (car src-files))
-
-      ;; complete java package member
-      (ensime-test-eat-label "1")
-      (let* ((candidates (ensime-ac-completion-candidates "ut")))
-	(ensime-assert (member "util" candidates)))
-
-      ;; complete scala package
-      (ensime-test-eat-label "2")
-      (let* ((candidates (ensime-ac-completion-candidates "sc")))
-	(ensime-assert (member "scala" candidates)))
-
-      (ensime-test-cleanup proj)
-      ))
-    )
-
-
-   (ensime-async-test
-    "Test completing imports by class name."
-    (let* ((proj (ensime-create-tmp-project
-		  `((:name
-		     "hello_world.scala"
-		     :contents ,(ensime-test-concat-lines
-				 "package com.helloworld"
-				 "import Vec/*1*/"
-				 "class HelloWorld{"
 				 "}"
 				 )
 		     ))
@@ -728,13 +690,29 @@
 
       ;; complete java package member
       (ensime-test-eat-label "1")
+      (let* ((candidates (ensime-ac-completion-candidates "ut")))
+	(ensime-assert (member "util" candidates)))
+      (insert "il.HashMap")
+      (ensime-write-buffer)
+
+      ;; complete java package member by class name
+      (ensime-test-eat-label "3")
       (let* ((candidates (ensime-ac-completion-candidates "Vec"))
 	     (to-inserts (mapcar 'ensime-ac-candidate-to-insert candidates)))
 	(ensime-assert (member "java.util.Vector" to-inserts)))
 
+      ;; complete java package member by class name in name list
+      (ensime-test-eat-label "4")
+      (let* ((candidates (ensime-ac-completion-candidates "Vec")))
+	(ensime-assert (member "Vector" candidates)))
+
+      ;; complete scala package
+      (ensime-test-eat-label "2")
+      (let* ((candidates (ensime-ac-completion-candidates "sc")))
+	(ensime-assert (member "scala" candidates)))
+
       (ensime-test-cleanup proj)
       ))
-
     )
 
 
