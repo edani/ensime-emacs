@@ -251,6 +251,7 @@ Do not show 'Writing..' message."
       (define-key prefix-map (kbd "C-v f") 'ensime-format-source)
       (define-key prefix-map (kbd "C-v u") 'ensime-undo-peek)
       (define-key prefix-map (kbd "C-v v") 'ensime-search)
+      (define-key prefix-map (kbd "C-v t") 'ensime-show-doc-for-symbol-at-point)
       (define-key prefix-map (kbd "C-v .") 'ensime-expand-selection-command)
 
       (define-key prefix-map (kbd "C-d d") 'ensime-db-start)
@@ -332,6 +333,9 @@ Do not show 'Writing..' message."
      ["Forward compilation note" ensime-forward-note]
      ["Expand selection" ensime-expand-selection-command]
      ["Search" ensime-search])
+
+    ("Documentation"
+     ["Browse documentation of symbol" ensime-show-doc-for-symbol-at-point])
 
     ("Debugger"
      ["Start" ensime-db-start]
@@ -3652,6 +3656,12 @@ It should be used for \"background\" messages such as argument lists."
 
 (defun ensime-symbol-type (sym)
   (plist-get sym :type))
+
+(defun ensime-symbol-is-callable (sym)
+  (plist-get sym :is-callable))
+
+(defun ensime-symbol-owner-type-id (sym)
+  (plist-get sym :owner-type-id))
 
 (defun ensime-package-name (info)
   (plist-get info :name))
