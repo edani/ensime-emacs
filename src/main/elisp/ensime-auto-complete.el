@@ -26,6 +26,11 @@
   :type 'boolean
   :group 'ensime-ui)
 
+(defcustom ensime-ac-case-sensitive nil
+  "If non-nil, omit completions that don't match the case of prefix."
+  :type 'boolean
+  :group 'ensime-ui)
+
 (defvar ensime-ac-max-results 30
   "Maximum number of completions to request in one call to server.")
 
@@ -35,7 +40,8 @@
   (let* ((info
 	  (progn
 	    (ensime-write-buffer nil t)
-	    (ensime-rpc-completions-at-point ensime-ac-max-results)))
+	    (ensime-rpc-completions-at-point ensime-ac-max-results
+					     ensime-ac-case-sensitive)))
 	 (completions (plist-get info :completions)))
 
     (mapcar (lambda (m)
