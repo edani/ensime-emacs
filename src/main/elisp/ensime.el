@@ -2827,6 +2827,10 @@ any buffer visiting the given file."
   (ensime-eval
    `(swank:debug-start ,command-line)))
 
+(defun ensime-rpc-debug-stop ()
+  (ensime-eval
+   `(swank:debug-stop)))
+
 (defun ensime-rpc-debug-list-breakpoints ()
   (ensime-eval
    `(swank:debug-list-breakpoints)))
@@ -2835,6 +2839,9 @@ any buffer visiting the given file."
   (ensime-eval
    `(swank:debug-set-break ,file ,line)))
 
+(defun ensime-rpc-debug-continue ()
+  (ensime-eval
+   `(swank:debug-continue)))
 
 (defun ensime-rpc-symbol-at-point ()
   (ensime-eval

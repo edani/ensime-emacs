@@ -113,7 +113,6 @@
 	    (push ov ensime-db-breakpoint-overlays)))))))
 
 
-
 (defvar ensime-db-breakpoint-overlays '())
 
 (defun ensime-db-clear-breakpoint-overlays ()
