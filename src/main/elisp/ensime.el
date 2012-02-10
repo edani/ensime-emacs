@@ -1958,6 +1958,9 @@ This idiom is preferred over `lexical-let'."
 	  ((:clear-all-java-notes)
 	   (ensime-clear-notes 'java))
 
+	  ((:debug-event evt)
+	   (message "Debug Event: %s" evt))
+
 	  ((:channel-send id msg)
 	   (ensime-channel-send (or (ensime-find-channel id)
 				    (error "Invalid channel id: %S %S" id msg))
@@ -2818,15 +2821,18 @@ any buffer visiting the given file."
 	(ensime-set-selection start end)))))
 
 
-;; RPC Helpers
-
-(defun ensime-debug-unit-info-at-point ()
-  (interactive)
-  (ensime-rpc-debug-unit-info (file-name-nondirectory buffer-file-name)
-			      (line-number-at-pos (point))
-			      ""))
-
 ;; Basic RPC calls
+
+(defun ensime-rpc-debug-start (command-line)
+  (ensime-eval
+   `(swank:debug-start ,command-line)))
+
+(defun ensime-rpc-debug-list-breakpoints ()
+  (ensime-eval
+   `(swank:debug-list-breakpoints)))
+
+
+
 
 (defun ensime-rpc-symbol-at-point ()
   (ensime-eval
@@ -2837,26 +2843,6 @@ any buffer visiting the given file."
 with the current project's dependencies loaded. Returns a property list."
   (ensime-eval
    `(swank:repl-config)))
-
-(defun ensime-rpc-debug-config ()
-  "Get the configuration information needed to launch the debugger
-with the current project's dependencies loaded. Returns a property list."
-  (ensime-eval
-   `(swank:debug-config)))
-
-(defun ensime-rpc-debug-unit-info (file-name-no-path
-				   line-number &optional package-prefix)
-  "Get descriptive info for the compilation unit defined at
- file-name/line-number."
-  (ensime-eval
-   `(swank:debug-unit-info ,file-name-no-path
-			   ,line-number
-			   ,(or package-prefix ""))))
-
-(defun ensime-rpc-debug-class-locs-to-source-locs (locs)
-  "Get source locations corresponding to class,line pairs."
-  (ensime-eval
-   `(swank:debug-class-locs-to-source-locs ,locs)))
 
 (defun ensime-rpc-remove-file (file-name)
   (ensime-eval `(swank:remove-file ,file-name)))
