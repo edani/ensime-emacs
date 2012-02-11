@@ -169,6 +169,7 @@ method invocations."
 (defun ensime-db-quit ()
   "Stop debugging the current program. Kills the debug buffer."
   (interactive)
+  (ensime-rpc-debug-stop)
   (kill-buffer ensime-db-buffer-name))
 
 (defun ensime-db-get-cmd-line ()

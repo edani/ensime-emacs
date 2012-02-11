@@ -1920,6 +1920,7 @@ This idiom is preferred over `lexical-let'."
 	     (ensime-send `(:swank-rpc ,form ,id))
 	     (push (cons id continuation) (ensime-rex-continuations))
 	     ))
+
 	  ((:return value id)
 	   (let ((rec (assq id (ensime-rex-continuations))))
 
@@ -1930,6 +1931,7 @@ This idiom is preferred over `lexical-let'."
 			(ensime-event-sig :return-value value))
 		   (t
 		    (error "Unexpected reply: %S %S" id value)))))
+
 
 	  ((:full-typecheck-finished)
 	   (when (ensime-awaiting-full-typecheck (ensime-connection))
