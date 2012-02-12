@@ -77,6 +77,7 @@
    (plist-get evt :line)))
 
 (defun ensime-db-handle-break-hit (evt)
+  (message "break hit")
   (ensime-db-set-debug-marker
    (plist-get evt :file)
    (plist-get evt :line)))
@@ -153,7 +154,7 @@ method invocations."
 (defun ensime-db-run ()
   "Start debugging the current program."
   (interactive)
-  (ensime-rpc-debug-run))
+  (ensime-rpc-debug-continue))
 
 (defun ensime-db-set-break (f line)
   "Set a breakpoint in the current source file at point."
@@ -207,7 +208,7 @@ the current project's dependencies. Returns list of form (cmd [arg]*)"
        (ensime-db-clear-marker-overlays)
 
        (insert "Starting debug vm...")
-       (ensime-rpc-debug-start)
+       (ensime-rpc-debug-start cmd-line)
        ))))
 
 
