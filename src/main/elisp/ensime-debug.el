@@ -56,10 +56,10 @@
 
 (defun ensime-db-handle-event (evt)
   (case (plist-get evt :type)
-    (step 'ensime-db-handle-step)
-    (break 'ensime-db-handle-break-hit)
-    (exception 'ensime-db-handle-exception)
-    (otherwise 'ensime-db-handle-unknown-event)
+    (step (ensime-db-handle-step evt))
+    (breakpoint (ensime-db-handle-break-hit evt))
+    (exception (ensime-db-handle-exception evt))
+    (otherwise (ensime-db-handle-unknown-event evt))
     ))
 
 (defun ensime-db-handle-unknown-event (evt)
@@ -77,7 +77,6 @@
    (plist-get evt :line)))
 
 (defun ensime-db-handle-break-hit (evt)
-  (message "break hit")
   (ensime-db-set-debug-marker
    (plist-get evt :file)
    (plist-get evt :line)))
@@ -103,9 +102,9 @@
   "Refresh all breakpoints from server."
   (ensime-db-clear-breakpoint-overlays)
   (let ((bp-locs (ensime-rpc-debug-list-breakpoints)))
-    (dolist (bp bp-locs)
-      (let ((file (car bp))
-	    (line (cadr bp)))
+    (dolist (pos bp-locs)
+      (let ((file (ensime-pos-file pos))
+	    (line (ensime-pos-line pos)))
 	(when (and (stringp file) (integerp line))
 	  (when-let (ov (ensime-make-overlay-at
 			 file line nil nil
@@ -163,8 +162,15 @@ method invocations."
   (ensime-db-refresh-breakpoints))
 
 (defun ensime-db-clear-break (f line)
-  "Set a breakpoint in the current source file at point."
+  "Clear breakpoint."
   (interactive (list buffer-file-name (line-number-at-pos (point))))
+  (ensime-rpc-debug-clear-break f line)
+  (ensime-db-refresh-breakpoints))
+
+(defun ensime-db-clear-all-breaks ()
+  "Clear all breakpoints."
+  (interactive)
+  (ensime-rpc-debug-clear-all-breaks)
   (ensime-db-refresh-breakpoints))
 
 (defun ensime-db-quit ()
