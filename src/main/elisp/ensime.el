@@ -1918,7 +1918,7 @@ This idiom is preferred over `lexical-let'."
 	  ((:swank-rpc form continuation)
 	   (let ((id (incf (ensime-continuation-counter))))
 	     (ensime-send `(:swank-rpc ,form ,id))
-	     (push (cons id continuation) (ensime-rex-continuations))
+     (push (cons id continuation) (ensime-rex-continuations))
 	     ))
 
 	  ((:return value id)
@@ -1961,7 +1961,7 @@ This idiom is preferred over `lexical-let'."
 	   (ensime-clear-notes 'java))
 
 	  ((:debug-event evt)
-	   (message "Debug Event: %s" evt))
+	   (ensime-db-handle-event evt))
 
 	  ((:channel-send id msg)
 	   (ensime-channel-send (or (ensime-find-channel id)
@@ -2833,6 +2833,14 @@ any buffer visiting the given file."
   (ensime-eval
    `(swank:debug-stop)))
 
+(defun ensime-rpc-debug-next (thread-id)
+  (ensime-eval
+   `(swank:debug-next)))
+
+(defun ensime-rpc-debug-step (thread-id)
+  (ensime-eval
+   `(swank:debug-step)))
+
 (defun ensime-rpc-debug-list-breakpoints ()
   (ensime-eval
    `(swank:debug-list-breakpoints)))
@@ -2840,6 +2848,14 @@ any buffer visiting the given file."
 (defun ensime-rpc-debug-set-break (file line)
   (ensime-eval
    `(swank:debug-set-break ,file ,line)))
+
+(defun ensime-rpc-debug-clear-break (file line)
+  (ensime-eval
+   `(swank:debug-clear-break ,file ,line)))
+
+(defun ensime-rpc-debug-clear-all-breaks ()
+  (ensime-eval
+   `(swank:debug-clear-all-breaks)))
 
 (defun ensime-rpc-debug-continue ()
   (ensime-eval
