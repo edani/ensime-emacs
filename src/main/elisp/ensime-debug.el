@@ -32,6 +32,13 @@
   "Face used for marking lines with breakpoints."
   :group 'ensime-ui)
 
+(defface ensime-pending-breakpoint-face
+  '((((class color) (background dark)) (:background "DarkGreen"))
+    (((class color) (background light)) (:background "LightGreen"))
+    (t (:bold t)))
+  "Face used for marking lines with breakpoints."
+  :group 'ensime-ui)
+
 (defface ensime-marker-face
   '((((class color) (background dark)) (:background "DarkGoldenrod4"))
     (((class color) (background light)) (:background "DarkGoldenrod2"))
@@ -51,13 +58,20 @@
 
 (defvar ensime-db-buffer-name "*ensime-debug-session*")
 
+(defvar ensime-db-active-thread-id nil
+  "The unique id of the which is currently receiving debug
+ commands.")
+
 
 ;; Event Handling
 
 (defun ensime-db-handle-event (evt)
   (case (plist-get evt :type)
+    (start (ensime-db-handle-start evt))
     (step (ensime-db-handle-step evt))
     (breakpoint (ensime-db-handle-break-hit evt))
+    (death (ensime-db-handle-shutdown evt))
+    (disconnect (ensime-db-handle-shutdown evt))
     (exception (ensime-db-handle-exception evt))
     (otherwise (ensime-db-handle-unknown-event evt))
     ))
@@ -71,15 +85,24 @@
 	   (plist-get evt :exception)
 	   ))
 
+(defun ensime-db-handle-start (evt)
+  (message "Debug VM started. Set breakpoints and then execute ensime-db-run."))
+
 (defun ensime-db-handle-step (evt)
   (ensime-db-set-debug-marker
    (plist-get evt :file)
    (plist-get evt :line)))
 
 (defun ensime-db-handle-break-hit (evt)
+  (setq ensime-db-active-thread-id
+	(plist-get evt :thread-id))
   (ensime-db-set-debug-marker
    (plist-get evt :file)
    (plist-get evt :line)))
+
+(defun ensime-db-handle-shutdown (evt)
+  (message "Debug VM Quit")
+  (setq ensime-db-active-thread-id nil))
 
 
 ;; UI
@@ -98,19 +121,28 @@
    'window))
 
 
+(defun ensime-db-create-breapoint-overlays (positions face)
+  (dolist (pos positions)
+    (let ((file (ensime-pos-file pos))
+	  (line (ensime-pos-line pos)))
+      (when (and (stringp file) (integerp line))
+	(when-let (ov (ensime-make-overlay-at
+		       file line nil nil
+		       "Breakpoint"
+		       face))
+	  (push ov ensime-db-breakpoint-overlays))))))
+
+
 (defun ensime-db-refresh-breakpoints ()
   "Refresh all breakpoints from server."
   (ensime-db-clear-breakpoint-overlays)
-  (let ((bp-locs (ensime-rpc-debug-list-breakpoints)))
-    (dolist (pos bp-locs)
-      (let ((file (ensime-pos-file pos))
-	    (line (ensime-pos-line pos)))
-	(when (and (stringp file) (integerp line))
-	  (when-let (ov (ensime-make-overlay-at
-			 file line nil nil
-			 "Breakpoint"
-			 'ensime-breakpoint-face))
-	    (push ov ensime-db-breakpoint-overlays)))))))
+  (let* ((bps (ensime-rpc-debug-list-breakpoints))
+	 (active (plist-get bps :active))
+	 (pending (plist-get bps :pending)))
+    (ensime-db-create-breapoint-overlays
+     active 'ensime-breakpoint-face)
+    (ensime-db-create-breapoint-overlays
+     pending 'ensime-pending-breakpoint-face)))
 
 
 (defvar ensime-db-breakpoint-overlays '())
@@ -128,8 +160,11 @@
   (mapc #'delete-overlay ensime-db-marker-overlays)
   (setq ensime-db-marker-overlays '()))
 
-
-
+(defmacro* ensime-db-with-active-thread ((tid-sym) &rest body)
+  `(if ensime-db-active-thread-id
+       (let ((,tid-sym ensime-db-active-thread-id))
+	 ,@body)
+     (message "No active debug thread.")))
 
 ;; User Commands
 
@@ -137,23 +172,26 @@
   "Cause debugger to go to next line, without stepping into
 method invocations."
   (interactive)
-  (ensime-rpc-debug-next))
+  (ensime-db-with-active-thread
+   (tid) (ensime-rpc-debug-next tid)))
 
 (defun ensime-db-step ()
   "Cause debugger to go to next line, stepping into
 method invocations."
   (interactive)
-  (ensime-rpc-debug-step))
+  (ensime-db-with-active-thread
+  (tid) (ensime-rpc-debug-step tid)))
 
 (defun ensime-db-continue ()
   "Continue stopped debugger."
   (interactive)
-  (ensime-rpc-debug-continue))
+  (ensime-db-with-active-thread
+  (tid) (ensime-rpc-debug-continue tid)))
 
 (defun ensime-db-run ()
   "Start debugging the current program."
   (interactive)
-  (ensime-rpc-debug-continue))
+  (ensime-rpc-debug-run))
 
 (defun ensime-db-set-break (f line)
   "Set a breakpoint in the current source file at point."
@@ -206,13 +244,9 @@ the current project's dependencies. Returns list of form (cmd [arg]*)"
      (save-selected-window
        (switch-to-buffer-other-window
 	(get-buffer-create ensime-db-buffer-name))
-
        (setq ensime-buffer-connection conn)
-       (add-hook 'kill-buffer-hook 'ensime-db-clear-breakpoint-overlays nil t)
        (add-hook 'kill-buffer-hook 'ensime-db-clear-marker-overlays nil t)
-       (ensime-db-clear-breakpoint-overlays)
        (ensime-db-clear-marker-overlays)
-
        (insert "Starting debug vm...")
        (ensime-rpc-debug-start cmd-line)
        ))))

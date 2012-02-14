@@ -2835,11 +2835,19 @@ any buffer visiting the given file."
 
 (defun ensime-rpc-debug-next (thread-id)
   (ensime-eval
-   `(swank:debug-next)))
+   `(swank:debug-next ,thread-id)))
+
+(defun ensime-rpc-debug-continue (thread-id)
+  (ensime-eval
+   `(swank:debug-continue ,thread-id)))
+
+(defun ensime-rpc-debug-run ()
+  (ensime-eval
+   `(swank:debug-run)))
 
 (defun ensime-rpc-debug-step (thread-id)
   (ensime-eval
-   `(swank:debug-step)))
+   `(swank:debug-step ,thread-id)))
 
 (defun ensime-rpc-debug-list-breakpoints ()
   (ensime-eval
@@ -2856,10 +2864,6 @@ any buffer visiting the given file."
 (defun ensime-rpc-debug-clear-all-breaks ()
   (ensime-eval
    `(swank:debug-clear-all-breaks)))
-
-(defun ensime-rpc-debug-continue ()
-  (ensime-eval
-   `(swank:debug-continue)))
 
 (defun ensime-rpc-symbol-at-point ()
   (ensime-eval
