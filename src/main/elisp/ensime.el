@@ -258,6 +258,7 @@ Do not show 'Writing..' message."
       (define-key prefix-map (kbd "C-d b") 'ensime-db-set-break)
       (define-key prefix-map (kbd "C-d u") 'ensime-db-clear-break)
       (define-key prefix-map (kbd "C-d s") 'ensime-db-step)
+      (define-key prefix-map (kbd "C-d o") 'ensime-db-step-out)
       (define-key prefix-map (kbd "C-d n") 'ensime-db-next)
       (define-key prefix-map (kbd "C-d r") 'ensime-db-run)
       (define-key prefix-map (kbd "C-d c") 'ensime-db-continue)
@@ -463,9 +464,14 @@ Do not show 'Writing..' message."
 
     (let* ((point (posn-point (event-end event)))
            (ident (tooltip-identifier-from-point point))
-           (note-overlays (ensime-overlays-at point)))
+           (note-overlays (ensime-overlays-at point))
+	   (val-at-pt (ensime-db-value-for-name-at-point point)))
 
       (cond
+
+       ;; If debugger is active and we can get the value of the symbol
+       ;; at the point, show it in the tooltip.
+       (val-at-pt (ensime-tooltip-show-message val-at-pt) t)
 
        ;; If error or warning overlays exist,
        ;; show that message..
@@ -1918,7 +1924,7 @@ This idiom is preferred over `lexical-let'."
 	  ((:swank-rpc form continuation)
 	   (let ((id (incf (ensime-continuation-counter))))
 	     (ensime-send `(:swank-rpc ,form ,id))
-     (push (cons id continuation) (ensime-rex-continuations))
+	     (push (cons id continuation) (ensime-rex-continuations))
 	     ))
 
 	  ((:return value id)
@@ -2649,23 +2655,23 @@ any buffer visiting the given file."
      notes)))
 
 
-(defun ensime-sym-at-point ()
+(defun ensime-sym-at-point (&optional point)
   "Return information about the symbol at point. If not looking at a
  symbol, return nil."
-  (let ((start nil)
-	(end nil))
-
-    (when (thing-at-point 'symbol)
-
-      (save-excursion
-	(search-backward-regexp "\\W" nil t)
-	(setq start (+ (point) 1)))
-      (save-excursion
-	(search-forward-regexp "\\W" nil t)
-	(setq end (- (point) 1)))
-      (list :start start
-	    :end end
-	    :name (buffer-substring-no-properties start end)))))
+  (save-excursion
+    (goto-char (or point (point)))
+    (let ((start nil)
+	  (end nil))
+      (when (thing-at-point 'symbol)
+	(save-excursion
+	  (search-backward-regexp "\\W" nil t)
+	  (setq start (+ (point) 1)))
+	(save-excursion
+	  (search-forward-regexp "\\W" nil t)
+	  (setq end (- (point) 1)))
+	(list :start start
+	      :end end
+	      :name (buffer-substring-no-properties start end))))))
 
 
 
@@ -2825,6 +2831,14 @@ any buffer visiting the given file."
 
 ;; Basic RPC calls
 
+(defun ensime-rpc-debug-active-vm ()
+  (ensime-eval
+   `(swank:debug-active-vm)))
+
+(defun ensime-rpc-debug-value-for-name (thread-id name)
+  (ensime-eval
+   `(swank:debug-value-for-name ,thread-id ,name)))
+
 (defun ensime-rpc-debug-start (command-line)
   (ensime-eval
    `(swank:debug-start ,command-line)))
@@ -2848,6 +2862,10 @@ any buffer visiting the given file."
 (defun ensime-rpc-debug-step (thread-id)
   (ensime-eval
    `(swank:debug-step ,thread-id)))
+
+(defun ensime-rpc-debug-step-out (thread-id)
+  (ensime-eval
+   `(swank:debug-step-out ,thread-id)))
 
 (defun ensime-rpc-debug-list-breakpoints ()
   (ensime-eval
