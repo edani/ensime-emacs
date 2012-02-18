@@ -91,7 +91,11 @@
 (defun ensime-db-handle-step (evt)
   (ensime-db-set-debug-marker
    (plist-get evt :file)
-   (plist-get evt :line)))
+   (plist-get evt :line))
+  (message "Suspended thread %s at %s : %s"
+	   (plist-get evt :thread-id)
+	   (plist-get evt :file)
+	   (plist-get evt :line)))
 
 (defun ensime-db-handle-break-hit (evt)
   (setq ensime-db-active-thread-id
@@ -166,32 +170,52 @@
 	 ,@body)
      (message "No active debug thread.")))
 
+
 ;; User Commands
+
+(defun ensime-db-value-for-name-at-point (p)
+  "Get the value of the symbol at point."
+  (interactive (list (point)))
+  (when ensime-db-active-thread-id
+    (when-let (sym (ensime-sym-at-point point))
+      (ensime-db-with-active-thread (tid)
+      (ensime-rpc-debug-value-for-name
+       tid (plist-get sym :name))
+      ))))
 
 (defun ensime-db-next ()
   "Cause debugger to go to next line, without stepping into
-method invocations."
+ method invocations."
   (interactive)
   (ensime-db-with-active-thread
    (tid) (ensime-rpc-debug-next tid)))
 
 (defun ensime-db-step ()
   "Cause debugger to go to next line, stepping into
-method invocations."
+ method invocations."
   (interactive)
   (ensime-db-with-active-thread
-  (tid) (ensime-rpc-debug-step tid)))
+   (tid) (ensime-rpc-debug-step tid)))
+
+(defun ensime-db-step-out ()
+  "Cause debugger to go to next line, stepping out of
+ method invocations."
+  (interactive)
+  (ensime-db-with-active-thread
+   (tid) (ensime-rpc-debug-step-out tid)))
 
 (defun ensime-db-continue ()
   "Continue stopped debugger."
   (interactive)
   (ensime-db-with-active-thread
-  (tid) (ensime-rpc-debug-continue tid)))
+   (tid) (ensime-rpc-debug-continue tid)))
 
 (defun ensime-db-run ()
   "Start debugging the current program."
   (interactive)
-  (ensime-rpc-debug-run))
+  (if (ensime-rpc-debug-active-vm)
+      (ensime-rpc-debug-run)
+    (ensime-db-start)))
 
 (defun ensime-db-set-break (f line)
   "Set a breakpoint in the current source file at point."
