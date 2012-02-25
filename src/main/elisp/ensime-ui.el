@@ -143,9 +143,9 @@
   )
 
 
-(defun ensime-ui-show-nav-buffer (buf-or-name info &optional select)
-  (let* ((buf (ensime-ui-make-nav-buffer
-	       buf-or-name)))
+(defun ensime-ui-show-nav-buffer (buf-or-name info &optional select conn)
+  (let* ((connection (or conn (ensime-connection)))
+	 (buf (ensime-ui-make-nav-buffer buf-or-name)))
 
     (ensime-ui-open-nav-window buf select)
 
@@ -180,6 +180,8 @@
 	  (define-key map (kbd ",") 'ensime-ui-nav-backward-page)
 	  (define-key map (kbd "q") 'ensime-ui-nav-quit)
 	  (use-local-map map))
+
+	(setq ensime-buffer-connection connection)
 
 	;; Call handler's init routine...
 	(funcall (plist-get handler :init) info))
