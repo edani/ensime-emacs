@@ -265,6 +265,7 @@ Do not show 'Writing..' message."
       (define-key prefix-map (kbd "C-d c") 'ensime-db-continue)
       (define-key prefix-map (kbd "C-d q") 'ensime-db-quit)
       (define-key prefix-map (kbd "C-d l") 'ensime-db-list-locals)
+      (define-key prefix-map (kbd "C-d i") 'ensime-db-inspect-value-at-point)
 
       (define-key prefix-map (kbd "C-r r") 'ensime-refactor-rename)
       (define-key prefix-map (kbd "C-r o") 'ensime-refactor-organize-imports)
@@ -466,7 +467,8 @@ Do not show 'Writing..' message."
     (let* ((point (posn-point (event-end event)))
            (ident (tooltip-identifier-from-point point))
            (note-overlays (ensime-overlays-at point))
-	   (val-at-pt (format "%s" (ensime-db-value-for-name-at-point point))))
+	   (val-at-pt (ensime-db-value-short-name
+		       (ensime-db-value-for-name-at-point point))))
 
       (cond
 

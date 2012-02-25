@@ -75,9 +75,9 @@
   "Return correct handler for this info."
   (cond
    ((equal info "test") ensime-db-ui-test-handler)
+   ((ensime-db-value-p info) ensime-db-ui-value-handler)
    ((ensime-db-hud-p info) ensime-db-ui-hud-handler)
    ((ensime-db-stack-p info) ensime-db-ui-stack-handler)
-   ((ensime-db-value-p info) ensime-db-ui-value-handler)
    (t (error
        (format "Can't find ui handler for: %s" info)))
    ))
@@ -169,8 +169,11 @@
       (let ((handler (ensime-ui-nav-handler-for-info info)))
 	(setq ensime-ui-nav-handler handler)
 
-	(insert (plist-get handler :help-text))
-	(insert "---")
+	(ensime-insert-with-face
+	 (plist-get handler :help-text) 'font-lock-constant-face)
+	(ensime-insert-with-face
+	 "\n----------------------------------------\n\n"
+	 'font-lock-comment-face)
 
 	(let ((map (ensime-ui-make-keymap handler info)))
 	  (define-key map (kbd ".") 'ensime-ui-nav-forward-page)
@@ -179,7 +182,10 @@
 	  (use-local-map map))
 
 	;; Call handler's init routine...
-	(funcall (plist-get handler :init) info)))
+	(funcall (plist-get handler :init) info))
+      (setq buffer-read-only t)
+      (goto-char (point-min))
+      )
 
     buf))
 

@@ -171,17 +171,115 @@
      (message "No active debug thread.")))
 
 
+(defun ensime-db-value-short-name (val)
+  "Get a short, pretty name for a debug value."
+  (case (plist-get val :val-type)
+    (prim (format "%s"
+		  (plist-get val :value)))
+    (obj (format "Instance of %s"
+		 (plist-get val :type-name)))
+    (arr (format "Array[%s] of length %s"
+		 (plist-get val :element-type-name)
+		 (plist-get val :length)))
+    (str (plist-get val :string-value))
+    (otherwise (format "%s" val))
+    ))
+
+
+(defun ensime-db-value-p (val)
+  (not (null (plist-get val :val-type))))
+
+
+(defun ensime-db-ui-insert-field (f)
+  (insert (format "%s : "
+		  (plist-get f :name)))
+  (ensime-insert-with-face
+   (plist-get f :type-name)
+   'font-lock-type-face)
+  (when-let (val (plist-get f :value))
+    (insert
+     (format
+      " = %s"
+      (ensime-db-value-short-name val))))
+  (insert "\n\n"))
+
+
+
+(defun ensime-db-ui-insert-value (val)
+  (case (plist-get val :val-type)
+
+    (prim (insert (format "%s : %s"
+			  (plist-get val :value)
+			  (plist-get val :type-name))))
+
+    (obj (progn
+	   (insert (format "Instance of %s\n"
+			   (plist-get val :type-name)))
+	   (ensime-insert-with-face
+	    "\n------------------------\n\n"
+	    'font-lock-comment-face)
+	   (dolist (f (plist-get val :fields))
+	     (ensime-db-ui-insert-field f)
+	     )))
+
+
+    (arr (progn
+	   (insert (format "Array[%s] of length %s\n"
+			   (plist-get val :element-type-name)
+			   (plist-get val :length)))
+	   (ensime-insert-with-face
+	    "\n------------------------\n\n"
+	    'font-lock-comment-face)
+	   (let ((i 0)
+		 (limit (min (plist-get val :length) 10)))
+	     (while (< i limit)
+	       (insert (format "[%s]\n\n" i))
+	       (incf i)))))
+
+    (str (progn
+	   (ensime-insert-with-face (format "\"%s\"\n"
+					    (plist-get val :string-value))
+				    'font-lock-string-face)
+	   (ensime-insert-with-face
+	    "\n------------------------\n\n"
+	    'font-lock-comment-face)
+	   (dolist (f (plist-get val :fields))
+	     (ensime-db-ui-insert-field f)
+	     )))
+
+
+    (otherwise (format "%s" val))
+    ))
+
+
+(defvar ensime-db-ui-value-handler
+  (list
+   :init (lambda (info)
+	   (ensime-db-ui-insert-value info))
+   :update (lambda (info))
+   :help-text "Press q to quit."
+   :keymap ()
+   ))
+
+
+
 ;; User Commands
 
 (defun ensime-db-value-for-name-at-point (p)
   "Get the value of the symbol at point."
-  (interactive (list (point)))
   (when ensime-db-active-thread-id
-    (when-let (sym (ensime-sym-at-point point))
+    (when-let (sym (ensime-sym-at-point p))
       (ensime-db-with-active-thread (tid)
-      (ensime-rpc-debug-value-for-name
-       tid (plist-get sym :name))
-      ))))
+				    (ensime-rpc-debug-value-for-name
+				     tid (plist-get sym :name))
+				    ))))
+
+(defun ensime-db-inspect-value-at-point (p)
+  "Get the value of the symbol at point."
+  (interactive (list (point)))
+  (let ((val (ensime-db-value-for-name-at-point (point))))
+    (if val (ensime-ui-show-nav-buffer "*ensime-debug-value*" val t)
+      (message "Nothing to inspect."))))
 
 (defun ensime-db-next ()
   "Cause debugger to go to next line, without stepping into
