@@ -190,18 +190,26 @@
   (not (null (plist-get val :val-type))))
 
 
-(defun ensime-db-ui-insert-field (f)
-  (insert (format "%s : "
-		  (plist-get f :name)))
-  (ensime-insert-with-face
-   (plist-get f :type-name)
-   'font-lock-type-face)
-  (when-let (val (plist-get f :value))
-    (insert
-     (format
-      " = %s"
-      (ensime-db-value-short-name val))))
-  (insert "\n\n"))
+(defun ensime-db-ui-insert-field (f of-object-id)
+  (let ((name (plist-get f :name)))
+    (ensime-insert-action-link
+     name
+     `(lambda (x)
+	(when-let
+	    (val (ensime-rpc-debug-value-for-field
+		  ,of-object-id
+		  ,name))
+	  (ensime-ui-show-nav-buffer "*ensime-debug-value*" val t)))
+     font-lock-keyword-face)
+    (insert " : ")
+    (ensime-insert-with-face
+     (plist-get f :type-name)
+     'font-lock-type-face)
+    (when-let (val (plist-get f :value))
+      (insert (format
+	       " = %s"
+	       (ensime-db-value-short-name val))))
+    (insert "\n\n")))
 
 
 
@@ -219,7 +227,7 @@
 	    "\n------------------------\n\n"
 	    'font-lock-comment-face)
 	   (dolist (f (plist-get val :fields))
-	     (ensime-db-ui-insert-field f)
+	     (ensime-db-ui-insert-field f (plist-get val :object-id))
 	     )))
 
 
@@ -244,7 +252,7 @@
 	    "\n------------------------\n\n"
 	    'font-lock-comment-face)
 	   (dolist (f (plist-get val :fields))
-	     (ensime-db-ui-insert-field f)
+	     (ensime-db-ui-insert-field f (plist-get val :object-id))
 	     )))
 
 

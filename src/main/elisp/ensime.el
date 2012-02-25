@@ -467,14 +467,15 @@ Do not show 'Writing..' message."
     (let* ((point (posn-point (event-end event)))
            (ident (tooltip-identifier-from-point point))
            (note-overlays (ensime-overlays-at point))
-	   (val-at-pt (ensime-db-value-short-name
-		       (ensime-db-value-for-name-at-point point))))
+	   (val-at-pt (ensime-db-value-for-name-at-point point)))
+
 
       (cond
 
        ;; If debugger is active and we can get the value of the symbol
        ;; at the point, show it in the tooltip.
-       (val-at-pt (ensime-tooltip-show-message val-at-pt) t)
+       (val-at-pt (ensime-tooltip-show-message (ensime-db-value-short-name
+						val-at-pt)) t)
 
        ;; If error or warning overlays exist,
        ;; show that message..
@@ -1590,6 +1591,7 @@ overrides `ensime-buffer-connection'.")
 (defun ensime-owning-connection-for-source-file (file-in &optional loose)
   "Return the connection corresponding to the single that
  owns the given file. "
+  (when file-in
   (let ((file (file-truename file-in)))
     (when file
       (catch 'return
@@ -1604,7 +1606,7 @@ overrides `ensime-buffer-connection'.")
 		(dolist (dir source-roots)
 		  (when (ensime-file-in-directory-p file dir)
 		    (throw 'return conn)))))))
-	))))
+	)))))
 
 
 
@@ -1814,16 +1816,20 @@ versions cannot deal with that."
      (catch tag
        (ensime-rex (tag sexp)
 	   sexp
+
 	 ((:ok value)
 	  (if (not (member tag ensime-stack-eval-tags))
 	      (message
 	       "Reply to canceled synchronous eval request tag=%S sexp=%S"
 	       tag sexp)
 	    (throw tag (list #'identity value))))
+
 	 ((:abort code reason)
-	  (throw tag (list #'error
-			   (format
-			    "Synchronous RPC Aborted: %s" reason)))))
+	  (message
+	   (format
+	    "Synchronous RPC Aborted: %s" reason))
+	  (throw tag (list #'identity nil))))
+
        (let ((debug-on-quit t)
 	     (inhibit-quit nil)
 	     (conn (ensime-connection)))
@@ -2841,6 +2847,10 @@ any buffer visiting the given file."
 (defun ensime-rpc-debug-value-for-name (thread-id name)
   (ensime-eval
    `(swank:debug-value-for-name ,thread-id ,name)))
+
+(defun ensime-rpc-debug-value-for-field (object-id name)
+  (ensime-eval
+   `(swank:debug-value-for-field ,object-id ,name)))
 
 (defun ensime-rpc-debug-start (command-line)
   (ensime-eval
