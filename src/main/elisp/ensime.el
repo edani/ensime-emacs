@@ -2852,6 +2852,10 @@ any buffer visiting the given file."
   (ensime-eval
    `(swank:debug-value-for-field ,object-id ,name)))
 
+(defun ensime-rpc-debug-value-for-index (object-id index)
+  (ensime-eval
+   `(swank:debug-value-for-index ,object-id ,index)))
+
 (defun ensime-rpc-debug-start (command-line)
   (ensime-eval
    `(swank:debug-start ,command-line)))

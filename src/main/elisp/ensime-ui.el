@@ -104,9 +104,7 @@
 		   ensime-ui-nav-history))
 	(ensime-ui-nav-paging-in-progress t))
     (ensime-ui-show-nav-buffer
-     (current-buffer) info
-     (ensime-ui-nav-handler-for-info
-      info))
+     (current-buffer) info)
     ))
 
 
@@ -176,6 +174,9 @@
 	 'font-lock-comment-face)
 
 	(let ((map (ensime-ui-make-keymap handler info)))
+	  (define-key map [?\t] 'forward-button)
+	  (define-key map (kbd "M-n") 'forward-button)
+	  (define-key map (kbd "M-p") 'backward-button)
 	  (define-key map (kbd ".") 'ensime-ui-nav-forward-page)
 	  (define-key map (kbd ",") 'ensime-ui-nav-backward-page)
 	  (define-key map (kbd "q") 'ensime-ui-nav-quit)
@@ -222,7 +223,6 @@
 
 (defun ensime-ui-make-nav-buffer (buf-or-name)
   (with-current-buffer (get-buffer-create buf-or-name)
-    (kill-all-local-variables)
     (setq buffer-read-only nil)
     (erase-buffer)
     (set-syntax-table lisp-mode-syntax-table)
