@@ -212,6 +212,18 @@
     (insert "\n\n")))
 
 
+(defun ensime-db-ui-insert-array-element (index of-object-id)
+    (ensime-insert-action-link
+     (format "[%s]" index)
+     `(lambda (x)
+	(when-let
+	    (val (ensime-rpc-debug-value-for-index
+		  ,of-object-id
+		  ,index))
+	  (ensime-ui-show-nav-buffer "*ensime-debug-value*" val t)))
+     font-lock-keyword-face)
+    (insert "\n\n"))
+
 
 (defun ensime-db-ui-insert-value (val)
   (case (plist-get val :val-type)
@@ -241,8 +253,13 @@
 	   (let ((i 0)
 		 (limit (min (plist-get val :length) 10)))
 	     (while (< i limit)
-	       (insert (format "[%s]\n\n" i))
-	       (incf i)))))
+	       (ensime-db-ui-insert-array-element i (plist-get val :object-id))
+	       (incf i))
+	     (when (< limit (plist-get val :length))
+	       (insert (format ".\n.\n.\n"))
+	       (insert (format "(%s more)" (- (plist-get val :length) limit)))
+	       ))))
+
 
     (str (progn
 	   (ensime-insert-with-face (format "\"%s\"\n"
