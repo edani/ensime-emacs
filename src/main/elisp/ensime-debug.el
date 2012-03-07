@@ -287,6 +287,76 @@
    ))
 
 
+;; Value description
+;; Object ref: ((:object-id "x") (("dude" ("legs" (0))) ("horse"("tailColor"))))
+;; Primitive: ((:value "x") ())
+
+
+(defun ensime-db-visit-value (val
+			      expansion
+			      path
+			      visit-prim
+			      visit-str
+			      visit-obj
+			      visit-obj-field
+			      visit-array
+			      visit-array-el)
+
+  (case (plist-get val :val-type)
+
+    (prim (funcall visit-prim val path))
+
+    (obj (progn
+	   (funcall visit-obj val path)
+	   (dolist (f (plist-get val :fields))
+	     (let ((field-name (plist-get f :name)))
+	     (funcall visit-obj-field f path)
+	     (when (and expansion
+			(memq expansion field-name))
+	       (let ((sub-val ((ensime-rpc-debug-value-for-field
+			    (plist-get val :object-id)
+			    field-name
+			    ))))
+		 (ensime-db-visit-value sub-val sub-expansion
+					(append path (list field-name))
+					visit-prim visit-str visit-obj
+					visit-obj-field visit-array
+					visit-array-el)
+	     ))))))
+
+
+    (arr (progn
+	   (insert (format "Array[%s] of length %s\n"
+			   (plist-get val :element-type-name)
+			   (plist-get val :length)))
+	   (ensime-insert-with-face
+	    "\n------------------------\n\n"
+	    'font-lock-comment-face)
+	   (let ((i 0)
+		 (limit (min (plist-get val :length) 10)))
+	     (while (< i limit)
+	       (ensime-db-ui-insert-array-element i (plist-get val :object-id))
+	       (incf i))
+	     (when (< limit (plist-get val :length))
+	       (insert (format ".\n.\n.\n"))
+	       (insert (format "(%s more)" (- (plist-get val :length) limit)))
+	       ))))
+
+
+    (str (progn
+	   (ensime-insert-with-face (format "\"%s\"\n"
+					    (plist-get val :string-value))
+				    'font-lock-string-face)
+	   (ensime-insert-with-face
+	    "\n------------------------\n\n"
+	    'font-lock-comment-face)
+	   (dolist (f (plist-get val :fields))
+	     (ensime-db-ui-insert-field f (plist-get val :object-id))
+	     )))
+
+
+    (otherwise (format "%s" val))
+    ))  
 
 ;; User Commands
 
