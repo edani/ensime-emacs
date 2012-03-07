@@ -190,106 +190,195 @@
   (not (null (plist-get val :val-type))))
 
 
-(defun ensime-db-ui-insert-field (f of-object-id)
-  (let ((name (plist-get f :name)))
-    (ensime-insert-action-link
-     name
-     `(lambda (x)
-	(when-let
-	    (val (ensime-rpc-debug-value-for-field
-		  ,of-object-id
-		  ,name))
-	  (ensime-ui-show-nav-buffer "*ensime-debug-value*" val t)))
-     font-lock-keyword-face)
-    (insert " : ")
-    (ensime-insert-with-face
-     (plist-get f :type-name)
-     'font-lock-type-face)
-    (when-let (val (plist-get f :value))
-      (insert (format
-	       " = %s"
-	       (ensime-db-value-short-name val))))
-    (insert "\n\n")))
+(defun ensime-db-ui-insert-value (val expansion)
+  (message "using expansion %s" expansion)
+  (ensime-db-visit-value
+   val expansion '()
+
+   ;; Insert primitive
+   (lambda (val path)
+     (insert (make-string (* 2 (length path)) ?\ ))
+     (insert (format "%s : %s\n"
+		     (plist-get val :value)
+		     (plist-get val :type-name))))
 
 
-(defun ensime-db-ui-insert-array-element (index of-object-id)
-    (ensime-insert-action-link
-     (format "[%s]" index)
-     `(lambda (x)
-	(when-let
-	    (val (ensime-rpc-debug-value-for-index
-		  ,of-object-id
-		  ,index))
-	  (ensime-ui-show-nav-buffer "*ensime-debug-value*" val t)))
-     font-lock-keyword-face)
-    (insert "\n\n"))
+
+   ;; Insert string value
+   (lambda (val path)
+     (insert (make-string (* 2 (length path)) ?\ ))
+     (ensime-insert-with-face (format "\"%s\"\n"
+				      (plist-get val :string-value))
+			      'font-lock-string-face)
+     (insert (make-string (length path) ?\ )))
 
 
-(defun ensime-db-ui-insert-value (val)
-  (case (plist-get val :val-type)
 
-    (prim (insert (format "%s : %s"
-			  (plist-get val :value)
-			  (plist-get val :type-name))))
-
-    (obj (progn
-	   (insert (format "Instance of %s\n"
-			   (plist-get val :type-name)))
-	   (ensime-insert-with-face
-	    "\n------------------------\n\n"
-	    'font-lock-comment-face)
-	   (dolist (f (plist-get val :fields))
-	     (ensime-db-ui-insert-field f (plist-get val :object-id))
-	     )))
+   ;; Insert object value
+   (lambda (val path)
+     (insert (make-string (* 2 (length path)) ?\ ))
+     (insert (format "Instance of %s\n"
+		     (plist-get val :type-name)))
+     (insert (make-string (length path) ?\ )))
 
 
-    (arr (progn
-	   (insert (format "Array[%s] of length %s\n"
-			   (plist-get val :element-type-name)
-			   (plist-get val :length)))
-	   (ensime-insert-with-face
-	    "\n------------------------\n\n"
-	    'font-lock-comment-face)
-	   (let ((i 0)
-		 (limit (min (plist-get val :length) 10)))
-	     (while (< i limit)
-	       (ensime-db-ui-insert-array-element i (plist-get val :object-id))
-	       (incf i))
-	     (when (< limit (plist-get val :length))
-	       (insert (format ".\n.\n.\n"))
-	       (insert (format "(%s more)" (- (plist-get val :length) limit)))
-	       ))))
+
+   ;; Insert object field value
+   (lambda (val f path)
+     (let* ((name (plist-get f :name))
+	    (of-object-id (plist-get val :object-id))
+	    (new-expansion (ensime-db-grow-expansion
+			    ensime-db-buffer-value-expansion
+			    (append path (list name))))
+	    (new-val (plist-put (copy-list ensime-db-buffer-root-value)
+				:expansion new-expansion)))
+
+       (insert (make-string (length path) ?\ ))
+       (ensime-insert-action-link
+	name
+	`(lambda (x)
+	   (message "should use expansion %s" ',new-expansion)
+	   (ensime-ui-show-nav-buffer
+	    "*ensime-debug-value*"
+	    ',new-val t nil t))
+	font-lock-keyword-face)
+       (insert " : ")
+       (ensime-insert-with-face
+	(plist-get f :type-name)
+	'font-lock-type-face)
+       (when-let (val (plist-get f :value))
+	 (insert (format
+		  " = %s"
+		  (ensime-db-value-short-name val))))
+       (insert "\n")))
 
 
-    (str (progn
-	   (ensime-insert-with-face (format "\"%s\"\n"
-					    (plist-get val :string-value))
-				    'font-lock-string-face)
-	   (ensime-insert-with-face
-	    "\n------------------------\n\n"
-	    'font-lock-comment-face)
-	   (dolist (f (plist-get val :fields))
-	     (ensime-db-ui-insert-field f (plist-get val :object-id))
-	     )))
+
+   ;; Insert array value
+   (lambda (val path)
+     (insert (make-string (* 2 (length path)) ?\ ))
+     (insert (format "Array[%s] of length %s\n"
+		     (plist-get val :element-type-name)
+		     (plist-get val :length)))
+     (insert (make-string (length path) ?\ )))
 
 
-    (otherwise (format "%s" val))
-    ))
 
+
+   ;; Insert array element value
+   (lambda (val i path)
+     (insert (make-string (length path) ?\ ))
+     (let* ((of-object-id (plist-get val :object-id))
+	    (new-expansion (ensime-db-grow-expansion
+			    ensime-db-buffer-value-expansion
+			    (append path (list i))))
+	    (new-val (plist-put (copy-list ensime-db-buffer-root-value)
+				:expansion new-expansion)))
+       (ensime-insert-action-link
+	(format "[%s]" i)
+	`(lambda (x)
+	   (message "should use expansion %s" ',new-expansion)
+	   (ensime-ui-show-nav-buffer
+	    "*ensime-debug-value*"
+	    ',new-val t nil t))
+	font-lock-keyword-face)
+       (insert "\n")))
+
+
+   ))
+
+
+
+(make-variable-buffer-local
+ (defvar ensime-db-buffer-value-expansion '()
+   "The value expansion associated with this buffer."))
+
+(make-variable-buffer-local
+ (defvar ensime-db-buffer-root-value nil
+   "The value expansion associated with this buffer."))
 
 (defvar ensime-db-ui-value-handler
   (list
    :init (lambda (info)
-	   (ensime-db-ui-insert-value info))
+	   (setq ensime-db-buffer-root-value info)
+	   (setq ensime-db-buffer-value-expansion (plist-get info :expansion))
+	   (message "expansion is %s" ensime-db-buffer-value-expansion)
+	   (ensime-db-ui-insert-value
+	    info ensime-db-buffer-value-expansion))
    :update (lambda (info))
    :help-text "Press q to quit."
    :keymap ()
    ))
 
 
-;; Value description
-;; Object ref: ((:object-id "x") (("dude" ("legs" (0))) ("horse"("tailColor"))))
-;; Primitive: ((:value "x") ())
+
+;; (message "%s" (ensime-db-grow-expansion '(nil ("a") ("b" ("c"))) '("b" "c" "d")))
+;; (message "%s" (ensime-db-grow-expansion '(nil) '("b")))
+;; (message "%s" (ensime-db-grow-expansion '(nil ("b")) '("b" "c")))
+;; (message "%s" (ensime-db-grow-expansion '(nil ("b" (1) (2))) '("b" 2 "q")))
+;; (message "%s" (ensime-db-grow-expansion nil '("a")))
+;; (message "%s" (ensime-db-grow-expansion '(("dude")) '("a")))
+(defun ensime-db-grow-expansion (expansion
+				 path)
+  (cond
+
+   ((null path) expansion)
+
+   ((assoc (car path) expansion)
+    (let* ((updated (copy-list expansion))
+	   (sub (assoc (car path) updated)))
+      (setcdr sub
+	      (ensime-db-grow-expansion
+	       (cdr sub) (cdr path)))
+      updated
+      ))
+
+   (t (append expansion (list (list (car path)))))))
+
+
+(defun ensime-db-sub-expansion (expansion index-name)
+  (assoc index-name expansion))
+
+
+(defun ensime-db-visit-obj-field (val
+				  field
+				  expansion
+				  path
+				  visit-obj-field)
+  (let ((field-name (plist-get f :name)))
+    (funcall visit-obj-field val f path)
+    (when-let (sub-expansion (ensime-db-sub-expansion
+			      expansion field-name))
+      (let ((sub-val (ensime-rpc-debug-value-for-field
+		      (plist-get val :object-id)
+		      field-name
+		      )))
+	(ensime-db-visit-value sub-val sub-expansion
+			       (append path (list field-name))
+			       visit-prim visit-str visit-obj
+			       visit-obj-field visit-array
+			       visit-array-el)
+	))))
+
+
+
+(defun ensime-db-visit-array-el (val
+				 i
+				 expansion
+				 path
+				 visit-array-el)
+  (funcall visit-array-el val i path)
+  (when-let (sub-expansion (ensime-db-sub-expansion
+			    expansion i))
+    (let ((sub-val (ensime-rpc-debug-value-for-index
+		    (plist-get val :object-id)
+		    i)))
+      (ensime-db-visit-value sub-val sub-expansion
+			     (append path (list i))
+			     visit-prim visit-str visit-obj
+			     visit-obj-field visit-array
+			     visit-array-el))))
+
 
 
 (defun ensime-db-visit-value (val
@@ -309,54 +398,26 @@
     (obj (progn
 	   (funcall visit-obj val path)
 	   (dolist (f (plist-get val :fields))
-	     (let ((field-name (plist-get f :name)))
-	     (funcall visit-obj-field f path)
-	     (when (and expansion
-			(memq expansion field-name))
-	       (let ((sub-val ((ensime-rpc-debug-value-for-field
-			    (plist-get val :object-id)
-			    field-name
-			    ))))
-		 (ensime-db-visit-value sub-val sub-expansion
-					(append path (list field-name))
-					visit-prim visit-str visit-obj
-					visit-obj-field visit-array
-					visit-array-el)
-	     ))))))
-
+	     (ensime-db-visit-obj-field val f expansion path visit-obj-field))))
 
     (arr (progn
-	   (insert (format "Array[%s] of length %s\n"
-			   (plist-get val :element-type-name)
-			   (plist-get val :length)))
-	   (ensime-insert-with-face
-	    "\n------------------------\n\n"
-	    'font-lock-comment-face)
+	   (funcall visit-array val path)
 	   (let ((i 0)
 		 (limit (min (plist-get val :length) 10)))
 	     (while (< i limit)
-	       (ensime-db-ui-insert-array-element i (plist-get val :object-id))
-	       (incf i))
-	     (when (< limit (plist-get val :length))
-	       (insert (format ".\n.\n.\n"))
-	       (insert (format "(%s more)" (- (plist-get val :length) limit)))
-	       ))))
-
+	       (ensime-db-visit-array-el val i expansion path visit-array-el)
+	       (incf i)))
+	   ))
 
     (str (progn
-	   (ensime-insert-with-face (format "\"%s\"\n"
-					    (plist-get val :string-value))
-				    'font-lock-string-face)
-	   (ensime-insert-with-face
-	    "\n------------------------\n\n"
-	    'font-lock-comment-face)
+	   (funcall visit-str val path)
 	   (dolist (f (plist-get val :fields))
-	     (ensime-db-ui-insert-field f (plist-get val :object-id))
-	     )))
+	     (ensime-db-visit-obj-field val f expansion path visit-obj-field))))
+
+    (otherwise (debug "What is this? %s" val))
+    ))
 
 
-    (otherwise (format "%s" val))
-    ))  
 
 ;; User Commands
 

@@ -141,54 +141,58 @@
   )
 
 
-(defun ensime-ui-show-nav-buffer (buf-or-name info &optional select conn)
+(defun ensime-ui-show-nav-buffer (buf-or-name info &optional select conn
+					      preserve-point)
   (let* ((connection (or conn (ensime-connection)))
+	 (start-point (point))
 	 (buf (ensime-ui-make-nav-buffer buf-or-name)))
 
     (ensime-ui-open-nav-window buf select)
 
     (with-current-buffer buf
-      (when (not ensime-ui-nav-paging-in-progress)
-	;; Clamp the history cursor
-	(setq ensime-ui-nav-history-cursor
-	      (max 0 ensime-ui-nav-history-cursor))
-	(setq ensime-ui-nav-history-cursor
-	      (min (- (length ensime-ui-nav-history) 1)
-		   ensime-ui-nav-history-cursor))
-	;; Remove all elements preceding the cursor (the 'redo' history)
-	(setq ensime-ui-nav-history
-	      (subseq ensime-ui-nav-history
-		      ensime-ui-nav-history-cursor))
-	;; Add the new history item
-	(push info ensime-ui-nav-history)
-	;; Set cursor to point to the new item
-	(setq ensime-ui-nav-history-cursor 0))
+      (save-excursion
+	(when (not ensime-ui-nav-paging-in-progress)
+	  ;; Clamp the history cursor
+	  (setq ensime-ui-nav-history-cursor
+		(max 0 ensime-ui-nav-history-cursor))
+	  (setq ensime-ui-nav-history-cursor
+		(min (- (length ensime-ui-nav-history) 1)
+		     ensime-ui-nav-history-cursor))
+	  ;; Remove all elements preceding the cursor (the 'redo' history)
+	  (setq ensime-ui-nav-history
+		(subseq ensime-ui-nav-history
+			ensime-ui-nav-history-cursor))
+	  ;; Add the new history item
+	  (push info ensime-ui-nav-history)
+	  ;; Set cursor to point to the new item
+	  (setq ensime-ui-nav-history-cursor 0))
 
-      (let ((handler (ensime-ui-nav-handler-for-info info)))
-	(setq ensime-ui-nav-handler handler)
+	(let ((handler (ensime-ui-nav-handler-for-info info)))
+	  (setq ensime-ui-nav-handler handler)
 
-	(ensime-insert-with-face
-	 (plist-get handler :help-text) 'font-lock-constant-face)
-	(ensime-insert-with-face
-	 "\n----------------------------------------\n\n"
-	 'font-lock-comment-face)
+	  (ensime-insert-with-face
+	   (plist-get handler :help-text) 'font-lock-constant-face)
+	  (ensime-insert-with-face
+	   "\n----------------------------------------\n\n"
+	   'font-lock-comment-face)
 
-	(let ((map (ensime-ui-make-keymap handler info)))
-	  (define-key map [?\t] 'forward-button)
-	  (define-key map (kbd "M-n") 'forward-button)
-	  (define-key map (kbd "M-p") 'backward-button)
-	  (define-key map (kbd ".") 'ensime-ui-nav-forward-page)
-	  (define-key map (kbd ",") 'ensime-ui-nav-backward-page)
-	  (define-key map (kbd "q") 'ensime-ui-nav-quit)
-	  (use-local-map map))
+	  (let ((map (ensime-ui-make-keymap handler info)))
+	    (define-key map [?\t] 'forward-button)
+	    (define-key map (kbd "M-n") 'forward-button)
+	    (define-key map (kbd "M-p") 'backward-button)
+	    (define-key map (kbd ".") 'ensime-ui-nav-forward-page)
+	    (define-key map (kbd ",") 'ensime-ui-nav-backward-page)
+	    (define-key map (kbd "q") 'ensime-ui-nav-quit)
+	    (use-local-map map))
 
-	(setq ensime-buffer-connection connection)
+	  (setq ensime-buffer-connection connection)
 
-	;; Call handler's init routine...
-	(funcall (plist-get handler :init) info))
-      (setq buffer-read-only t)
-      (goto-char (point-min))
-      )
+	  ;; Call handler's init routine...
+	  (funcall (plist-get handler :init) info))
+	(setq buffer-read-only t))
+
+      (when preserve-point
+	(goto-char start-point)))
 
     buf))
 
