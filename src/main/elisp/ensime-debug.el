@@ -194,7 +194,8 @@
   (ensime-db-visit-value
    val expansion '()
 
-   ;; Insert primitive
+   (list
+   :primitive
    (lambda (val path)
      (insert (make-string (* 2 (length path)) ?\ ))
      (insert (format "%s : %s\n"
@@ -203,7 +204,7 @@
 
 
 
-   ;; Insert string value
+   :string
    (lambda (val path)
      (insert (make-string (* 2 (length path)) ?\ ))
      (ensime-insert-with-face (format "\"%s\"\n"
@@ -213,7 +214,7 @@
 
 
 
-   ;; Insert object value
+   :object
    (lambda (val path)
      (insert (make-string (* 2 (length path)) ?\ ))
      (insert (format "Instance of %s\n"
@@ -222,15 +223,10 @@
 
 
 
-   ;; Insert object field value
+   :object-field
    (lambda (val f path)
      (let* ((name (plist-get f :name))
-	    (of-object-id (plist-get val :object-id))
-	    (new-expansion (ensime-db-grow-expansion
-			    ensime-db-buffer-value-expansion
-			    (append path (list name))))
-	    (new-val (plist-put (copy-list ensime-db-buffer-root-value)
-				:expansion new-expansion)))
+	    (of-object-id (plist-get val :object-id)))
 
        (insert (make-string (length path) ?\ ))
 
@@ -238,10 +234,14 @@
 	   (ensime-insert-action-link
 	    name
 	    `(lambda (x)
-	       (message "should use expansion %s" ',new-expansion)
-	       (ensime-ui-show-nav-buffer
-		"*ensime-debug-value*"
-		',new-val t nil t))
+	       (let* ((new-expansion (ensime-db-grow-expansion
+				      ensime-db-buffer-value-expansion
+				      ',(append path (list name))))
+		      (new-val (plist-put (copy-list ensime-db-buffer-root-value)
+					  :expansion new-expansion)))
+		 (ensime-ui-show-nav-buffer
+		  "*ensime-debug-value*"
+		  new-val t nil t)))
 	    font-lock-keyword-face)
 	 (insert name))
        (insert " : ")
@@ -257,7 +257,7 @@
        (insert "\n")))
 
 
-   ;; Insert array value
+   :array
    (lambda (val path)
      (insert (make-string (* 2 (length path)) ?\ ))
      (insert (format "Array[%s] of length %s\n"
@@ -265,28 +265,33 @@
 		     (plist-get val :length))))
 
 
-   ;; Insert array element value
+   :array-el
    (lambda (val i path)
      (insert (make-string (length path) ?\ ))
-     (let* ((of-object-id (plist-get val :object-id))
-	    (new-expansion (ensime-db-grow-expansion
-			    ensime-db-buffer-value-expansion
-			    (append path (list i))))
-	    (new-val (plist-put (copy-list ensime-db-buffer-root-value)
-				:expansion new-expansion)))
+     (let* ((of-object-id (plist-get val :object-id)))
+
        (ensime-insert-action-link
 	(format "[%s]" i)
 	`(lambda (x)
-	   (message "should use expansion %s" ',new-expansion)
-	   (ensime-ui-show-nav-buffer
-	    "*ensime-debug-value*"
-	    ',new-val t nil t))
+	   (let* ((new-expansion (ensime-db-grow-expansion
+				  ensime-db-buffer-value-expansion
+				  ',(append path (list i))))
+		  (new-val (plist-put (copy-list ensime-db-buffer-root-value)
+				      :expansion new-expansion)))
+	     (ensime-ui-show-nav-buffer
+	      "*ensime-debug-value*"
+	      new-val t nil t)))
 	font-lock-keyword-face)
 
        (insert "\n")))
 
+   :null
+   (lambda (val path)
+     (insert (make-string (length path) ?\ ))
+     (insert "null : Null\n"))
 
-   ))
+
+   )))
 
 
 
@@ -346,9 +351,9 @@
 				  field
 				  expansion
 				  path
-				  visit-obj-field)
+				  visitor)
   (let ((field-name (plist-get f :name)))
-    (funcall visit-obj-field val f path)
+    (funcall (plist-get visitor :object-field) val f path)
     (when-let (sub-expansion (ensime-db-sub-expansion
 			      expansion field-name))
       (let ((sub-val (ensime-rpc-debug-value-for-field
@@ -357,9 +362,7 @@
 		      )))
 	(ensime-db-visit-value sub-val sub-expansion
 			       (append path (list field-name))
-			       visit-prim visit-str visit-obj
-			       visit-obj-field visit-array
-			       visit-array-el)
+			       visitor)
 	))))
 
 
@@ -368,8 +371,8 @@
 				 i
 				 expansion
 				 path
-				 visit-array-el)
-  (funcall visit-array-el val i path)
+				 visitor)
+  (funcall (plist-get visitor :array-el) val i path)
   (when-let (sub-expansion (ensime-db-sub-expansion
 			    expansion i))
     (let ((sub-val (ensime-rpc-debug-value-for-index
@@ -377,44 +380,39 @@
 		    i)))
       (ensime-db-visit-value sub-val sub-expansion
 			     (append path (list i))
-			     visit-prim visit-str visit-obj
-			     visit-obj-field visit-array
-			     visit-array-el))))
+			     visitor))))
 
 
 
 (defun ensime-db-visit-value (val
 			      expansion
 			      path
-			      visit-prim
-			      visit-str
-			      visit-obj
-			      visit-obj-field
-			      visit-array
-			      visit-array-el)
+			      visitor)
 
   (case (plist-get val :val-type)
 
-    (prim (funcall visit-prim val path))
+    (prim (funcall (plist-get visitor :primitive) val path))
 
     (obj (progn
-	   (funcall visit-obj val path)
+	   (funcall (plist-get visitor :object) val path)
 	   (dolist (f (plist-get val :fields))
-	     (ensime-db-visit-obj-field val f expansion path visit-obj-field))))
+	     (ensime-db-visit-obj-field val f expansion path visitor))))
 
     (arr (progn
-	   (funcall visit-array val path)
+	   (funcall (plist-get visitor :array) val path)
 	   (let ((i 0)
 		 (limit (min (plist-get val :length) 10)))
 	     (while (< i limit)
-	       (ensime-db-visit-array-el val i expansion path visit-array-el)
+	       (ensime-db-visit-array-el val i expansion path visitor)
 	       (incf i)))
 	   ))
 
     (str (progn
-	   (funcall visit-str val path)
+	   (funcall (plist-get visitor :string) val path)
 	   (dolist (f (plist-get val :fields))
-	     (ensime-db-visit-obj-field val f expansion path visit-obj-field))))
+	     (ensime-db-visit-obj-field val f expansion path visitor))))
+
+    (null (funcall (plist-get visitor :null) val path))
 
     (otherwise (debug "What is this? %s" val))
     ))
@@ -426,10 +424,12 @@
 (defun ensime-db-value-for-name-at-point (p)
   "Get the value of the symbol at point."
   (when ensime-db-active-thread-id
-    (when-let (sym (ensime-sym-at-point p))
+    (let* ((sym (ensime-sym-at-point p))
+	   (name (or (plist-get sym :name)
+		     "this")))
       (ensime-db-with-active-thread (tid)
 				    (ensime-rpc-debug-value-for-name
-				     tid (plist-get sym :name))
+				     tid name)
 				    ))))
 
 (defun ensime-db-inspect-value-at-point (p)
