@@ -191,7 +191,6 @@
 
 
 (defun ensime-db-ui-insert-value (val expansion)
-  (message "using expansion %s" expansion)
   (ensime-db-visit-value
    val expansion '()
 
@@ -234,18 +233,23 @@
 				:expansion new-expansion)))
 
        (insert (make-string (length path) ?\ ))
-       (ensime-insert-action-link
-	name
-	`(lambda (x)
-	   (message "should use expansion %s" ',new-expansion)
-	   (ensime-ui-show-nav-buffer
-	    "*ensime-debug-value*"
-	    ',new-val t nil t))
-	font-lock-keyword-face)
+
+       (if (null (plist-get f :value))
+	   (ensime-insert-action-link
+	    name
+	    `(lambda (x)
+	       (message "should use expansion %s" ',new-expansion)
+	       (ensime-ui-show-nav-buffer
+		"*ensime-debug-value*"
+		',new-val t nil t))
+	    font-lock-keyword-face)
+	 (insert name))
        (insert " : ")
+
        (ensime-insert-with-face
 	(plist-get f :type-name)
 	'font-lock-type-face)
+
        (when-let (val (plist-get f :value))
 	 (insert (format
 		  " = %s"
@@ -253,16 +257,12 @@
        (insert "\n")))
 
 
-
    ;; Insert array value
    (lambda (val path)
      (insert (make-string (* 2 (length path)) ?\ ))
      (insert (format "Array[%s] of length %s\n"
 		     (plist-get val :element-type-name)
-		     (plist-get val :length)))
-     (insert (make-string (length path) ?\ )))
-
-
+		     (plist-get val :length))))
 
 
    ;; Insert array element value
@@ -282,6 +282,7 @@
 	    "*ensime-debug-value*"
 	    ',new-val t nil t))
 	font-lock-keyword-face)
+
        (insert "\n")))
 
 
@@ -318,22 +319,23 @@
 ;; (message "%s" (ensime-db-grow-expansion '(nil ("b" (1) (2))) '("b" 2 "q")))
 ;; (message "%s" (ensime-db-grow-expansion nil '("a")))
 ;; (message "%s" (ensime-db-grow-expansion '(("dude")) '("a")))
-(defun ensime-db-grow-expansion (expansion
+(defun ensime-db-grow-expansion (expansion-in
 				 path)
-  (cond
+  (let ((expansion (copy-tree expansion-in)))
 
-   ((null path) expansion)
+    (cond
 
-   ((assoc (car path) expansion)
-    (let* ((updated (copy-list expansion))
-	   (sub (assoc (car path) updated)))
-      (setcdr sub
-	      (ensime-db-grow-expansion
-	       (cdr sub) (cdr path)))
-      updated
-      ))
+     ((null path) expansion)
 
-   (t (append expansion (list (list (car path)))))))
+     ((assoc (car path) expansion)
+      (let* ((sub (assoc (car path) expansion)))
+	(setcdr sub
+		(ensime-db-grow-expansion
+		 (cdr sub) (cdr path)))
+	expansion
+	))
+
+     (t (append expansion (list (list (car path))))))))
 
 
 (defun ensime-db-sub-expansion (expansion index-name)
