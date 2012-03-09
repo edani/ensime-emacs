@@ -76,8 +76,7 @@
   (cond
    ((equal info "test") ensime-db-ui-test-handler)
    ((ensime-db-value-p info) ensime-db-ui-value-handler)
-   ((ensime-db-hud-p info) ensime-db-ui-hud-handler)
-   ((ensime-db-stack-p info) ensime-db-ui-stack-handler)
+   ((ensime-db-backtrace-p info) ensime-db-ui-backtrace-handler)
    (t (error
        (format "Can't find ui handler for: %s" info)))
    ))

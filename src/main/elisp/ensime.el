@@ -2844,6 +2844,10 @@ any buffer visiting the given file."
   (ensime-eval
    `(swank:debug-active-vm)))
 
+(defun ensime-rpc-debug-backtrace (thread-id index count)
+  (ensime-eval
+   `(swank:debug-backtrace ,thread-id ,index ,count)))
+
 (defun ensime-rpc-debug-value-for-name (thread-id name)
   (ensime-eval
    `(swank:debug-value-for-name ,thread-id ,name)))
