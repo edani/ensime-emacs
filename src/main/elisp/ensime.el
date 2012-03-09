@@ -264,8 +264,8 @@ Do not show 'Writing..' message."
       (define-key prefix-map (kbd "C-d r") 'ensime-db-run)
       (define-key prefix-map (kbd "C-d c") 'ensime-db-continue)
       (define-key prefix-map (kbd "C-d q") 'ensime-db-quit)
-      (define-key prefix-map (kbd "C-d l") 'ensime-db-list-locals)
       (define-key prefix-map (kbd "C-d i") 'ensime-db-inspect-value-at-point)
+      (define-key prefix-map (kbd "C-d t") 'ensime-db-backtrace)
 
       (define-key prefix-map (kbd "C-r r") 'ensime-refactor-rename)
       (define-key prefix-map (kbd "C-r o") 'ensime-refactor-organize-imports)
@@ -349,7 +349,9 @@ Do not show 'Writing..' message."
      ["Run" ensime-db-run]
      ["Continue" ensime-db-continue]
      ["Quit" ensime-db-quit]
-     ["List local variables" ensime-db-list-locals])
+     ["Show Backtrace" ensime-db-backtrace]
+     ["Inspect value at point" ensime-db-inspect-value-at-point]
+     )
 
     "---"
     ["Go to SBT console" ensime-sbt-switch]

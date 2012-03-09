@@ -361,10 +361,6 @@
 (defvar ensime-db-ui-backtrace-handler
   (list
    :init (lambda (info)
-	   (add-hook 'ensime-db-thread-suspended-hook
-		     '(lambda ()
-			(ensime-db-backtrace)
-			))
 	   (ensime-db-ui-insert-backtrace
 	    info))
    :update (lambda (info))
@@ -377,6 +373,11 @@
 	    )
    ))
 
+
+
+(defun ensime-db-update-backtraces ()
+  (when (get-buffer "*ensime-debug-backtrace*")
+    (ensime-db-backtrace)))
 
 
 ;; (message "%s" (ensime-db-grow-expansion '(nil ("a") ("b" ("c"))) '("b" "c" "d")))
@@ -499,7 +500,6 @@
 
 
 
-
 ;; User Commands
 
 (defun ensime-db-value-for-name-at-point (p)
@@ -525,7 +525,7 @@
   (interactive)
   (let ((val (ensime-rpc-debug-backtrace
 	      ensime-db-active-thread-id 0 -1)))
-    (if val (ensime-ui-show-nav-buffer "*ensime-debug-value*" val t)
+    (if val (ensime-ui-show-nav-buffer "*ensime-debug-backtrace*" val t)
       (message "Backtrace unavailable."))))
 
 (defun ensime-db-next ()
@@ -610,6 +610,8 @@ the current project's dependencies. Returns list of form (cmd [arg]*)"
    (let ((root-path (or (ensime-configured-project-root) "."))
 	 (cmd-line (ensime-db-get-cmd-line)))
      (ensime-rpc-debug-start cmd-line)
+     (add-hook 'ensime-db-thread-suspended-hook
+	       'ensime-db-update-backtraces)
      (message "Starting debug VM...")
      )))
 
