@@ -865,14 +865,16 @@ The default condition handler for timer functions (see
 ;;;;; Syntactic sugar
 
 
-(defun ensime-make-code-link (start end file-path offset &optional face)
+(defun ensime-make-code-link (start end file-path offset &optional face line)
   "Make an emacs button, from start to end in current buffer,
  linking to file-path and offset."
   (make-button start end
 	       'face (or face font-lock-keyword-face)
 	       'action `(lambda (x)
 			  (find-file-other-window ,file-path)
-			  (goto-char ,offset)
+			  (if (integerp ,line)
+			      (goto-line ,line)
+			    (goto-char ,offset))
 			  )))
 
 (defun ensime-make-code-hyperlink (start end http-path &optional face)
@@ -888,7 +890,7 @@ The default condition handler for timer functions (see
 (defun ensime-http-url-p (s)
   (and (stringp s) (string-match "http://" s)))
 
-(defun ensime-insert-link (text file-path &optional offset face)
+(defun ensime-insert-link (text file-path &optional offset face line)
   "Insert text in current buffer and make it into an emacs
  button, linking to file-path and offset. Intelligently decide
  whether to make a source link or an http link based on the file-path."
@@ -899,10 +901,10 @@ The default condition handler for timer functions (see
 	(insert text)
 	(ensime-make-code-hyperlink start (point) file-path face)))
 
-     ((and file-path (integerp offset))
+     ((and file-path (or (integerp offset) (integerp line)))
       (progn
 	(insert text)
-	(ensime-make-code-link start (point) file-path offset face)))
+	(ensime-make-code-link start (point) file-path offset face line)))
 
      (t
       (progn
@@ -1594,21 +1596,21 @@ overrides `ensime-buffer-connection'.")
   "Return the connection corresponding to the single that
  owns the given file. "
   (when file-in
-  (let ((file (file-truename file-in)))
-    (when file
-      (catch 'return
-	;; First check individual source-roots
-	(dolist (conn ensime-net-processes)
-	  (when-let (conn (ensime-validated-connection conn))
-	    (let* ((config (ensime-config conn))
-		   (project-root (plist-get config :root-dir))
-		   (source-roots (plist-get config :source-roots)))
-	      (if (and loose (ensime-file-in-directory-p file project-root))
-		  (throw 'return conn)
-		(dolist (dir source-roots)
-		  (when (ensime-file-in-directory-p file dir)
-		    (throw 'return conn)))))))
-	)))))
+    (let ((file (file-truename file-in)))
+      (when file
+	(catch 'return
+	  ;; First check individual source-roots
+	  (dolist (conn ensime-net-processes)
+	    (when-let (conn (ensime-validated-connection conn))
+	      (let* ((config (ensime-config conn))
+		     (project-root (plist-get config :root-dir))
+		     (source-roots (plist-get config :source-roots)))
+		(if (and loose (ensime-file-in-directory-p file project-root))
+		    (throw 'return conn)
+		  (dolist (dir source-roots)
+		    (when (ensime-file-in-directory-p file dir)
+		      (throw 'return conn)))))))
+	  )))))
 
 
 
@@ -2850,6 +2852,10 @@ any buffer visiting the given file."
   (ensime-eval
    `(swank:debug-backtrace ,thread-id ,index ,count)))
 
+(defun ensime-rpc-async-debug-backtrace (thread-id index count continue)
+  (ensime-eval-async
+   `(swank:debug-backtrace ,thread-id ,index ,count) continue))
+
 (defun ensime-rpc-debug-value-for-name (thread-id name)
   (ensime-eval
    `(swank:debug-value-for-name ,thread-id ,name)))
@@ -2861,6 +2867,10 @@ any buffer visiting the given file."
 (defun ensime-rpc-debug-value-for-index (object-id index)
   (ensime-eval
    `(swank:debug-value-for-index ,object-id ,index)))
+
+(defun ensime-rpc-debug-value-for-id (object-id)
+  (ensime-eval
+   `(swank:debug-value-for-id ,object-id)))
 
 (defun ensime-rpc-debug-start (command-line)
   (ensime-eval
