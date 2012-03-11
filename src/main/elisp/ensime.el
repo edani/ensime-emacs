@@ -45,6 +45,7 @@
 (require 'font-lock)
 (require 'auto-complete)
 (require 'easymenu)
+(require 'ensime-util)
 (require 'ensime-config)
 (require 'ensime-auto-complete)
 (require 'ensime-sbt)
@@ -677,6 +678,20 @@ See `ensime-start'.")
 	  (when (equal d d-original)
 	    (throw 'return nil))
 	  )))))
+
+(defun ensime-escape-control-chars (s)
+  "Return a copy of s with control characters
+ escaped."
+  ;; TODO:
+  ;; Can't get this to work with single regexp - hence shitty
+  ;; iterative version. Maybe Emacs bug.
+  (let ((s s))
+    (setq s (replace-regexp-in-string "\n" "\\n" s nil t))
+    (setq s (replace-regexp-in-string "\t" "\\t" s nil t))
+    (setq s (replace-regexp-in-string "\r" "\\r" s nil t))
+    (setq s (replace-regexp-in-string "\b" "\\r" s nil t))
+    s))
+
 
 (defun ensime-configured-project-root ()
   "Return root path of the current project as defined in the

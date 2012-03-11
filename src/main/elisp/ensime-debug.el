@@ -222,7 +222,7 @@
 	       line)
        file
        nil
-       font-lock-constant-face
+       font-lock-type-face
        line
        ))
 
@@ -256,7 +256,9 @@
        (format "%s = " name)
        font-lock-keyword-face)
       (ensime-insert-with-face
-       (format "\"%s\"\n" (plist-get val :string-value))
+       (format "\"%s\"\n"
+	       (ensime-escape-control-chars
+	       (plist-get val :string-value)))
        'font-lock-string-face))
 
     :object
@@ -264,11 +266,11 @@
       (let ((ref (ensime-db-obj-to-ref val)))
 	(ensime-insert-action-link
 	 (format "%s : %s\n" name (plist-get val :type-name))
-	`(lambda (x)
-	   (ensime-ui-show-nav-buffer
-	    "*ensime-debug-value*"
-	    ',ref t nil t))
-	font-lock-keyword-face)))
+	 `(lambda (x)
+	    (ensime-ui-show-nav-buffer
+	     "*ensime-debug-value*"
+	     ',ref t nil t))
+	 font-lock-keyword-face)))
 
     :array
     (lambda (val path)
@@ -300,16 +302,18 @@
     (lambda (val path)
       (insert (make-string (* 2 (length path)) ?\ ))
       (insert (format "%s : %s\n"
-		      (plist-get val :value)
+		      (ensime-escape-control-chars
+		       (plist-get val :value))
 		      (plist-get val :type-name))))
-
 
 
     :string
     (lambda (val path)
       (insert (make-string (* 2 (length path)) ?\ ))
-      (ensime-insert-with-face (format "\"%s\"\n"
-				       (plist-get val :string-value))
+      (ensime-insert-with-face
+       (format "\"%s\"\n"
+	       (ensime-escape-control-chars
+	       (plist-get val :string-value)))
 			       'font-lock-string-face)
       (insert (make-string (length path) ?\ )))
 
