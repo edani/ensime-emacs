@@ -214,21 +214,81 @@
 
     :frame
     (lambda (class-name method-name file line)
-      (ensime-insert-with-face
-       (format "\n[%s::%s  %s:%s]\n"
+      (insert "\n")
+      (ensime-insert-link
+       (format "[%s::%s  %s:%s]\n"
 	       class-name method-name
 	       (file-name-nondirectory file)
-	       line) font-lock-constant-face))
+	       line)
+       file
+       nil
+       font-lock-constant-face
+       line
+       ))
 
     :local-var
     (lambda (name value)
-      (insert (format "%s : " name))
-      (ensime-insert-with-face
-       (format "%s\n"
-	       (plist-get value :type-name))
-       font-lock-type-face))
+      (ensime-db-ui-insert-value-link name value))
 
     )))
+
+
+(defun ensime-db-obj-to-ref (val)
+  (list :val-type 'ref :object-id
+	(plist-get val :object-id)))
+
+
+(defun ensime-db-ui-insert-value-link (name val)
+  (ensime-db-visit-value
+   val '() '()
+
+   (list
+    :primitive
+    (lambda (val path)
+      (insert (format "%s : %s = %s\n"
+		      name
+		      (plist-get val :type-name)
+		      (plist-get val :value))))
+
+    :string
+    (lambda (val path)
+      (ensime-insert-with-face
+       (format "%s = " name)
+       font-lock-keyword-face)
+      (ensime-insert-with-face
+       (format "\"%s\"\n" (plist-get val :string-value))
+       'font-lock-string-face))
+
+    :object
+    (lambda (val path)
+      (let ((ref (ensime-db-obj-to-ref val)))
+	(ensime-insert-action-link
+	 (format "%s : %s\n" name (plist-get val :type-name))
+	`(lambda (x)
+	   (ensime-ui-show-nav-buffer
+	    "*ensime-debug-value*"
+	    ',ref t nil t))
+	font-lock-keyword-face)))
+
+    :array
+    (lambda (val path)
+      (let ((ref (ensime-db-obj-to-ref val)))
+	(ensime-insert-action-link
+	 (format "%s : Array[%s]\n"
+		 name
+		 (plist-get val :element-type-name))
+	 `(lambda (x)
+	    (ensime-ui-show-nav-buffer
+	     "*ensime-debug-value*"
+	     ',ref t nil t))
+	 font-lock-keyword-face)))
+
+    :array-el (lambda (val i path))
+    :object-field (lambda (val f path))
+    :null (lambda (null path))
+
+    )))
+
 
 
 (defun ensime-db-ui-insert-value (val expansion)
@@ -366,13 +426,12 @@
    :update (lambda (info))
    :help-text "Press q to quit."
    :keymap `(
-	    (,(kbd "n") ,'ensime-db-next)
-	    (,(kbd "s") ,'ensime-db-step)
-	    (,(kbd "o") ,'ensime-db-step-out)
-	    (,(kbd "c") ,'ensime-db-continue)
-	    )
+	     (,(kbd "n") ,'ensime-db-next)
+	     (,(kbd "s") ,'ensime-db-step)
+	     (,(kbd "o") ,'ensime-db-step-out)
+	     (,(kbd "c") ,'ensime-db-continue)
+	     )
    ))
-
 
 
 (defun ensime-db-update-backtraces ()
@@ -453,6 +512,14 @@
 
   (case (plist-get val :val-type)
 
+    (ref (let ((looked-up (ensime-rpc-debug-value-for-id
+			   (plist-get val :object-id)
+			   )))
+	   (ensime-db-visit-value looked-up
+				  expansion
+				  path
+				  visitor)))
+
     (prim (funcall (plist-get visitor :primitive) val path))
 
     (obj (progn
@@ -523,10 +590,13 @@
 (defun ensime-db-backtrace ()
   "Show the backtrace for the current suspended thread."
   (interactive)
-  (let ((val (ensime-rpc-debug-backtrace
-	      ensime-db-active-thread-id 0 -1)))
-    (if val (ensime-ui-show-nav-buffer "*ensime-debug-backtrace*" val t)
-      (message "Backtrace unavailable."))))
+  (ensime-rpc-async-debug-backtrace
+   ensime-db-active-thread-id
+   0 -1
+   '(lambda (val)
+      (if val (ensime-ui-show-nav-buffer "*ensime-debug-backtrace*" val t)
+	(message "Backtrace unavailable."))))
+  )
 
 (defun ensime-db-next ()
   "Cause debugger to go to next line, without stepping into
