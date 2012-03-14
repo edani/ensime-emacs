@@ -351,13 +351,13 @@
 	    (= (length sps) 1))
 	(ensime-set-key
 	 config :active-subproject
-	 (plist-get (car sps) :name))
+	 (plist-get (car sps) :module-name))
 
       ;; Otherwise prompt the user
       (let* ((options
 	      (mapcar
 	       (lambda (sp)
-		 (let ((nm (plist-get sp :name)))
+		 (let ((nm (plist-get sp :module-name)))
 		   `(,nm . ,nm)))  sps))
 	     (keys (mapcar (lambda (opt) (car opt)) options)))
 	(let ((key (when keys
