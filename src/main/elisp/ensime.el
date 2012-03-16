@@ -45,7 +45,6 @@
 (require 'font-lock)
 (require 'auto-complete)
 (require 'easymenu)
-(require 'ensime-util)
 (require 'ensime-config)
 (require 'ensime-auto-complete)
 (require 'ensime-sbt)
@@ -234,6 +233,10 @@ Do not show 'Writing..' message."
     ))
 
 
+(defun ensime-goto-line (line)
+  (goto-char (point-min))
+  (forward-line (1- line)))
+
 
 (defvar ensime-mode-map
   (let ((map (make-sparse-keymap)))
@@ -267,6 +270,7 @@ Do not show 'Writing..' message."
       (define-key prefix-map (kbd "C-d q") 'ensime-db-quit)
       (define-key prefix-map (kbd "C-d i") 'ensime-db-inspect-value-at-point)
       (define-key prefix-map (kbd "C-d t") 'ensime-db-backtrace)
+      (define-key prefix-map (kbd "C-d a") 'ensime-db-clear-all-breaks)
 
       (define-key prefix-map (kbd "C-r r") 'ensime-refactor-rename)
       (define-key prefix-map (kbd "C-r o") 'ensime-refactor-organize-imports)
@@ -345,6 +349,7 @@ Do not show 'Writing..' message."
      ["Start" ensime-db-start]
      ["Set break point" ensime-db-set-break]
      ["Clear breakpoint" ensime-db-clear-break]
+     ["Clear all breakpoints" ensime-db-clear-all-breaks]
      ["Step" ensime-db-step]
      ["Next" ensime-db-next]
      ["Run" ensime-db-run]
@@ -520,7 +525,6 @@ Do not show 'Writing..' message."
     (condition-case err
 	(let ((conn (ensime-current-connection)))
 	  (cond ((and ensime-mode (not conn))
-		 ;;
 		 (cond
 		  ((ensime-probable-owning-connection-for-source-file
 		    buffer-file-name)
@@ -539,13 +543,12 @@ Do not show 'Writing..' message."
 				 (t "")))
 			 (concat (format " : %s/%s"
 					 (ensime-num-errors conn)
-					 (ensime-num-warnings)))
+					 (ensime-num-warnings conn)))
 			 "]"))
 		(ensime-mode " [ENSIME: Dead Connection]")
 		))
       (error (progn
-	       (message "Error in modeline update: %s" err)
-	       ""
+	       " [ENSIME: wtf]"
 	       )))))
 
 
@@ -699,7 +702,7 @@ config file and stored in the current connection. Nil is returned
 if there is no active connection, or if the project root was not
 defined."
   (when (ensime-connected-p)
-    (let ((config (ensime-config (ensime-connection))))
+    (let ((config (ensime-config (ensime-current-connection))))
       (plist-get config :root-dir))))
 
 (defmacro ensime-assert-connected (&rest body)
@@ -888,7 +891,7 @@ The default condition handler for timer functions (see
 	       'action `(lambda (x)
 			  (find-file-other-window ,file-path)
 			  (if (integerp ,line)
-			      (goto-line ,line)
+			      (ensime-goto-line ,line)
 			    (goto-char ,offset))
 			  )))
 
@@ -1145,7 +1148,7 @@ corresponding values in the CDR of VALUE."
   "Convert line,column coordinates to a char offset."
   (with-temp-buffer
     (insert-file-contents file)
-    (goto-line line)
+    (ensime-goto-line line)
     (forward-char col)
     (point)))
 
@@ -2131,7 +2134,7 @@ any buffer visiting the given file."
       (when (integerp line)
 	(with-current-buffer buf
 	  (save-excursion
-	    (goto-line line)
+	    (ensime-goto-line line)
 	    (setq beg (point-at-bol))
 	    (setq end (point-at-eol)))))
 
@@ -2525,33 +2528,47 @@ any buffer visiting the given file."
   (equal (expand-file-name f1) (expand-file-name f2)))
 
 
+(defun ensime-window-showing-file (file)
+  (catch 'result
+    (dolist (w (window-list))
+      (let* ((buf (window-buffer w))
+	     (window-file (buffer-file-name buf)))
+	(when (and window-file
+		   (ensime-files-equal-p file window-file))
+	  (throw 'result w))))))
+
+(defun ensime-point-at-bol (file line)
+  (with-current-buffer (find-buffer-visiting file)
+    (save-excursion
+      (ensime-goto-line line)
+      (point)
+      )))
+
 (defun ensime-goto-source-location (pos &optional where)
   "Move to the source location POS. Don't open
  a new window or buffer if file is open and visible already."
   (let* ((file (ensime-pos-file pos))
-	 (file-visible-buf
-	  (catch 'result
-	    (dolist (w (window-list))
-	      (let* ((buf (window-buffer w))
-		     (window-file (buffer-file-name buf)))
-		(when (and window-file
-			   (ensime-files-equal-p file window-file))
-		  (throw 'result buf)))))))
+	 (file-visible-window (ensime-window-showing-file file)))
 
-    (when (not file-visible-buf)
+    (when (not file-visible-window)
       (ecase where
 	((nil)
 	 (find-file file))
 	(window
 	 (find-file-other-window file)))
-      (setq file-visible-buf (current-buffer)))
+      (setq file-visible-window
+	    (ensime-window-showing-file file)))
 
-    (with-current-buffer file-visible-buf
-      (if (> (ensime-pos-line pos) 0)
-	  (goto-line (ensime-pos-line pos))
-	(if (> (ensime-pos-offset pos) 0)
-	    (goto-char (+ (ensime-pos-offset pos) ensime-ch-fix)))))))
-
+    (let ((buf (window-buffer file-visible-window))
+	  (pt (cond
+	       ((integerp (ensime-pos-line pos))
+		(ensime-point-at-bol file (ensime-pos-line pos)))
+	       ((integerp (ensime-pos-offset pos))
+		(+ (ensime-pos-offset pos) ensime-ch-fix))
+	       (t 0))))
+      (with-current-buffer buf
+	(goto-char pt))
+      (set-window-point file-visible-window pt))))
 
 ;; Compilation result interface
 

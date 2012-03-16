@@ -190,8 +190,10 @@
 	  (funcall (plist-get handler :init) info))
 	(setq buffer-read-only t))
 
-      (when preserve-point
-	(goto-char start-point)))
+      (if preserve-point
+	  (goto-char start-point)
+	(goto-char (point-min)))
+      )
 
     buf))
 
