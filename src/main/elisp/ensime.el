@@ -264,6 +264,19 @@ Do not show 'Writing..' message."
       (define-key prefix-map (kbd "C-d q") 'ensime-db-quit)
       (define-key prefix-map (kbd "C-d l") 'ensime-db-list-locals)
 
+      (define-key prefix-map (kbd "C-b s") 'ensime-sbt-switch)
+      (define-key prefix-map (kbd "C-b c") 'ensime-sbt-do-compile)
+      (define-key prefix-map (kbd "C-b n") 'ensime-sbt-do-clean)
+      (define-key prefix-map (kbd "C-b p") 'ensime-sbt-do-package)
+
+      (define-key prefix-map (kbd "C-d u") 'ensime-db-clear-break)
+      (define-key prefix-map (kbd "C-d s") 'ensime-db-step)
+      (define-key prefix-map (kbd "C-d n") 'ensime-db-next)
+      (define-key prefix-map (kbd "C-d r") 'ensime-db-run)
+      (define-key prefix-map (kbd "C-d c") 'ensime-db-continue)
+      (define-key prefix-map (kbd "C-d q") 'ensime-db-quit)
+      (define-key prefix-map (kbd "C-d l") 'ensime-db-list-locals)
+
       (define-key prefix-map (kbd "C-r r") 'ensime-refactor-rename)
       (define-key prefix-map (kbd "C-r o") 'ensime-refactor-organize-imports)
       (define-key prefix-map (kbd "C-r l") 'ensime-refactor-extract-local)
@@ -336,6 +349,12 @@ Do not show 'Writing..' message."
 
     ("Documentation"
      ["Browse documentation of symbol" ensime-show-doc-for-symbol-at-point])
+
+    ("SBT"
+     ["Start or switch to" ensime-sbt-switch]
+     ["Compile" ensime-sbt-do-compile]
+     ["Clean" ensime-sbt-do-clean]
+     ["Package" ensime-sbt-do-package])
 
     ("Debugger"
      ["Start" ensime-db-start]
