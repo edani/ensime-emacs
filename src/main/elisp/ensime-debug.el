@@ -57,6 +57,8 @@
   "History of argument lists passed to jdb.")
 
 (defvar ensime-db-buffer-name "*ensime-debug-session*")
+(defvar ensime-db-value-buffer "*ensime-debug-value*")
+(defvar ensime-db-backtrace-buffer "*ensime-db-backtrace-buffer*")
 
 (defvar ensime-db-active-thread-id nil
   "The unique id of the which is currently receiving debug
@@ -83,17 +85,26 @@
   (message "Unknown event: %s" evt))
 
 (defun ensime-db-handle-exception (evt)
-  (message "Exception on thread %s : %s"
-	   (plist-get evt :thread-id)
-	   (plist-get evt :exception)
-	   )
-  (run-hooks 'ensime-db-thread-suspended-hook)
+  (setq ensime-db-active-thread-id
+	(plist-get evt :thread-id))
+
+  (message "Exception on thread %s..."
+	   (plist-get evt :thread-id))
+
+  (when-let (exc-val (ensime-rpc-debug-value-for-id
+		      (plist-get evt :exception)))
+    (ensime-ui-show-nav-buffer
+     ensime-db-value-buffer
+     exc-val t))
+;;  (run-hooks 'ensime-db-thread-suspended-hook)
   )
 
 (defun ensime-db-handle-start (evt)
   (message "Debug VM started. Set breakpoints and then execute ensime-db-run."))
 
 (defun ensime-db-handle-step (evt)
+  (setq ensime-db-active-thread-id
+	(plist-get evt :thread-id))
   (ensime-db-set-debug-marker
    (plist-get evt :file)
    (plist-get evt :line))
@@ -132,7 +143,8 @@
 
   (ensime-goto-source-location
    (list :file file :line line)
-   'window))
+   'window)
+  )
 
 
 (defun ensime-db-create-breapoint-overlays (positions face)
@@ -258,7 +270,7 @@
       (ensime-insert-with-face
        (format "\"%s\"\n"
 	       (ensime-escape-control-chars
-	       (plist-get val :string-value)))
+		(plist-get val :string-value)))
        'font-lock-string-face))
 
     :object
@@ -268,8 +280,8 @@
 	 (format "%s : %s\n" name (plist-get val :type-name))
 	 `(lambda (x)
 	    (ensime-ui-show-nav-buffer
-	     "*ensime-debug-value*"
-	     ',ref t nil t))
+	     ensime-db-value-buffer
+	     ',ref t nil))
 	 font-lock-keyword-face)))
 
     :array
@@ -281,8 +293,8 @@
 		 (plist-get val :element-type-name))
 	 `(lambda (x)
 	    (ensime-ui-show-nav-buffer
-	     "*ensime-debug-value*"
-	     ',ref t nil t))
+	     ensime-db-value-buffer
+	     ',ref t nil))
 	 font-lock-keyword-face)))
 
     :array-el (lambda (val i path))
@@ -313,8 +325,8 @@
       (ensime-insert-with-face
        (format "\"%s\"\n"
 	       (ensime-escape-control-chars
-	       (plist-get val :string-value)))
-			       'font-lock-string-face)
+		(plist-get val :string-value)))
+       'font-lock-string-face)
       (insert (make-string (length path) ?\ )))
 
 
@@ -345,7 +357,7 @@
 		       (new-val (plist-put (copy-list ensime-db-buffer-root-value)
 					   :expansion new-expansion)))
 		  (ensime-ui-show-nav-buffer
-		   "*ensime-debug-value*"
+		   ensime-db-value-buffer
 		   new-val t nil t)))
 	     font-lock-keyword-face)
 	  (insert name))
@@ -384,7 +396,7 @@
 		   (new-val (plist-put (copy-list ensime-db-buffer-root-value)
 				       :expansion new-expansion)))
 	      (ensime-ui-show-nav-buffer
-	       "*ensime-debug-value*"
+	       ensime-db-value-buffer
 	       new-val t nil t)))
 	 font-lock-keyword-face)
 
@@ -413,12 +425,16 @@
    :init (lambda (info)
 	   (setq ensime-db-buffer-root-value info)
 	   (setq ensime-db-buffer-value-expansion (plist-get info :expansion))
-	   (message "expansion is %s" ensime-db-buffer-value-expansion)
 	   (ensime-db-ui-insert-value
 	    info ensime-db-buffer-value-expansion))
    :update (lambda (info))
-   :help-text "Press q to quit."
-   :keymap ()
+   :help-text "Press q to quit, use n,s,o,c to control debugger."
+   :keymap `(
+	     (,(kbd "n") ,'ensime-db-next)
+	     (,(kbd "s") ,'ensime-db-step)
+	     (,(kbd "o") ,'ensime-db-step-out)
+	     (,(kbd "c") ,'ensime-db-continue)
+	     )
    ))
 
 
@@ -428,7 +444,7 @@
 	   (ensime-db-ui-insert-backtrace
 	    info))
    :update (lambda (info))
-   :help-text "Press q to quit."
+   :help-text "Press q to quit, use n,s,o,c to control debugger."
    :keymap `(
 	     (,(kbd "n") ,'ensime-db-next)
 	     (,(kbd "s") ,'ensime-db-step)
@@ -439,8 +455,8 @@
 
 
 (defun ensime-db-update-backtraces ()
-  (when (get-buffer "*ensime-debug-backtrace*")
-    (ensime-db-backtrace)))
+  (when (get-buffer ensime-db-backtrace-buffer)
+    (ensime-db-backtrace t)))
 
 
 ;; (message "%s" (ensime-db-grow-expansion '(nil ("a") ("b" ("c"))) '("b" "c" "d")))
@@ -588,19 +604,19 @@
   "Get the value of the symbol at point."
   (interactive (list (point)))
   (let ((val (ensime-db-value-for-name-at-point (point))))
-    (if val (ensime-ui-show-nav-buffer "*ensime-debug-value*" val t)
+    (if val (ensime-ui-show-nav-buffer ensime-db-value-buffer val t)
       (message "Nothing to inspect."))))
 
-(defun ensime-db-backtrace ()
+(defun ensime-db-backtrace (&optional no-select)
   "Show the backtrace for the current suspended thread."
   (interactive)
   (ensime-rpc-async-debug-backtrace
    ensime-db-active-thread-id
    0 -1
-   '(lambda (val)
-      (if val (ensime-ui-show-nav-buffer "*ensime-debug-backtrace*" val t)
-	(message "Backtrace unavailable."))))
-  )
+   `(lambda (val)
+      (if val (ensime-ui-show-nav-buffer ensime-db-backtrace-buffer
+					 val (not ,no-select))
+	(message "Backtrace unavailable.")))))
 
 (defun ensime-db-next ()
   "Cause debugger to go to next line, without stepping into
@@ -675,6 +691,12 @@ the current project's dependencies. Returns list of form (cmd [arg]*)"
     (setq ensime-db-default-main-args debug-args)
     (concat debug-class " " debug-args)))
 
+
+(defun ensime-db-connection-closed (conn)
+  (ensime-db-clear-breakpoint-overlays)
+  (ensime-db-clear-marker-overlays))
+
+
 (defun ensime-db-start ()
   "Run a Scala interpreter in an Emacs buffer"
   (interactive)
@@ -684,8 +706,13 @@ the current project's dependencies. Returns list of form (cmd [arg]*)"
    (let ((root-path (or (ensime-configured-project-root) "."))
 	 (cmd-line (ensime-db-get-cmd-line)))
      (ensime-rpc-debug-start cmd-line)
+
      (add-hook 'ensime-db-thread-suspended-hook
 	       'ensime-db-update-backtraces)
+
+     (add-hook 'ensime-net-process-close-hooks
+	       'ensime-db-connection-closed)
+
      (message "Starting debug VM...")
      )))
 
