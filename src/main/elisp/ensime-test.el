@@ -1087,27 +1087,6 @@
       ))
     )
 
-   (ensime-async-test
-    "Test get debug config."
-    (let* ((proj (ensime-create-tmp-project
-		  ensime-tmp-project-hello-world)))
-      (ensime-test-init-proj proj))
-
-    ((:connected connection-info))
-
-    ((:compiler-ready status)
-     (ensime-test-with-proj
-      (proj src-files)
-
-      (let ((conf (ensime-rpc-debug-config)))
-	(ensime-assert (not (null conf)))
-	(ensime-assert (not (null (plist-get conf :classpath))))
-	(ensime-assert (not (null (plist-get conf :sourcepath))))
-	)
-
-      (ensime-test-cleanup proj)
-      ))
-    )
 
    (ensime-async-test
     "Test interactive search."
