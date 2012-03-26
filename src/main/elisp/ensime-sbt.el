@@ -88,16 +88,20 @@
 
      (add-hook 'ensime-source-buffer-saved-hook 'ensime-sbt-maybe-auto-compile)
 
+     (add-hook 'comint-mode-hook 'ensime-sbt-setup-tab-completion)
+
      (add-hook 'kill-buffer-hook
 	       '(lambda ()
 		  (remove-hook
 		   'ensime-source-buffer-saved-hook
-		   'ensime-sbt-maybe-auto-compile)) nil t)
+		   'ensime-sbt-maybe-auto-compile)
+                  (remove-hook
+                   'comint-mode-hook
+                   'ensime-sbt-setup-tab-completion)) nil t)
 
      (comint-mode)
 
      (setq ensime-buffer-connection conn)
-
 
      (set (make-local-variable 'compilation-error-regexp-alist)
 	  '(("^\\[error\\] \\([_.a-zA-Z0-9/-]+[.]scala\\):\\([0-9]+\\):"
@@ -136,6 +140,27 @@
 
      (current-buffer)
      )))
+
+(defun ensime-sbt-setup-tab-completion ()
+  (setq comint-preoutput-filter-functions
+        (cons 'ensime-sbt-cplt-output-filter
+              comint-preoutput-filter-functions)))
+
+(defun ensime-sbt-cplt-output-filter (output)
+  (let* (output-list (split-string ouput)))
+  output)
+
+(defun ensime-sbt-completion-thing ()
+  "Get the completion candidates from sbt process"
+  (interactive)
+  (if (equal (buffer-name) (ensime-sbt-build-buffer-name))
+      (let* ((proc (get-buffer-process (current-buffer)))
+             (input (buffer-substring (comint-line-beginning-position) (point))))
+        (message (concat "Here is the input : " input))
+        (comint-proc-query proc (concat input "\t"))
+        (comint-kill-input))))
+
+;; (setq comint-preoutput-filter-functions nil)
 
 (defun ensime-sbt-switch ()
   "Switch to the sbt shell (create if necessary) if or if already there, back.
