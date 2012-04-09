@@ -41,6 +41,7 @@
 (eval-when-compile (require 'cl))
 (require 'compile)
 (require 'comint)
+(require 'ensime-comint-utils)
 
 (defgroup ensime-sbt nil
   "Support for sbt build REPL."
@@ -88,16 +89,11 @@
 
      (add-hook 'ensime-source-buffer-saved-hook 'ensime-sbt-maybe-auto-compile)
 
-     (add-hook 'comint-mode-hook 'ensime-sbt-setup-tab-completion)
-
      (add-hook 'kill-buffer-hook
 	       '(lambda ()
 		  (remove-hook
 		   'ensime-source-buffer-saved-hook
-		   'ensime-sbt-maybe-auto-compile)
-                  (remove-hook
-                   'comint-mode-hook
-                   'ensime-sbt-setup-tab-completion)) nil t)
+		   'ensime-sbt-maybe-auto-compile) nil t))
 
      (comint-mode)
 
@@ -119,7 +115,12 @@
      (set (make-local-variable 'comint-process-echoes) nil)
      (set (make-local-variable 'compilation-auto-jump-to-first-error) t)
      (set (make-local-variable 'comint-scroll-to-bottom-on-output) t)
+     (set (make-local-variable 'comint-prompt-regexp) "^\\(>\\|scala>\\) ")
+     (set (make-local-variable 'comint-use-prompt-regexp) t)
      (set (make-local-variable 'comint-prompt-read-only) t)
+     (set (make-local-variable 'comint-preoutput-filter-functions)
+                               (append '(ensime-comint-cplt-output-filter)
+                                       comint-preoutput-filter-functions))
      (set (make-local-variable 'comint-output-filter-functions)
 	  '(ansi-color-process-output comint-postoutput-scroll-to-bottom))
 
@@ -138,29 +139,12 @@
      (let ((proc (get-buffer-process (current-buffer))))
        (ensime-set-query-on-exit-flag proc))
 
+     (set (make-local-variable 'ensime-comint-completion-buffers)
+                               (cons (ensime-sbt-build-buffer-name)
+                                       ensime-comint-completion-buffers))
+
      (current-buffer)
      )))
-
-(defun ensime-sbt-setup-tab-completion ()
-  (setq comint-preoutput-filter-functions
-        (cons 'ensime-sbt-cplt-output-filter
-              comint-preoutput-filter-functions)))
-
-(defun ensime-sbt-cplt-output-filter (output)
-  (let* (output-list (split-string ouput)))
-  output)
-
-(defun ensime-sbt-completion-thing ()
-  "Get the completion candidates from sbt process"
-  (interactive)
-  (if (equal (buffer-name) (ensime-sbt-build-buffer-name))
-      (let* ((proc (get-buffer-process (current-buffer)))
-             (input (buffer-substring (comint-line-beginning-position) (point))))
-        (message (concat "Here is the input : " input))
-        (comint-proc-query proc (concat input "\t"))
-        (comint-kill-input))))
-
-;; (setq comint-preoutput-filter-functions nil)
 
 (defun ensime-sbt-switch ()
   "Switch to the sbt shell (create if necessary) if or if already there, back.
