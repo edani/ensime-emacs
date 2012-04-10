@@ -227,7 +227,7 @@
     :header
     (lambda (thread-id thread-name)
       (ensime-insert-with-face
-       (format "Backtrace for thread: %s\n\n" thread-name)
+       (format "Thread: %s\n" thread-name)
        font-lock-comment-face))
 
     :frame
@@ -263,7 +263,7 @@
    (list
     :primitive
     (lambda (val path)
-      (insert (format "%s : %s = %s\n"
+      (insert (format "%s: %s = %s\n"
 		      name
 		      (plist-get val :type-name)
 		      (plist-get val :value))))
@@ -271,7 +271,7 @@
     :string
     (lambda (val path)
       (ensime-insert-with-face
-       (format "%s = " name)
+       (format "%s: String = " name)
        font-lock-keyword-face)
       (ensime-insert-with-face
        (format "\"%s\"\n"
@@ -283,7 +283,7 @@
     (lambda (val path)
       (let ((ref (ensime-db-obj-to-ref val)))
 	(ensime-insert-action-link
-	 (format "%s : %s\n" name (plist-get val :type-name))
+	 (format "%s: %s\n" name (plist-get val :type-name))
 	 `(lambda (x)
 	    (ensime-ui-show-nav-buffer
 	     ensime-db-value-buffer
@@ -304,7 +304,7 @@
     (lambda (val path)
       (let ((ref (ensime-db-obj-to-ref val)))
 	(ensime-insert-action-link
-	 (format "%s : Array[%s]\n"
+	 (format "%s: Array[%s]\n"
 		 name
 		 (plist-get val :element-type-name))
 	 `(lambda (x)
@@ -329,7 +329,7 @@
     :primitive
     (lambda (val path)
       (insert (make-string (* 2 (length path)) ?\ ))
-      (insert (format "%s : %s\n"
+      (insert (format "%s: %s\n"
 		      (ensime-escape-control-chars
 		       (plist-get val :value))
 		      (plist-get val :type-name))))
@@ -377,7 +377,7 @@
 		   new-val t nil t)))
 	     font-lock-keyword-face)
 	  (insert name))
-	(insert " : ")
+	(insert ": ")
 
 	(ensime-insert-with-face
 	 (plist-get f :type-name)
@@ -421,7 +421,7 @@
     :null
     (lambda (val path)
       (insert (make-string (length path) ?\ ))
-      (insert "null : Null\n"))
+      (insert "null: Null\n"))
 
 
     )))
