@@ -98,7 +98,7 @@
     (ensime-ui-show-nav-buffer
      ensime-db-value-buffer
      exc-val t))
-;;  (run-hooks 'ensime-db-thread-suspended-hook)
+  ;;  (run-hooks 'ensime-db-thread-suspended-hook)
   )
 
 (defun ensime-db-handle-start (evt)
@@ -231,18 +231,18 @@
        font-lock-comment-face))
 
     :frame
-    (lambda (class-name method-name file line)
+    (lambda (class-name method-name file line this-obj-id)
       (insert "\n")
       (ensime-insert-link
-       (format "[%s::%s in %s:%s]\n"
-	       class-name method-name
+       (format "[ %s at %s:%s ]\n"
+	       method-name
 	       (file-name-nondirectory file)
 	       line)
-       file
-       nil
-       font-lock-type-face
-       line
-       ))
+       file nil
+       font-lock-type-face line)
+      (ensime-db-ui-insert-value-link
+       "this"
+       (list :val-type 'ref :object-id this-obj-id)))
 
     :local-var
     (lambda (name value)
@@ -289,6 +289,16 @@
 	     ensime-db-value-buffer
 	     ',ref t nil))
 	 font-lock-keyword-face)))
+
+    :ref
+    (lambda (ref path)
+      (ensime-insert-action-link
+       (format "%s\n" name)
+       `(lambda (x)
+	  (ensime-ui-show-nav-buffer
+	   ensime-db-value-buffer
+	   ',ref t nil))
+       font-lock-keyword-face))
 
     :array
     (lambda (val path)
@@ -538,9 +548,8 @@
 
   (case (plist-get val :val-type)
 
-    (ref (let ((looked-up (ensime-rpc-debug-value-for-id
-			   (plist-get val :object-id)
-			   )))
+    (ref (when-let (looked-up (ensime-rpc-debug-value-for-id
+			   (plist-get val :object-id)))
 	   (ensime-db-visit-value looked-up
 				  expansion
 				  path
@@ -583,7 +592,8 @@
 	     (plist-get frame :class-name)
 	     (plist-get frame :method-name)
 	     (plist-get (plist-get frame :pc-location) :file)
-	     (plist-get (plist-get frame :pc-location) :line))
+	     (plist-get (plist-get frame :pc-location) :line)
+	     (plist-get frame :this-object-id))
     (dolist (var (plist-get frame :locals))
       (funcall (plist-get visitor :local-var)
 	       (plist-get var :name)
