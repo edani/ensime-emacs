@@ -93,7 +93,7 @@
 	       '(lambda ()
 		  (remove-hook
 		   'ensime-source-buffer-saved-hook
-		   'ensime-sbt-maybe-auto-compile) nil t))
+		   'ensime-sbt-maybe-auto-compile)) nil t)
 
      (comint-mode)
 
@@ -115,7 +115,7 @@
      (set (make-local-variable 'comint-process-echoes) nil)
      (set (make-local-variable 'compilation-auto-jump-to-first-error) t)
      (set (make-local-variable 'comint-scroll-to-bottom-on-output) t)
-     (set (make-local-variable 'comint-prompt-regexp) "^\\(>\\|scala>\\) ")
+     (set (make-local-variable 'comint-prompt-regexp) "^> ")
      (set (make-local-variable 'comint-use-prompt-regexp) t)
      (set (make-local-variable 'comint-prompt-read-only) t)
      (set (make-local-variable 'comint-preoutput-filter-functions)
