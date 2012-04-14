@@ -93,9 +93,9 @@ the output received after a call to `ensime-comint-complete'.")
   (if (member (buffer-name) ensime-comint-completion-buffers)
       (let* ((proc (get-buffer-process (current-buffer)))
              (input (buffer-substring (comint-line-beginning-position) (point))))
-        (process-put proc 'ensime-comint-completion t) ;; activate ensime-comint-cplt-output-filter
         (if (string-to-list input)
             (progn
+              (process-put proc 'ensime-comint-completion t) ;; activate ensime-comint-cplt-output-filter
               (comint-proc-query proc (concat input (kbd "TAB")))
               (comint-proc-query proc (kbd "C-a"))
               (comint-proc-query proc (kbd "C-k"))
