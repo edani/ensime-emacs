@@ -78,6 +78,8 @@
     (death (ensime-db-handle-shutdown evt))
     (disconnect (ensime-db-handle-shutdown evt))
     (exception (ensime-db-handle-exception evt))
+    (threadStart)
+    (threadDeath)
     (otherwise (ensime-db-handle-unknown-event evt))
     ))
 
@@ -96,7 +98,7 @@
     (ensime-ui-show-nav-buffer
      ensime-db-value-buffer
      exc-val t))
-;;  (run-hooks 'ensime-db-thread-suspended-hook)
+  ;;  (run-hooks 'ensime-db-thread-suspended-hook)
   )
 
 (defun ensime-db-handle-start (evt)
@@ -108,9 +110,9 @@
   (ensime-db-set-debug-marker
    (plist-get evt :file)
    (plist-get evt :line))
-  (message "Suspended thread %s at %s : %s"
-	   (plist-get evt :thread-id)
-	   (plist-get evt :file)
+  (message "Thread '%s' suspended at %s : %s"
+	   (plist-get evt :thread-name)
+	   (file-name-nondirectory (plist-get evt :file))
 	   (plist-get evt :line))
   (run-hooks 'ensime-db-thread-suspended-hook)
   )
@@ -121,6 +123,10 @@
   (ensime-db-set-debug-marker
    (plist-get evt :file)
    (plist-get evt :line))
+  (message "Thread '%s' hit breakpoint at %s : %s"
+	   (plist-get evt :thread-name)
+	   (file-name-nondirectory (plist-get evt :file))
+	   (plist-get evt :line))
   (run-hooks 'ensime-db-thread-suspended-hook)
   )
 
@@ -219,24 +225,24 @@
    val
    (list
     :header
-    (lambda (thread-id)
+    (lambda (thread-id thread-name)
       (ensime-insert-with-face
-       (format "Thread: %s\n\n" thread-id)
+       (format "Thread: %s\n" thread-name)
        font-lock-comment-face))
 
     :frame
-    (lambda (class-name method-name file line)
+    (lambda (class-name method-name file line this-obj-id)
       (insert "\n")
       (ensime-insert-link
-       (format "[%s::%s  %s:%s]\n"
-	       class-name method-name
+       (format "[ %s at %s:%s ]\n"
+	       method-name
 	       (file-name-nondirectory file)
 	       line)
-       file
-       nil
-       font-lock-type-face
-       line
-       ))
+       file nil
+       font-lock-type-face line)
+      (ensime-db-ui-insert-value-link
+       "this"
+       (list :val-type 'ref :object-id this-obj-id)))
 
     :local-var
     (lambda (name value)
@@ -257,7 +263,7 @@
    (list
     :primitive
     (lambda (val path)
-      (insert (format "%s : %s = %s\n"
+      (insert (format "%s: %s = %s\n"
 		      name
 		      (plist-get val :type-name)
 		      (plist-get val :value))))
@@ -265,7 +271,7 @@
     :string
     (lambda (val path)
       (ensime-insert-with-face
-       (format "%s = " name)
+       (format "%s: String = " name)
        font-lock-keyword-face)
       (ensime-insert-with-face
        (format "\"%s\"\n"
@@ -277,18 +283,28 @@
     (lambda (val path)
       (let ((ref (ensime-db-obj-to-ref val)))
 	(ensime-insert-action-link
-	 (format "%s : %s\n" name (plist-get val :type-name))
+	 (format "%s: %s\n" name (plist-get val :type-name))
 	 `(lambda (x)
 	    (ensime-ui-show-nav-buffer
 	     ensime-db-value-buffer
 	     ',ref t nil))
 	 font-lock-keyword-face)))
 
+    :ref
+    (lambda (ref path)
+      (ensime-insert-action-link
+       (format "%s\n" name)
+       `(lambda (x)
+	  (ensime-ui-show-nav-buffer
+	   ensime-db-value-buffer
+	   ',ref t nil))
+       font-lock-keyword-face))
+
     :array
     (lambda (val path)
       (let ((ref (ensime-db-obj-to-ref val)))
 	(ensime-insert-action-link
-	 (format "%s : Array[%s]\n"
+	 (format "%s: Array[%s]\n"
 		 name
 		 (plist-get val :element-type-name))
 	 `(lambda (x)
@@ -313,7 +329,7 @@
     :primitive
     (lambda (val path)
       (insert (make-string (* 2 (length path)) ?\ ))
-      (insert (format "%s : %s\n"
+      (insert (format "%s: %s\n"
 		      (ensime-escape-control-chars
 		       (plist-get val :value))
 		      (plist-get val :type-name))))
@@ -361,7 +377,7 @@
 		   new-val t nil t)))
 	     font-lock-keyword-face)
 	  (insert name))
-	(insert " : ")
+	(insert ": ")
 
 	(ensime-insert-with-face
 	 (plist-get f :type-name)
@@ -405,7 +421,7 @@
     :null
     (lambda (val path)
       (insert (make-string (length path) ?\ ))
-      (insert "null : Null\n"))
+      (insert "null: Null\n"))
 
 
     )))
@@ -532,9 +548,8 @@
 
   (case (plist-get val :val-type)
 
-    (ref (let ((looked-up (ensime-rpc-debug-value-for-id
-			   (plist-get val :object-id)
-			   )))
+    (ref (when-let (looked-up (ensime-rpc-debug-value-for-id
+			   (plist-get val :object-id)))
 	   (ensime-db-visit-value looked-up
 				  expansion
 				  path
@@ -570,13 +585,15 @@
 (defun ensime-db-visit-backtrace (val
 				  visitor)
   (funcall (plist-get visitor :header)
-	   (plist-get val :thread-id))
+	   (plist-get val :thread-id)
+	   (plist-get val :thread-name))
   (dolist (frame (plist-get val :frames))
     (funcall (plist-get visitor :frame)
 	     (plist-get frame :class-name)
 	     (plist-get frame :method-name)
 	     (plist-get (plist-get frame :pc-location) :file)
-	     (plist-get (plist-get frame :pc-location) :line))
+	     (plist-get (plist-get frame :pc-location) :line)
+	     (plist-get frame :this-object-id))
     (dolist (var (plist-get frame :locals))
       (funcall (plist-get visitor :local-var)
 	       (plist-get var :name)
