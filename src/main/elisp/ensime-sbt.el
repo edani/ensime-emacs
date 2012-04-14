@@ -142,6 +142,7 @@
      (set (make-local-variable 'ensime-comint-completion-buffers)
                                (cons (ensime-sbt-build-buffer-name)
                                        ensime-comint-completion-buffers))
+     (define-key (current-local-map) "\t" 'ensime-comint-complete)
 
      (current-buffer)
      )))
