@@ -100,8 +100,8 @@
      (setq ensime-buffer-connection conn)
 
      (set (make-local-variable 'compilation-error-regexp-alist)
-	  '(("^\\[error\\] \\([_.a-zA-Z0-9/-]+[.]scala\\):\\([0-9]+\\):"
-	     1 2 nil 2 nil)))
+	  '(("^\\[error\\] \\(.+\\):\\([0-9]+\\): "
+	     1 2 nil 2 1)))
      (set (make-local-variable 'compilation-mode-font-lock-keywords)
 	  '(("^\\[error\\] Error running compile:"
 	     (0 compilation-error-face))
