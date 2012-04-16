@@ -41,6 +41,7 @@
 (eval-when-compile (require 'cl))
 (require 'compile)
 (require 'comint)
+(require 'ensime-comint-utils)
 
 (defgroup ensime-sbt nil
   "Support for sbt build REPL."
@@ -98,7 +99,6 @@
 
      (setq ensime-buffer-connection conn)
 
-
      (set (make-local-variable 'compilation-error-regexp-alist)
 	  '(("^\\[error\\] \\([_.a-zA-Z0-9/-]+[.]scala\\):\\([0-9]+\\):"
 	     1 2 nil 2 nil)))
@@ -115,7 +115,12 @@
      (set (make-local-variable 'comint-process-echoes) nil)
      (set (make-local-variable 'compilation-auto-jump-to-first-error) t)
      (set (make-local-variable 'comint-scroll-to-bottom-on-output) t)
+     (set (make-local-variable 'comint-prompt-regexp) "^> ")
+     (set (make-local-variable 'comint-use-prompt-regexp) t)
      (set (make-local-variable 'comint-prompt-read-only) t)
+     (set (make-local-variable 'comint-preoutput-filter-functions)
+                               (append '(ensime-comint-cplt-output-filter)
+                                       comint-preoutput-filter-functions))
      (set (make-local-variable 'comint-output-filter-functions)
 	  '(ansi-color-process-output comint-postoutput-scroll-to-bottom))
 
@@ -133,6 +138,11 @@
 
      (let ((proc (get-buffer-process (current-buffer))))
        (ensime-set-query-on-exit-flag proc))
+
+     (set (make-local-variable 'ensime-comint-completion-buffers)
+                               (cons (ensime-sbt-build-buffer-name)
+                                       ensime-comint-completion-buffers))
+     (define-key (current-local-map) "\t" 'ensime-comint-complete)
 
      (current-buffer)
      )))
