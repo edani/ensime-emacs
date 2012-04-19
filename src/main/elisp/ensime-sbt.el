@@ -115,12 +115,10 @@
      (set (make-local-variable 'comint-process-echoes) nil)
      (set (make-local-variable 'compilation-auto-jump-to-first-error) t)
      (set (make-local-variable 'comint-scroll-to-bottom-on-output) t)
-     (set (make-local-variable 'comint-prompt-regexp) "^> ")
+     ;; `scala>' is for the repl launched from stb
+     (set (make-local-variable 'comint-prompt-regexp) "^\\(>\\|scala>\\) ")
      (set (make-local-variable 'comint-use-prompt-regexp) t)
      (set (make-local-variable 'comint-prompt-read-only) t)
-     (set (make-local-variable 'comint-preoutput-filter-functions)
-                               (append '(ensime-comint-cplt-output-filter)
-                                       comint-preoutput-filter-functions))
      (set (make-local-variable 'comint-output-filter-functions)
 	  '(ansi-color-process-output comint-postoutput-scroll-to-bottom))
 
@@ -139,10 +137,7 @@
      (let ((proc (get-buffer-process (current-buffer))))
        (ensime-set-query-on-exit-flag proc))
 
-     (set (make-local-variable 'ensime-comint-completion-buffers)
-                               (cons (ensime-sbt-build-buffer-name)
-                                       ensime-comint-completion-buffers))
-     (define-key (current-local-map) "\t" 'ensime-comint-complete)
+     (define-key (current-local-map) "\t" 'ensime-sbt-complete)
 
      (current-buffer)
      )))
@@ -189,6 +184,20 @@
 	 (ensime-connected-p)
 	 ensime-sbt-compile-on-save)
     (ensime-sbt-action "compile")))
+
+(defun ensime-sbt-complete ()
+  "Complete input at point"
+  (interactive)
+  (let* ((proc (get-buffer-process (ensime-sbt-build-buffer-name)))
+         (input (buffer-substring (comint-line-beginning-position) (point)))
+         (prompt (buffer-substring (line-beginning-position)
+                                   (comint-line-beginning-position)))
+         (cand-regexp (if (string-match "scala>" prompt)
+                          "[\f\t\n\r\v]+"
+                        "\s\s\\|[\f\t\n\r\v]+")))
+    (if (string-to-list input)
+        (ensime-comint-complete proc input cand-regexp "{invalid input}")
+      (message "At least one character is needed !"))))
 
 (defun ensime-sbt-action (action)
   "Run an sbt action. Where action is a string in the set of valid
