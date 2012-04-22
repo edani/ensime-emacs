@@ -375,70 +375,75 @@
 				 ))
 	     ""))
 
-	   )
+	 )
 
-	 :metadata
-	 ""
+	:metadata
+	""
 
-	 :match-file-name
-	 (cdr (assoc 'docUrl item))
+	:match-file-name
+	(cdr (assoc 'docUrl item))
 
-	 :data
-	 item
+	:data
+	item
 
-	 )) items)))
+	)) items)))
 
 
-  (defun ensime-scalex-update-target-buffer ()
-    "This is where the magic happens. Update the result list."
-    (save-excursion
-      (set-buffer ensime-scalex-target-buffer)
-      (setq buffer-read-only nil)
-      (goto-char (point-min))
-      (erase-buffer)
+(defun ensime-scalex-update-target-buffer ()
+  "This is where the magic happens. Update the result list."
+  (save-excursion
+    (set-buffer ensime-scalex-target-buffer)
+    (setq buffer-read-only nil)
+    (goto-char (point-min))
+    (erase-buffer)
 
-      (ensime-insert-with-face
-       (concat "Enter space-separated keywords. "
-	       "C-c C-c to search."
-	       "C-n, C-p to navigate. "
-	       "RETURN to browse documention. C-q to quit.")
-       'font-lock-constant-face)
+    (ensime-insert-with-face
+     (concat "Enter space-separated keywords. "
+	     "C-c C-c to search. "
+	     "C-n, C-p to navigate.\n"
+	     "RETURN to browse documention. C-q to quit.")
+     'font-lock-constant-face)
+    (insert "\n")
+    (ensime-insert-with-face
+     (format "%s results" (length ensime-scalex-current-results))
+     font-lock-comment-face)
+    (insert "\n\n")
+
+    (when ensime-scalex-current-results
+      (setq ensime-scalex-current-selected-result
+	    (first ensime-scalex-current-results)))
+
+
+    (dolist (r ensime-scalex-current-results)
+
+      ;; Save this for later use, for next/prev actions
+      (setf (ensime-scalex-result-summary-start r) (point))
+
+      (let ((p (point))
+	    (text (ensime-scalex-result-summary r)))
+	;; Insert the actual text, highlighting the matched substring
+	(insert (format "%s  \n" text))
+	(ensime-scalex-highlight-matches text p))
+
       (insert "\n\n")
+      )
 
-      (when ensime-scalex-current-results
-	(setq ensime-scalex-current-selected-result
-	      (first ensime-scalex-current-results)))
-
-      (dolist (r ensime-scalex-current-results)
-
-	;; Save this for later use, for next/prev actions
-	(setf (ensime-scalex-result-summary-start r) (point))
-
-	(let ((p (point))
-	      (text (ensime-scalex-result-summary r)))
-	  ;; Insert the actual text, highlighting the matched substring
-	  (insert (format "%s  \n" text))
-	  (ensime-scalex-highlight-matches text p))
-
-	(insert "\n\n")
-	)
-
-      (setq buffer-read-only t)
-      (ensime-scalex-update-result-selection)
-      ))
+    (setq buffer-read-only t)
+    (ensime-scalex-update-result-selection)
+    ))
 
 
-  (defun ensime-scalex-highlight-matches (text start-pt)
-    (let ((keywords (split-string ensime-scalex-text " ")))
-      (dolist (key keywords)
-	(let ((start (string-match key text))
-	      (len (length key)))
-	  (when (integerp start)
-	    (add-text-properties
-	     (+ start-pt start)
-	     (+ start-pt start len)
-	     '(comment nil face font-lock-keyword-face))))
-	)))
+(defun ensime-scalex-highlight-matches (text start-pt)
+  (let ((keywords (split-string ensime-scalex-text " ")))
+    (dolist (key keywords)
+      (let ((start (string-match key text))
+	    (len (length key)))
+	(when (integerp start)
+	  (add-text-properties
+	   (+ start-pt start)
+	   (+ start-pt start len)
+	   '(comment nil face font-lock-keyword-face))))
+      )))
 
 
-  (provide 'ensime-scalex)
+(provide 'ensime-scalex)
