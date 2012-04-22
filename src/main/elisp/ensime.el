@@ -2595,7 +2595,6 @@ any buffer visiting the given file."
 	       ((integerp (ensime-pos-offset pos))
 		(+ (ensime-pos-offset pos) ensime-ch-fix))
 	       (t 0))))
-    (debug pt)
       (with-current-buffer buf
 	(goto-char pt))
       (set-window-point file-visible-window pt))))
