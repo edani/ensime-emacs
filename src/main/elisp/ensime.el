@@ -54,6 +54,7 @@
 (require 'ensime-refactor)
 (require 'ensime-undo)
 (require 'ensime-search)
+(require 'ensime-scalex)
 (require 'ensime-doc)
 (require 'ensime-semantic-highlight)
 (require 'ensime-ui)
@@ -256,6 +257,7 @@ Do not show 'Writing..' message."
       (define-key prefix-map (kbd "C-v f") 'ensime-format-source)
       (define-key prefix-map (kbd "C-v u") 'ensime-undo-peek)
       (define-key prefix-map (kbd "C-v v") 'ensime-search)
+      (define-key prefix-map (kbd "C-v x") 'ensime-scalex)
       (define-key prefix-map (kbd "C-v t") 'ensime-show-doc-for-symbol-at-point)
       (define-key prefix-map (kbd "C-v .") 'ensime-expand-selection-command)
 
@@ -353,7 +355,8 @@ Do not show 'Writing..' message."
      ["Backward compilation note" ensime-backward-note]
      ["Forward compilation note" ensime-forward-note]
      ["Expand selection" ensime-expand-selection-command]
-     ["Search" ensime-search])
+     ["Search" ensime-search]
+     ["Scalex-Search" ensime-scalex])
 
     ("Documentation"
      ["Browse documentation of symbol" ensime-show-doc-for-symbol-at-point])
@@ -2554,6 +2557,13 @@ any buffer visiting the given file."
 	     (window-file (buffer-file-name buf)))
 	(when (and window-file
 		   (ensime-files-equal-p file window-file))
+	  (throw 'result w))))))
+
+(defun ensime-window-showing-buffer (buffer)
+  (catch 'result
+    (dolist (w (window-list))
+      (let* ((buf (window-buffer w)))
+	(when (equal buf buffer)
 	  (throw 'result w))))))
 
 (defun ensime-point-at-bol (file line)

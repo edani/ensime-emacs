@@ -21,10 +21,6 @@
 
 (require 'comint)
 
-(defvar ensime-comint-completion-buffers ()
-  "List of buffer names (strings) in which `ensime-comint-complete'
-will be available (i.e will actually do something).")
-
 (defvar ensime-comint-filter-buffer " *ensime-comint-filter-buffer*"
   "Name of the buffer used by `ensime-comint-cplt-output-filter'
 to put output from process into for further processing.")
@@ -35,7 +31,7 @@ the output received after a call to `ensime-comint-complete'.")
 
 (defun ensime-comint-sanitise(str)
   (replace-regexp-in-string
-   ensime-comint-completion-invalid-values
+   (concat ensime-comint-completion-invalid-values "\\|" ansi-color-drop-regexp)
    "" str))
 
 (defun ensime-comint-shape-candidate (candidate cand-max-length nbr-cols candidates)
@@ -47,7 +43,6 @@ the output received after a call to `ensime-comint-complete'.")
         (concat candidate "\n")
       (concat new-cand " "))))
 
-
 (defun ensime-comint-shape-candidates (candidates)
   (let* ((wwidth (window-width))
          (cand-max-length
@@ -58,67 +53,77 @@ the output received after a call to `ensime-comint-complete'.")
                 cand cand-max-length nbr-cols candidates))
             candidates)))
 
-(defun ensime-comint-treat-output (output)
-  (let* ((output-list
-          (cdr (split-string (ensime-comint-sanitise output))))
-         (input (first (reverse output-list)))
-         (prompt (second (reverse output-list))))
-          (cond
-           ((equal output-list (list prompt input)) ;; only one candidate
-            (concat "\n" prompt " " input))
-           ((and output-list (and input prompt)) ;; several candidates
-            (concat (mapconcat 'identity
-                       (ensime-comint-shape-candidates
-                        (reverse (set-difference
-                                  output-list
-                                  (list prompt input)))) "")
-                    "\n" prompt " " input))
-           (t ;; no candidates
-            ""))))
+;; TODO : this function is messy and too much based on sbt's behaviour
+;; => it should go in ensime-sbt.el
+(defun ensime-comint-treat-output (proc cand-regexp err-regexp output)
+  (with-current-buffer (process-buffer proc)
+    (let* ((output-list
+            (split-string (ensime-comint-sanitise output) cand-regexp t))
+           (input (car output-list))
+           (invalid-input (find err-regexp output-list :test 'string-match))
+           (rev-output-list (reverse output-list))
+           (prompt-completion
+            (find comint-prompt-regexp rev-output-list :test 'string-match))
+           ;; this is very ugly
+           (trailing-space (if (and (string= (replace-regexp-in-string "\s" "" input)
+                                             (replace-regexp-in-string
+                                               (concat "\s\\|" comint-prompt-regexp) ""
+                                               (if prompt-completion
+                                                   prompt-completion
+                                                 " ")))
+                                    (<= (length output-list) 3))
+                               " "
+                             (if (string-match "\s$" input)
+                                 " "
+                               ""))))
+      (if invalid-input
+          (concat invalid-input "\n" prompt-completion)
+        (if (> (length output-list) 1)
+            (cond
+             ((<= (length output-list) 3) ;; only one candidate
+              (concat "\n" prompt-completion trailing-space))
+             ((> (length output-list) 3) ;; several candidates
+              (concat (mapconcat 'identity
+                                 (ensime-comint-shape-candidates
+                                  (reverse (set-difference
+                                            (cdr output-list)
+                                            (list prompt-completion trailing-space)))) "")
+                      "\n" prompt-completion trailing-space)))
+          "")))))
 
-(defun ensime-comint-cplt-output-filter (output)
-  (let* ((proc (get-buffer-process (current-buffer)))
-         (triggered-by-ensime-comint-cplt
-          (process-get proc 'ensime-comint-completion)))
-    (if triggered-by-ensime-comint-cplt
-        (progn
-          (with-current-buffer (get-buffer-create ensime-comint-filter-buffer)
-            (insert output))
-          "")
-      output)))
+(defun ensime-comint-cplt-output-filter (proc output)
+  (with-current-buffer (get-buffer-create ensime-comint-filter-buffer)
+    (insert output))
+  "")
 
-(defun ensime-comint-complete ()
+(defun ensime-comint-complete (proc input cand-regexp err-regexp)
   "Get the completion candidates from sbt/repl process"
-  (interactive)
-  (if (member (buffer-name) ensime-comint-completion-buffers)
-      (let* ((proc (get-buffer-process (current-buffer)))
-             (input (buffer-substring (comint-line-beginning-position) (point))))
-        (if (string-to-list input)
-            (progn
-              (process-put proc 'ensime-comint-completion t) ;; activate ensime-comint-cplt-output-filter
-              (comint-proc-query proc (concat input (kbd "TAB")))
-              (comint-proc-query proc (kbd "C-a"))
-              (comint-proc-query proc (kbd "C-k"))
-              (sit-for 0.2) ;; make sure all output has been  received
-              (process-put proc 'ensime-comint-completion nil) ;; deactivate filter
-              (let ((custom-output (with-current-buffer
-                                     (get-buffer-create ensime-comint-filter-buffer)
-                                   (ensime-comint-treat-output (buffer-string)))))
-                (if (string-to-list custom-output)
-                    (progn
-                      (comint-kill-input)
-                      (comint-output-filter proc (concat "\n" custom-output))
-                      ;; the below is a bit silly but I didn't find any other way to prevent
-                      ;; the completed word from becoming read-only
-                      (let ((new-input (buffer-substring
-                                        (comint-line-beginning-position)
-                                        (point)))
-                            (inhibit-read-only t))
-                        (kill-region (comint-line-beginning-position) (point))
-                        (remove-list-of-text-properties 0 (length new-input) '(read-only) new-input)
-                        (insert new-input)))
-                  (message "No completion candidates")))
-              (kill-buffer ensime-comint-filter-buffer))
-          (message "At least one character must be entered !")))))
+  (let* ((old-proc-filter (process-filter proc)))
+    (set-process-filter proc 'ensime-comint-cplt-output-filter)
+    (comint-proc-query proc (concat input (kbd "TAB")))
+    (comint-proc-query proc (kbd "C-a"))
+    (comint-proc-query proc (kbd "C-k"))
+    (sit-for 0.2) ;; make sure all output has been  received
+    (let ((custom-output (with-current-buffer
+                             (get-buffer-create ensime-comint-filter-buffer)
+                           (ensime-comint-treat-output proc cand-regexp
+                                                       err-regexp (buffer-string)))))
+      (if (string-to-list custom-output)
+          (progn
+            (comint-kill-input)
+            (comint-output-filter proc (concat "\n" custom-output))
+            ;; the below is a bit silly but I didn't find any other way to prevent
+            ;; the completed word from becoming read-only
+            (let ((new-input (buffer-substring
+                              (comint-line-beginning-position)
+                              (point)))
+                  (inhibit-read-only t))
+              (kill-region (comint-line-beginning-position) (point))
+              (remove-list-of-text-properties 0 (length new-input)
+                                              '(read-only) new-input)
+              (insert new-input)))
+        (message "No completion candidates")))
+    (kill-buffer ensime-comint-filter-buffer)
+    (set-process-filter proc old-proc-filter)))
 
 (provide 'ensime-comint-utils)
