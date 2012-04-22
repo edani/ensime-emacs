@@ -2595,6 +2595,7 @@ any buffer visiting the given file."
 	       ((integerp (ensime-pos-offset pos))
 		(+ (ensime-pos-offset pos) ensime-ch-fix))
 	       (t 0))))
+    (debug pt)
       (with-current-buffer buf
 	(goto-char pt))
       (set-window-point file-visible-window pt))))
@@ -3879,16 +3880,16 @@ It should be used for \"background\" messages such as argument lists."
   (plist-get pos :file))
 
 (defun ensime-pos-offset (pos)
-  (or (plist-get pos :offset) -1))
+  (plist-get pos :offset))
 
 (defun ensime-pos-line (pos)
-  (or (plist-get pos :line) -1))
+  (plist-get pos :line))
 
 (defun ensime-pos-valid-local-p (pos)
   (and (stringp (ensime-pos-file pos))
        (file-exists-p (ensime-pos-file pos))
        (integerp (ensime-pos-offset pos))
-       (> (ensime-pos-offset pos) 0)))
+       (integerp (ensime-pos-offset pos))))
 
 (defun ensime-note-file (note)
   (plist-get note :file))
