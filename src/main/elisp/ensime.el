@@ -914,7 +914,7 @@ The default condition handler for timer functions (see
 			  (find-file-other-window ,file-path)
 			  (if (integerp ,line)
 			      (ensime-goto-line ,line)
-			    (goto-char ,offset))
+			    (goto-char (or ,offset 0)))
 			  )))
 
 (defun ensime-make-code-hyperlink (start end http-path &optional face)
@@ -3287,7 +3287,7 @@ with the current project's dependencies loaded. Returns a property list."
 			(ensime-make-doc-url type)
 			)))
 	  (ensime-insert-link " doc" url
-			      (+ (ensime-pos-offset pos)
+			      (+ (or (ensime-pos-offset pos) 0)
 				 ensime-ch-fix))))
 
       )))
@@ -3327,7 +3327,7 @@ with the current project's dependencies loaded. Returns a property list."
 	(progn
 	  (ensime-insert-link
 	   (format "%s" member-name) url
-	   (+ (ensime-pos-offset pos) ensime-ch-fix)
+	   (+ (or (ensime-pos-offset pos) 0) ensime-ch-fix)
 	   font-lock-function-name-face)
 	  (tab-to-tab-stop)
 	  (ensime-inspector-insert-linked-type type nil nil))
