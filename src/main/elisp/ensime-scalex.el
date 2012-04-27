@@ -21,7 +21,7 @@
 
 (require 'json)
 (eval-when-compile (require 'cl))
-
+(require 'url)
 
 (defvar ensime-scalex-mode nil
   "Enables the ensime-scalex minor mode.")
@@ -257,19 +257,30 @@
 	(kill-buffer buf))
       )))
 
-
 (defun ensime-scalex-api-request (q &optional page per-page)
   "Hit the scalex api."
-  (let ((url (concat
+  (let* ((url (concat
 	      "http://api.scalex.org/?q="
-	      (http-url-encode q 'iso-8859-1)
+	      (url-hexify-string q)
 	      "&page=" (number-to-string (or page 1))
 	      "&per_page=" (number-to-string
 			    (or per-page
 				ensime-scalex-max-results))
-	      )))
-    (http-get url nil 'ensime-scalex-request-sentinel nil nil)))
-
+	      ))
+         (buf (url-retrieve-synchronously url)))
+    (with-current-buffer buf
+      (goto-char url-http-end-of-headers)
+      (let* ((json
+              (buffer-substring-no-properties
+               (point) (point-max)))
+             (parsed (json-read-from-string json)))
+        (when-let (results (cdr (assoc 'results parsed)))
+                  (when (buffer-live-p ensime-scalex-target-buffer)
+                    (let ((results (ensime-scalex-make-results results)))
+                      (setq ensime-scalex-current-results results)
+                      (ensime-scalex-update-target-buffer)
+                      (ensime-event-sig :scalex-buffer-populated))))))
+    (kill-buffer buf)))
 
 (defun ensime-scalex-search ()
   "Launch a new search."
@@ -278,9 +289,10 @@
     (setq ensime-scalex-text new-query)
     (when (>= (length new-query) ensime-scalex-min-length)
       (ensime-scalex-api-request new-query)
-      (with-current-buffer ensime-scalex-target-buffer
-	(setq ensime-scalex-current-results nil)
-	(ensime-scalex-update-target-buffer)))
+      ;; (with-current-buffer ensime-scalex-target-buffer
+      ;;   (setq ensime-scalex-current-results nil)
+      ;;   (ensime-scalex-update-target-buffer))
+      )
     (force-mode-line-update)))
 
 ;;
@@ -396,7 +408,6 @@
     (setq buffer-read-only nil)
     (goto-char (point-min))
     (erase-buffer)
-
     (ensime-insert-with-face
      (concat "Enter space-separated keywords. "
 	     "C-c C-c to search. "
