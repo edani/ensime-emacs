@@ -2810,6 +2810,14 @@ any buffer visiting the given file."
 	  )))
     ))
 
+(defvar ensime-dir (file-name-directory load-file-name)
+  "The root dir of the Ensime distribution.")
+
+(defun ensime-recompile-el ()
+  "Byte-recompilation of all Emacs Lisp files."
+  (interactive)
+  (byte-recompile-directory ensime-dir 0))
+
 ;; Source Formatting
 
 (defun ensime-format-source ()
