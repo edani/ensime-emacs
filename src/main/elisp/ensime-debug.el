@@ -59,6 +59,7 @@
 (defvar ensime-db-buffer-name "*ensime-debug-session*")
 (defvar ensime-db-value-buffer "*ensime-debug-value*")
 (defvar ensime-db-backtrace-buffer "*ensime-db-backtrace-buffer*")
+(defvar ensime-db-output-buffer "*ensime-db-output-buffer*")
 
 (defvar ensime-db-active-thread-id nil
   "The unique id of the which is currently receiving debug
@@ -72,6 +73,7 @@
 
 (defun ensime-db-handle-event (evt)
   (case (plist-get evt :type)
+    (output (ensime-db-handle-output evt))
     (start (ensime-db-handle-start evt))
     (step (ensime-db-handle-step evt))
     (breakpoint (ensime-db-handle-break-hit evt))
@@ -85,6 +87,11 @@
 
 (defun ensime-db-handle-unknown-event (evt)
   (message "Unknown event: %s" evt))
+
+(defun ensime-db-handle-output (evt)
+  (with-current-buffer (get-buffer-create
+			ensime-db-output-buffer)
+    (insert (plist-get evt :body))))
 
 (defun ensime-db-handle-exception (evt)
   (setq ensime-db-active-thread-id
