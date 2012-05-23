@@ -19,6 +19,8 @@
 ;;     Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
 ;;     MA 02111-1307, USA.
 
+(eval-and-compile
+  (require 'cl))
 
 (defgroup ensime-db nil
   "Customization of ensime debugger support."
