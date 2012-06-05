@@ -285,10 +285,14 @@
 	(delete-overlay ensime-search-selection-overlay))
       (let ((target-point (ensime-search-result-summary-start
 			   ensime-search-current-selected-result)))
-	(save-excursion
-	  (goto-char target-point)
-	  (setq ensime-search-selection-overlay
-		(ensime-make-overlay target-point (point-at-eol) nil 'ensime-warnline))))
+	(goto-char target-point)
+	(setq ensime-search-selection-overlay
+	      (ensime-make-overlay target-point (point-at-eol)
+				   nil 'ensime-warnline))
+	(set-window-point (ensime-window-showing-buffer
+			   ensime-search-target-buffer)
+			  target-point)
+	)
       )))
 
 
