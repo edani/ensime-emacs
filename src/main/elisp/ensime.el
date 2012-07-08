@@ -2752,8 +2752,7 @@ any buffer visiting the given file."
 (defun ensime-insert-import (qualified-name)
   "A simple, hacky import insertion."
   (save-excursion
-    (goto-char (point-min))
-    (search-forward-regexp "^\\s-*package\\s-" nil t)
+    (search-backward-regexp "^\\s-*package\\s-" nil t)
     (goto-char (point-at-eol))
 
     ;; Advance past all imports that should sort before
