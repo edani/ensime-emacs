@@ -1248,6 +1248,7 @@ The functions are called with the process as their argument.")
   "Make a buffer suitable for a network process."
   (let ((buffer (generate-new-buffer name)))
     (with-current-buffer buffer
+      (set-buffer-multibyte t)
       (buffer-disable-undo)
       (set (make-local-variable 'kill-buffer-query-functions) nil))
     buffer))
@@ -1305,8 +1306,12 @@ The functions are called with the process as their argument.")
 (defun ensime-net-have-input-p ()
   "Return true if a complete message is available."
   (goto-char (point-min))
-  (and (>= (buffer-size) 6)
-       (>= (- (buffer-size) 6) (ensime-net-decode-length))))
+  (and (>= (ensime-buffer-size-in-bytes) 6)
+       (>= (- (ensime-buffer-size-in-bytes) 6)
+	   (ensime-net-decode-length))))
+
+(defun ensime-buffer-size-in-bytes ()
+  (- (position-bytes (point-max)) 1))
 
 (defun ensime-run-when-idle (function &rest args)
   "Call FUNCTION as soon as Emacs is idle."
@@ -1329,10 +1334,12 @@ The functions are called with the process as their argument.")
 	 (start (+ 6 (point)))
 	 (end (+ start length)))
     (assert (plusp length))
-    (prog1 (save-restriction
-	     (narrow-to-region start end)
-	     (read (current-buffer)))
-      (delete-region (point-min) end))))
+    (goto-char (byte-to-position start))
+    (prog1 (read (current-buffer))
+      (delete-region (- (byte-to-position start) 6)
+		     (byte-to-position end)))
+    ))
+
 
 (defun ensime-net-decode-length ()
   "Read a 24-bit hex-encoded integer from buffer."
