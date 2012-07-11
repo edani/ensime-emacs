@@ -2755,28 +2755,38 @@ any buffer visiting the given file."
 	      :name (buffer-substring-no-properties start end))))))
 
 
-
 (defun ensime-insert-import (qualified-name)
   "A simple, hacky import insertion."
   (save-excursion
-    (search-backward-regexp "^\\s-*package\\s-" nil t)
-    (goto-char (point-at-eol))
 
-    ;; Advance past all imports that should sort before
-    ;; the new one lexicographically.
-    (while (progn
+  (let ((starting-point (point)))
+    (search-backward-regexp "^\\s-*package\\s-" nil t)
+    (search-forward-regexp "^\\s-*import\\s-" starting-point t)
+    (goto-char (point-at-bol))
+
+    ;; No imports yet
+    (when (looking-at "^\\s-*package\\s-")
+      (goto-char (point-at-eol))
+      (newline)
+      )
+
+    (when (looking-at "^\\s-*import\\s-")
+      (left-char 1)
+      (while (progn
 	     (if (looking-at "[\n\t ]*import\\s-\\(.+\\)\n")
 		 (let ((imported-name (match-string 1)))
 		   (string< imported-name qualified-name)
 		   )))
-      (search-forward-regexp "import" nil t)
-      (goto-char (point-at-eol)))
+        (search-forward-regexp "^\\s-*import\\s-" starting-point t)
+        (goto-char (point-at-eol)))
+      )
+    )
 
-    (newline)
-    (insert (format (cond ((ensime-visiting-scala-file-p) "import %s")
-			  ((ensime-visiting-java-file-p) "import %s;"))
-		    qualified-name))
-    (indent-region (point-at-bol) (point-at-eol))))
+  (newline)
+  (insert (format (cond ((ensime-visiting-scala-file-p) "import %s")
+                        ((ensime-visiting-java-file-p) "import %s;"))
+                  qualified-name))
+  (indent-region (point-at-bol) (point-at-eol))))
 
 
 
