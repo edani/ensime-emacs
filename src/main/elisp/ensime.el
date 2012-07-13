@@ -3037,6 +3037,7 @@ with the current project's dependencies loaded. Returns a property list."
      ,(ensime-computed-point)
      ,(or max-results 0)
      ,case-sens
+     t ;; reload
      )))
 
 (defun ensime-rpc-import-suggestions-at-point (names max-results)
