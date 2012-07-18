@@ -729,7 +729,6 @@ the current project's dependencies. Returns list of form (cmd [arg]*)"
           "Hostname: "
           ensime-db-default-hostname)))
     (setq ensime-db-default-hostname debug-hostname)
-        (message "get hostname")
     (concat debug-hostname)))
 
 (defun ensime-db-get-port ()
@@ -739,7 +738,6 @@ the current project's dependencies. Returns list of form (cmd [arg]*)"
           "Port: "
           ensime-db-default-port)))
     (setq ensime-db-default-port debug-port)
-        (message "get port")
     (concat debug-port)))
 
 (defun ensime-db-connection-closed (conn)
@@ -756,15 +754,17 @@ the current project's dependencies. Returns list of form (cmd [arg]*)"
    (let ((root-path (or (ensime-configured-project-root) "."))
 	 (cmd-line (ensime-db-get-cmd-line)))
 
-     (ensime-rpc-debug-start  cmd-line)
+     (let ((retVal ))
+       (setf retVal (ensime-rpc-debug-start  cmd-line))
+       (if (string= (getf retVal :status) "success")
+	   (message "Starting debug VM...")
+	   (message (format "An error occured during starting debug VM: %s" (getf retVal :details)))))
      
      (add-hook 'ensime-db-thread-suspended-hook
 	       'ensime-db-update-backtraces)
 
      (add-hook 'ensime-net-process-close-hooks
 	       'ensime-db-connection-closed)
-
-     (message "Starting debug VM...")
      )))
 
 (defun ensime-db-attach ()
@@ -777,7 +777,11 @@ the current project's dependencies. Returns list of form (cmd [arg]*)"
    (hostname (ensime-db-get-hostname))
    (port (ensime-db-get-port)))
 
-     (ensime-rpc-debug-attach hostname port)
+     (let ((retVal ))
+       (setf retVal (ensime-rpc-debug-attach hostname port))
+       (if (string= (getf retVal :status) "success")
+	   (message "Attaching to target VM...")
+	   (message (format "An error occured during attaching to target VM: %s" (getf retVal :details)))))
      
      (add-hook 'ensime-db-thread-suspended-hook
          'ensime-db-update-backtraces)
@@ -785,7 +789,6 @@ the current project's dependencies. Returns list of form (cmd [arg]*)"
      (add-hook 'ensime-net-process-close-hooks
          'ensime-db-connection-closed)
 
-     (message "Starting debug VM...")
      )))
 
 (provide 'ensime-debug)
