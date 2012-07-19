@@ -1058,6 +1058,11 @@ The default condition handler for timer functions (see
 	      (,name (if matchedp (match-string 2 ,str) nil)))
 	 ,@body))))
 
+(defun ensime-last-name-component (str)
+  (if (integerp (string-match "^.*?\\.\\([^\\.]+\\)$"str))
+      (match-string 1 str)
+    str))
+
 (defun ensime-strip-dollar-signs (str)
   (replace-regexp-in-string "\\$" "" str))
 
@@ -2948,6 +2953,10 @@ any buffer visiting the given file."
 (defun ensime-rpc-debug-value-for-field (object-id name)
   (ensime-eval
    `(swank:debug-value-for-field ,object-id ,name)))
+
+(defun ensime-rpc-debug-value-for-stack-var (thread-id frame offset)
+  (ensime-eval
+   `(swank:debug-value-for-stack-var ,thread-id ,frame ,offset)))
 
 (defun ensime-rpc-debug-value-for-index (object-id index)
   (ensime-eval
