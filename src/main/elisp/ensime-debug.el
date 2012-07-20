@@ -234,19 +234,19 @@
     (lambda (class-name method-name file line this-obj-id)
       (insert "\n\n")
       (let ((heading (format "%s at %s:%s"
-	       method-name
-	       (file-name-nondirectory file)
-	       line)))
-      (ensime-insert-with-face (make-string (length heading) ?\-)
-			       font-lock-constant-face)
-      (insert "\n")
-      (ensime-insert-link heading
-       file nil font-lock-constant-face line)
-      (insert "\n")
-      (ensime-insert-with-face (make-string (length heading) ?\-)
-			       font-lock-constant-face)
-      (insert "\n")
-       font-lock-constant-face)
+			     method-name
+			     (file-name-nondirectory file)
+			     line)))
+	(ensime-insert-with-face (make-string (length heading) ?\-)
+				 font-lock-constant-face)
+	(insert "\n")
+	(ensime-insert-link heading
+			    file nil font-lock-constant-face line)
+	(insert "\n")
+	(ensime-insert-with-face (make-string (length heading) ?\-)
+				 font-lock-constant-face)
+	(insert "\n")
+	font-lock-constant-face)
       (ensime-db-ui-insert-object-link "this" this-obj-id)
       (insert "\n"))
 
@@ -673,21 +673,19 @@ the current project's dependencies. Returns list of form (cmd [arg]*)"
 
 (defun ensime-db-get-hostname ()
   "Get the target hostname"
-  (let* (
-   (debug-hostname (read-string
-          "Hostname: "
-          ensime-db-default-hostname)))
+  (let* ((debug-hostname (read-string
+			  "Hostname: "
+			  ensime-db-default-hostname)))
     (setq ensime-db-default-hostname debug-hostname)
-    (concat debug-hostname)))
+    debug-hostname))
 
 (defun ensime-db-get-port ()
   "Get the target port"
-  (let* (
-   (debug-port (read-string
-          "Port: "
-          ensime-db-default-port)))
+  (let* ((debug-port (read-string
+		      "Port: "
+		      ensime-db-default-port)))
     (setq ensime-db-default-port debug-port)
-    (concat debug-port)))
+    debug-port))
 
 (defun ensime-db-connection-closed (conn)
   (ensime-db-clear-breakpoint-overlays)
@@ -703,18 +701,20 @@ the current project's dependencies. Returns list of form (cmd [arg]*)"
    (let ((root-path (or (ensime-configured-project-root) "."))
 	 (cmd-line (ensime-db-get-cmd-line)))
 
-     (let ((retVal ))
-       (setf retVal (ensime-rpc-debug-start  cmd-line))
-       (if (string= (getf retVal :status) "success")
-	   (message "Starting debug VM...")
-	   (message (format "An error occured during starting debug VM: %s" (getf retVal :details)))))
-     
-     (add-hook 'ensime-db-thread-suspended-hook
-	       'ensime-db-update-backtraces)
+     (let ((ret (ensime-rpc-debug-start cmd-line)))
+       (if (string= (plist-get ret :status) "success")
+	   (progn
+	     (message "Starting debug VM...")
+	     (add-hook 'ensime-db-thread-suspended-hook
+		       'ensime-db-update-backtraces)
 
-     (add-hook 'ensime-net-process-close-hooks
-	       'ensime-db-connection-closed)
-     )))
+	     (add-hook 'ensime-net-process-close-hooks
+		       'ensime-db-connection-closed))
+
+	 (message (format "An error occured during starting debug VM: %s"
+			  (plist-get ret :details))))
+       ))))
+
 
 (defun ensime-db-attach ()
   "Run a Scala interpreter in an Emacs buffer"
@@ -722,22 +722,21 @@ the current project's dependencies. Returns list of form (cmd [arg]*)"
 
   (ensime-with-conn-interactive
    conn
-   (let (
-   (hostname (ensime-db-get-hostname))
-   (port (ensime-db-get-port)))
+   (let ((hostname (ensime-db-get-hostname))
+	 (port (ensime-db-get-port)))
 
-     (let ((retVal ))
-       (setf retVal (ensime-rpc-debug-attach hostname port))
-       (if (string= (getf retVal :status) "success")
-	   (message "Attaching to target VM...")
-	   (message (format "An error occured during attaching to target VM: %s" (getf retVal :details)))))
-     
-     (add-hook 'ensime-db-thread-suspended-hook
-         'ensime-db-update-backtraces)
+     (let ((ret (ensime-rpc-debug-attach hostname port)))
+       (if (string= (plist-get ret :status) "success")
+	   (progn
+	     (message "Attaching to target VM...")
+	     (add-hook 'ensime-db-thread-suspended-hook
+		       'ensime-db-update-backtraces)
 
-     (add-hook 'ensime-net-process-close-hooks
-         'ensime-db-connection-closed)
+	     (add-hook 'ensime-net-process-close-hooks
+		       'ensime-db-connection-closed))
 
-     )))
+	 (message "An error occured during attaching to target VM: %s"
+		  (plist-get ret :details)))))
+   ))
 
 (provide 'ensime-debug)
