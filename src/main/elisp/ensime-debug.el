@@ -227,13 +227,21 @@
 
     :frame
     (lambda (class-name method-name file line this-obj-id)
-      (insert "\n")
-      (ensime-insert-link
-       (format "[ %s at %s:%s ]\n"
+      (insert "\n\n")
+      (let ((heading (format "%s at %s:%s"
 	       method-name
 	       (file-name-nondirectory file)
-	       line)
-       file nil font-lock-type-face line)
+	       line)))
+      (ensime-insert-with-face (make-string (length heading) ?\-)
+			       font-lock-constant-face)
+      (insert "\n")
+      (ensime-insert-link heading
+       file nil font-lock-constant-face line)
+      (insert "\n")
+      (ensime-insert-with-face (make-string (length heading) ?\-)
+			       font-lock-constant-face)
+      (insert "\n")
+       font-lock-constant-face)
       (ensime-db-ui-insert-object-link "this" this-obj-id)
       (insert "\n"))
 
@@ -251,15 +259,19 @@
 (defun ensime-db-ui-insert-stack-var-link
   (thread-id frame-index index name summary type-name)
   (ensime-insert-action-link
-   (format "%s: %s = %s\n" name (ensime-last-name-component type-name) summary)
+   name
    `(lambda (x)
       (let ((stack-val (ensime-rpc-debug-value-for-stack-var
 			,thread-id ,frame-index ,index)))
 	(ensime-ui-show-nav-buffer
 	 ensime-db-value-buffer
 	 stack-val t nil)))
-   font-lock-keyword-face
-   ))
+   font-lock-keyword-face)
+  (insert ": ")
+  (ensime-insert-with-face
+   (ensime-last-name-component type-name)
+   'font-lock-type-face)
+  (insert (format " = %s\n" summary)))
 
 (defun ensime-db-ui-insert-object-link (text obj-id)
   (let ((ref (list :val-type 'ref :object-id obj-id)))
@@ -280,7 +292,7 @@
    (list
     :primitive
     (lambda (val path)
-      (ensime-db-ui-indent (* 2 (length path)))
+      (ensime-db-ui-indent (length path))
       (insert (format "%s: %s\n"
 		      (ensime-escape-control-chars
 		       (plist-get val :summary))
@@ -289,21 +301,19 @@
 
     :string
     (lambda (val path)
-      (ensime-db-ui-indent (* 2 (length path)))
+      (ensime-db-ui-indent (length path))
       (ensime-insert-with-face
-       (format "\"%s\"\n"
+       (format "%s\n"
 	       (ensime-escape-control-chars
-		(plist-get val :string-value)))
-       'font-lock-string-face)
-      (ensime-db-ui-indent (length path)))
+		(plist-get val :summary)))
+       'font-lock-string-face))
 
 
     :object
     (lambda (val path)
-      (ensime-db-ui-indent (* 2 (length path)))
+      (ensime-db-ui-indent (length path))
       (insert (format "Instance of %s\n"
-		      (plist-get val :type-name)))
-      (ensime-db-ui-indent (length path)))
+		      (plist-get val :type-name))))
 
 
 
