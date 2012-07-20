@@ -1864,6 +1864,7 @@ versions cannot deal with that."
 
 (defun ensime-eval (sexp)
   "Evaluate EXPR on the superior Lisp and return the result."
+  (message "start ensime-eval")
   (let* ((tag (gensym (format "ensime-result-%d-sym"
 			      (1+ (ensime-continuation-counter)))))
 	 (ensime-stack-eval-tags (cons tag ensime-stack-eval-tags)))
@@ -2968,7 +2969,11 @@ any buffer visiting the given file."
 
 (defun ensime-rpc-debug-start (command-line)
   (ensime-eval
-   `(swank:debug-start ,command-line)))
+   `(swank:debug-start, command-line)))
+
+(defun ensime-rpc-debug-attach (hostname port)
+  (ensime-eval
+   `(swank:debug-attach, hostname, port)))  
 
 (defun ensime-rpc-debug-stop ()
   (ensime-eval

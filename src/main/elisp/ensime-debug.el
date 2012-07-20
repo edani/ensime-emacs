@@ -54,6 +54,11 @@
 (defvar ensime-db-default-main-class nil
   "History of main class to debugger.")
 
+(defvar ensime-db-default-hostname "localhost"
+  "History of vm hostname.")
+
+(defvar ensime-db-default-port "9999"
+  "History of vm port.")
 
 (defvar ensime-db-history nil
   "History of argument lists passed to jdb.")
@@ -666,6 +671,23 @@ the current project's dependencies. Returns list of form (cmd [arg]*)"
     (setq ensime-db-default-main-args debug-args)
     (concat debug-class " " debug-args)))
 
+(defun ensime-db-get-hostname ()
+  "Get the target hostname"
+  (let* (
+   (debug-hostname (read-string
+          "Hostname: "
+          ensime-db-default-hostname)))
+    (setq ensime-db-default-hostname debug-hostname)
+    (concat debug-hostname)))
+
+(defun ensime-db-get-port ()
+  "Get the target port"
+  (let* (
+   (debug-port (read-string
+          "Port: "
+          ensime-db-default-port)))
+    (setq ensime-db-default-port debug-port)
+    (concat debug-port)))
 
 (defun ensime-db-connection-closed (conn)
   (ensime-db-clear-breakpoint-overlays)
@@ -680,19 +702,42 @@ the current project's dependencies. Returns list of form (cmd [arg]*)"
    conn
    (let ((root-path (or (ensime-configured-project-root) "."))
 	 (cmd-line (ensime-db-get-cmd-line)))
-     (ensime-rpc-debug-start cmd-line)
 
+     (let ((retVal ))
+       (setf retVal (ensime-rpc-debug-start  cmd-line))
+       (if (string= (getf retVal :status) "success")
+	   (message "Starting debug VM...")
+	   (message (format "An error occured during starting debug VM: %s" (getf retVal :details)))))
+     
      (add-hook 'ensime-db-thread-suspended-hook
 	       'ensime-db-update-backtraces)
 
      (add-hook 'ensime-net-process-close-hooks
 	       'ensime-db-connection-closed)
-
-     (message "Starting debug VM...")
      )))
 
+(defun ensime-db-attach ()
+  "Run a Scala interpreter in an Emacs buffer"
+  (interactive)
 
+  (ensime-with-conn-interactive
+   conn
+   (let (
+   (hostname (ensime-db-get-hostname))
+   (port (ensime-db-get-port)))
 
+     (let ((retVal ))
+       (setf retVal (ensime-rpc-debug-attach hostname port))
+       (if (string= (getf retVal :status) "success")
+	   (message "Attaching to target VM...")
+	   (message (format "An error occured during attaching to target VM: %s" (getf retVal :details)))))
+     
+     (add-hook 'ensime-db-thread-suspended-hook
+         'ensime-db-update-backtraces)
 
+     (add-hook 'ensime-net-process-close-hooks
+         'ensime-db-connection-closed)
+
+     )))
 
 (provide 'ensime-debug)
