@@ -1864,7 +1864,6 @@ versions cannot deal with that."
 
 (defun ensime-eval (sexp)
   "Evaluate EXPR on the superior Lisp and return the result."
-  (message "start ensime-eval")
   (let* ((tag (gensym (format "ensime-result-%d-sym"
 			      (1+ (ensime-continuation-counter)))))
 	 (ensime-stack-eval-tags (cons tag ensime-stack-eval-tags)))

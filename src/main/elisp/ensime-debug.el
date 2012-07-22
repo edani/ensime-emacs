@@ -107,6 +107,12 @@
   (message "Exception on thread %s..."
 	   (plist-get evt :thread-id))
 
+  (when (and (plist-get evt :file)
+	     (plist-get evt :line))
+    (ensime-db-set-debug-marker
+     (plist-get evt :file)
+     (plist-get evt :line)))
+
   (when-let (exc-val (ensime-rpc-debug-value-for-id
 		      (plist-get evt :exception)))
     (ensime-ui-show-nav-buffer
