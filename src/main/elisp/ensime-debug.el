@@ -38,14 +38,19 @@
   '((((class color) (background dark)) (:background "DarkGreen"))
     (((class color) (background light)) (:background "LightGreen"))
     (t (:bold t)))
-  "Face used for marking lines with breakpoints."
+  "Face used for marking lines with a pending breakpoints."
   :group 'ensime-ui)
 
 (defface ensime-marker-face
   '((((class color) (background dark)) (:background "DarkGoldenrod4"))
     (((class color) (background light)) (:background "DarkGoldenrod2"))
     (t (:bold t)))
-  "Face used for marking lines with breakpoints."
+  "Face used for marking the current point of execution."
+  :group 'ensime-ui)
+
+(defface ensime-writable-value-face
+  '((t (:bold t)))
+  "Face used for marking editable values."
   :group 'ensime-ui)
 
 (defvar ensime-db-default-main-args nil
@@ -257,7 +262,7 @@
       (insert "\n"))
 
     :local-var
-    'ensime-db-ui-insert-stack-var-link
+    'ensime-db-ui-insert-stack-var
 
     )))
 
@@ -266,23 +271,85 @@
   (list :val-type 'ref :object-id
 	(plist-get val :object-id)))
 
+(defun ensime-db-commit-writable-values ()
+  "For each dirty writable value overlay in buffer, commit that value
+ to the database using the corresponding writer-func"
+  (interactive)
+  (dolist (ov (overlays-in (point-min) (point-max)))
+    (when (and (overlay-get ov 'ensime-debug-value)
+	       (overlay-get ov 'is-dirty))
+      (let ((writer-func (overlay-get ov 'writer-func))
+	    (value (ensime-chomp (buffer-substring-no-properties
+				  (overlay-start ov)
+				  (overlay-end ov)))))
+	(let ((status (funcall writer-func value)))
+	  (when status
+	    (overlay-put ov 'face 'ensime-writable-value-face))
+	  )))))
 
-(defun ensime-db-ui-insert-stack-var-link
+
+(defun ensime-db-ui-handle-writable-value-modification
+  (ov is-after beg end &optional pre-mod-length)
+  "Invoked by emacs overlay system when editable value is modified. Handles
+ updating of UI to represent edited state."
+  (when is-after
+    (overlay-put ov 'face 'ensime-errline-highlight)
+    (overlay-put ov 'is-dirty t)
+    (message "Type C-c C-c to commit all changes to the debugged JVM.")))
+
+
+(defun ensime-db-ui-make-writable-value (start end writer-func)
+  "Make a range of characters writable in the current buffer. Edits to the
+ will result in ui change to indicate dirty state."
+  (let ((ov (make-overlay start end (current-buffer) t t)))
+    (overlay-put ov 'face 'ensime-writable-value-face)
+    (overlay-put ov 'ensime-debug-value t)
+    (overlay-put ov 'writer-func writer-func)
+    (overlay-put ov 'local-map (let ((map (make-sparse-keymap)))
+				 (define-key map (kbd "C-c C-c")
+				   'ensime-db-commit-writable-values)
+				 map
+				 ))
+    (let ((hooks (list 'ensime-db-ui-handle-writable-value-modification)))
+      (overlay-put ov 'modification-hooks hooks)
+      (overlay-put ov 'insert-in-front-hooks hooks)
+      (overlay-put ov 'insert-behind-hooks hooks))))
+
+(defun ensime-db-ui-insert-stack-var
   (thread-id frame-index index name summary type-name)
-  (ensime-insert-action-link
-   name
-   `(lambda (x)
-      (let ((stack-val (ensime-rpc-debug-value-for-stack-var
-			,thread-id ,frame-index ,index)))
-	(ensime-ui-show-nav-buffer
-	 ensime-db-value-buffer
-	 stack-val t nil)))
-   font-lock-keyword-face)
-  (insert ": ")
-  (ensime-insert-with-face
-   (ensime-last-name-component type-name)
-   'font-lock-type-face)
-  (insert (format " = %s\n" summary)))
+  "Inserts a backtrace entry for a single local variable.
+ The value will be inserted as a writable value."
+  (let ((inhibit-modification-hooks t))
+    (ensime-insert-action-link
+     name
+     `(lambda (x)
+	(let ((stack-val (ensime-rpc-debug-value-for-stack-var
+			  ,thread-id ,frame-index ,index)))
+	  (ensime-ui-show-nav-buffer
+	   ensime-db-value-buffer
+	   stack-val t nil)))
+     font-lock-keyword-face)
+    (insert ": ")
+    (ensime-insert-with-face
+     (ensime-last-name-component type-name)
+     'font-lock-type-face)
+    (insert " = ")
+    (let ((val-start (point))
+	  (val-end))
+      (insert summary)
+      (setq val-end (point))
+      (insert "\n")
+
+      ;; Make overlay after the fact so we don't tread
+      ;; inside our overlays as we go.
+      (ensime-db-ui-make-writable-value
+       (- val-start 1) val-end
+       `(lambda (value) (ensime-rpc-debug-set-stack-var
+			 ,thread-id
+			 ,frame-index
+			 ,index
+			 value))))))
+
 
 (defun ensime-db-ui-insert-object-link (text obj-id)
   (let ((ref (list :val-type 'ref :object-id obj-id)))
@@ -387,7 +454,6 @@
       (ensime-db-ui-indent (length path))
       (insert "null: Null\n"))
 
-
     )))
 
 
@@ -425,11 +491,13 @@
 	    info))
    :update (lambda (info))
    :help-text "Press q to quit, use n,s,o,c to control debugger."
+   :writable t
    :keymap `(
 	     (,(kbd "n") ,'ensime-db-next)
 	     (,(kbd "s") ,'ensime-db-step)
 	     (,(kbd "o") ,'ensime-db-step-out)
 	     (,(kbd "c") ,'ensime-db-continue)
+	     (,(kbd "C-c C-c") ,'ensime-db-commit-writable-values)
 	     )
    ))
 
