@@ -187,8 +187,10 @@
 	  (setq ensime-buffer-connection connection)
 
 	  ;; Call handler's init routine...
-	  (funcall (plist-get handler :init) info))
-	(setq buffer-read-only t))
+	  (funcall (plist-get handler :init) info)
+
+	  (setq buffer-read-only (not (plist-get handler :writable)))
+	  ))
 
       (if preserve-point
 	  (goto-char start-point)

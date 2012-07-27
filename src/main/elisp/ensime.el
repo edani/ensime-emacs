@@ -2966,6 +2966,10 @@ any buffer visiting the given file."
   (ensime-eval
    `(swank:debug-value-for-id ,object-id)))
 
+(defun ensime-rpc-debug-set-stack-var (thread-id frame offset new-val)
+  (ensime-eval
+   `(swank:debug-set-stack-var ,thread-id ,frame ,offset ,new-val)))
+
 (defun ensime-rpc-debug-start (command-line)
   (ensime-eval
    `(swank:debug-start ,command-line)))
@@ -4253,6 +4257,15 @@ PROP is the name of a text property."
   (assert (get-text-property (point) prop))
   (let ((end (next-single-char-property-change (point) prop)))
     (list (previous-single-char-property-change end prop) end)))
+
+(defun ensime-chomp (str)
+  "Chomp leading and tailing whitespace from STR."
+  (while (string-match "\\`\n+\\|^\\s-+\\|\\s-+$\\|\n+\\'"
+		       str)
+    (setq str (replace-match "" t t str)))
+  str)
+
+
 
 
 ;; Testing helpers
