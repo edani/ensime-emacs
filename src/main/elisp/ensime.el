@@ -2934,6 +2934,10 @@ any buffer visiting the given file."
 
 ;; Basic RPC calls
 
+(defun ensime-rpc-method-bytecode (file line)
+  (ensime-eval
+   `(swank:method-bytecode ,file ,line)))
+
 (defun ensime-rpc-debug-active-vm ()
   (ensime-eval
    `(swank:debug-active-vm)))
