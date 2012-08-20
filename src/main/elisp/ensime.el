@@ -2961,25 +2961,13 @@ any buffer visiting the given file."
   (ensime-eval
    `(swank:debug-value-for-name ,thread-id ,name)))
 
-(defun ensime-rpc-debug-value-for-field (object-id name)
+(defun ensime-rpc-debug-value (location)
   (ensime-eval
-   `(swank:debug-value-for-field ,object-id ,name)))
+   `(swank:debug-value ,location)))
 
-(defun ensime-rpc-debug-value-for-stack-var (thread-id frame offset)
+(defun ensime-rpc-debug-set-value (location new-val)
   (ensime-eval
-   `(swank:debug-value-for-stack-var ,thread-id ,frame ,offset)))
-
-(defun ensime-rpc-debug-value-for-index (object-id index)
-  (ensime-eval
-   `(swank:debug-value-for-index ,object-id ,index)))
-
-(defun ensime-rpc-debug-value-for-id (object-id)
-  (ensime-eval
-   `(swank:debug-value-for-id ,object-id)))
-
-(defun ensime-rpc-debug-set-stack-var (thread-id frame offset new-val)
-  (ensime-eval
-   `(swank:debug-set-stack-var ,thread-id ,frame ,offset ,new-val)))
+   `(swank:debug-set-value ,location ,new-val)))
 
 (defun ensime-rpc-debug-start (command-line)
   (ensime-eval
