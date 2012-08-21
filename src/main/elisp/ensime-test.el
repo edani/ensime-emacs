@@ -91,9 +91,11 @@
          (conf-file (ensime-create-file
                      (concat root-dir ".ensime")
                      (format "%S" config)))
-         (src-dir (file-name-as-directory (concat root-dir "src"))))
+         (src-dir (file-name-as-directory (concat root-dir "src")))
+	 (target-dir (file-name-as-directory (concat root-dir "target"))))
 
     (mkdir src-dir)
+    (mkdir target-dir)
     (let* ((proj '())
 	   (src-file-names
 	    (mapcar
@@ -1276,37 +1278,59 @@
       (setq ensime-sem-high-faces ensime-sem-high-default-faces)
       (ensime-test-cleanup proj t)
       ))
-
     )
 
-;;
-;; TODO:
-;; Needs to be fixed to account for new sbt project generator.
-;;
-;;   (ensime-async-test
-;;    "Test compiling sbt-deps test project. Has sbt subprojects."
-;;    (let* ((root-dir (concat ensime-test-dev-home "/test_projects/sbt-deps/"))
-;;	   (proj (list
-;;		  :src-files
-;;		  (list
-;;		   (concat
-;;		    root-dir
-;;		    "web/src/main/scala/code/model/User.scala"))
-;;		  :root-dir root-dir
-;;		  :conf-file (concat root-dir ".ensime"))))
-;;      (ensime-assert (file-exists-p (plist-get proj :conf-file)))
-;;      (ensime-test-init-proj proj))
-;;
-;;    ((:connected connection-info))
-;;
-;;    ((:full-typecheck-finished val)
-;;     (ensime-test-with-proj
-;;      (proj src-files)
-;;      (let* ((notes (ensime-all-notes)))
-;;	(ensime-assert-equal (length notes) 0))
-;;      (ensime-test-cleanup proj t)
-;;      ))
-;;    )
+
+   (ensime-async-test
+    "Test debugging java project."
+    (let* ((proj (ensime-create-tmp-project
+		  `((:name
+		     "Test.java"
+		     :contents ,(ensime-test-concat-lines
+				 "class Test{"
+				 "  public static void main(String args[]) {"
+				 "    String a = \"cat\";"
+				 "    String b = \"dog\";"
+				 "    String c = \"bird\";"
+				 "    System.out.println(a + b + c);"
+				 "  }"
+				 "}"
+				 )
+		     ))))
+	   (src-files (plist-get proj :src-files)))
+      (ensime-test-compile-java-proj proj ("-g"))
+      (find-file (car src-files))
+      (ensime))
+
+    ((:connected connection-info))
+
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
+      (find-file (car src-files))
+      (ensime-rpc-debug-set-break "Test.java" 4)
+      (ensime-rpc-debug-start "Test")
+      ))
+
+    ((:return-value val)
+     (ensime-assert-equal (plist-get val :status) "success"))
+
+    ((:debug-event evt)
+     (ensime-assert-equal (plist-get val :type) 'start))
+
+    ((:debug-event evt)
+     (ensime-assert-equal (plist-get val :type) 'breakpoint)
+     (let* ((thread-id (plist-get evt :thread-id))
+	    (backtrace (ensime-rpc-debug-backtrace thread-id 0 -1)))
+       (ensime-assert backtrace))
+     (ensime-rpc-debug-stop))
+
+    ((:debug-event evt)
+     (ensime-test-with-proj
+      (proj src-files)
+      (ensime-assert-equal (plist-get val :type) 'disconnect)
+      (ensime-test-cleanup proj)))
+    )
 
 
    (ensime-async-test
