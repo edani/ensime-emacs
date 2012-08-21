@@ -2039,7 +2039,8 @@ This idiom is preferred over `lexical-let'."
 	   (ensime-clear-notes 'java))
 
 	  ((:debug-event evt)
-	   (ensime-db-handle-event evt))
+	   (ensime-db-handle-event evt)
+	   (ensime-event-sig :debug-event evt))
 
 	  ((:channel-send id msg)
 	   (ensime-channel-send (or (ensime-find-channel id)
