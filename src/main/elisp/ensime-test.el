@@ -96,18 +96,17 @@
 
     (mkdir src-dir)
     (mkdir target-dir)
-    (let* ((proj '())
-	   (src-file-names
+    (let* ((src-file-names
 	    (mapcar
 	     (lambda (f) (ensime-create-file
 			  (concat src-dir (plist-get f :name))
 			  (plist-get f :contents)))
 	     src-files)))
-      (setq proj (plist-put proj :src-files src-file-names))
-      (setq proj (plist-put proj :root-dir root-dir))
-      (setq proj (plist-put proj :conf-file conf-file))
-      (setq proj (plist-put proj :src-dir src-dir))
-      proj
+      (list
+       :src-files src-file-names
+       :root-dir root-dir
+       :conf-file conf-file
+       :src-dir src-dir)
       )))
 
 (defvar ensime-tmp-project-hello-world
@@ -127,6 +126,16 @@
 		 "}"
 		 )
      )))
+
+(defun ensime-test-compile-java-proj (proj arguments)
+  "Compile java sources of given temporary test project."
+  ;; (ensime-test-compile-java-proj '(:root-dir "/Users/aemon/projects/ensime/tmp" :target "target" :src-dir "src"))
+  (let* ((root (plist-get proj :root-dir))
+	 (src-dir (plist-get proj :src-dir))
+	 (args (append arguments (list
+				  "-d" (concat root "/" target)
+				  (concat root "/" src-dir "/*")))))
+    (assert (= 0 (apply 'call-process "javac" nil nil nil args)))))
 
 (defun ensime-cleanup-tmp-project (proj &optional no-del)
   "Destroy a temporary project directory, kill all buffers visiting
@@ -1234,8 +1243,8 @@
       (proj src-files)
       (let ((check-sym-is (lambda (sym-type)
 			    (ensime-assert
-			     (memq 
-			      sym-type 
+			     (memq
+			      sym-type
 			      (ensime-sem-high-sym-types-at-point))))
 			  ))
 	(goto-char (ensime-test-after-label "1"))
