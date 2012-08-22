@@ -129,13 +129,17 @@
 
 (defun ensime-test-compile-java-proj (proj arguments)
   "Compile java sources of given temporary test project."
-  ;; (ensime-test-compile-java-proj '(:root-dir "/Users/aemon/projects/ensime/tmp" :target "target" :src-dir "src"))
+  ;; (ensime-test-compile-java-proj '(:root-dir "/Users/aemon/projects/ensime/tmp" :target "target" :src-dir "src") (list "-g"))
   (let* ((root (plist-get proj :root-dir))
-	 (src-dir (plist-get proj :src-dir))
-	 (args (append arguments (list
-				  "-d" (concat root "/" target)
-				  (concat root "/" src-dir "/*")))))
-    (assert (= 0 (apply 'call-process "javac" nil nil nil args)))))
+	 (src-files (plist-get proj :src-files))
+	 (target (plist-get proj :target))
+	 (args (append
+		arguments
+		(list "-d" (concat root "/" target))
+		src-files
+		)))
+    (message "%s" args)
+    (assert (= 0 (apply 'call-process "javac" nil "*javac*" nil args)))))
 
 (defun ensime-cleanup-tmp-project (proj &optional no-del)
   "Destroy a temporary project directory, kill all buffers visiting
