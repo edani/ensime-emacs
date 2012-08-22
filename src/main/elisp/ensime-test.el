@@ -86,7 +86,9 @@
 		  (list :source-roots '("src")
 			:package "com.test"
 			:compile-jars ensime-test-env-classpath
-			:disable-index-on-startup t)
+			:disable-index-on-startup t
+			:target "target"
+			)
 		  extra-config))
          (conf-file (ensime-create-file
                      (concat root-dir ".ensime")
@@ -106,7 +108,8 @@
        :src-files src-file-names
        :root-dir root-dir
        :conf-file conf-file
-       :src-dir src-dir)
+       :src-dir src-dir
+       :target target-dir)
       )))
 
 (defvar ensime-tmp-project-hello-world
@@ -129,16 +132,14 @@
 
 (defun ensime-test-compile-java-proj (proj arguments)
   "Compile java sources of given temporary test project."
-  ;; (ensime-test-compile-java-proj '(:root-dir "/Users/aemon/projects/ensime/tmp" :target "target" :src-dir "src") (list "-g"))
   (let* ((root (plist-get proj :root-dir))
 	 (src-files (plist-get proj :src-files))
 	 (target (plist-get proj :target))
 	 (args (append
 		arguments
-		(list "-d" (concat root "/" target))
+		(list "-d" target)
 		src-files
 		)))
-    (message "%s" args)
     (assert (= 0 (apply 'call-process "javac" nil "*javac*" nil args)))))
 
 (defun ensime-cleanup-tmp-project (proj &optional no-del)
@@ -344,7 +345,7 @@
      (if (equal val-a val-b) t
        (with-current-buffer ensime-testing-buffer
 	 (signal 'ensime-test-assert-failed
-		 (format "Expected %s to equal %s." ',a ',b))))))
+		 (format "Expected %s to equal %S, but was %S." ',a val-b val-a))))))
 
 (defun ensime-stop-tests ()
   "Forcibly stop all tests in progress."
@@ -1311,9 +1312,8 @@
 				 )
 		     ))))
 	   (src-files (plist-get proj :src-files)))
-      (ensime-test-compile-java-proj proj ("-g"))
-      (find-file (car src-files))
-      (ensime))
+      (ensime-test-compile-java-proj proj '("-g"))
+      (ensime-test-init-proj proj))
 
     ((:connected connection-info))
 
@@ -1321,18 +1321,15 @@
      (ensime-test-with-proj
       (proj src-files)
       (find-file (car src-files))
-      (ensime-rpc-debug-set-break "Test.java" 4)
+      (ensime-rpc-debug-set-break buffer-file-name 4)
       (ensime-rpc-debug-start "Test")
       ))
 
-    ((:return-value val)
-     (ensime-assert-equal (plist-get val :status) "success"))
+    ((:debug-event evt)
+     (ensime-assert-equal (plist-get evt :type) 'start))
 
     ((:debug-event evt)
-     (ensime-assert-equal (plist-get val :type) 'start))
-
-    ((:debug-event evt)
-     (ensime-assert-equal (plist-get val :type) 'breakpoint)
+     (ensime-assert-equal (plist-get evt :type) 'breakpoint)
      (let* ((thread-id (plist-get evt :thread-id))
 	    (backtrace (ensime-rpc-debug-backtrace thread-id 0 -1)))
        (ensime-assert backtrace))
@@ -1341,7 +1338,7 @@
     ((:debug-event evt)
      (ensime-test-with-proj
       (proj src-files)
-      (ensime-assert-equal (plist-get val :type) 'disconnect)
+      (ensime-assert-equal (plist-get evt :type) 'disconnect)
       (ensime-test-cleanup proj)))
     )
 

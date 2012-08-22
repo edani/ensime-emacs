@@ -680,8 +680,7 @@ Analyzer will be restarted. All source will be recompiled."
 
 
 (defvar ensime-inferior-server-args nil
-  "A buffer local variable in the inferior proccess.
-See `ensime-start'.")
+  "A buffer local variable in the inferior proccess. See `ensime-start'.")
 
 (defun ensime-inferior-server-args (process)
   "Return the initial process arguments.
