@@ -191,8 +191,10 @@
       (when (not (null ensime-async-handler-stack))
 	(let* ((ensime-prefer-noninteractive t)
 	       (handler (car ensime-async-handler-stack))
-	       (handler-event (plist-get handler :event)))
-	  (if (equal event handler-event)
+	       (handler-event (plist-get handler :event))
+	       (guard-func (plist-get handler :guard-func)))
+	  (if (and (equal event handler-event)
+		   (or (null guard-func) (funcall guard-func value)))
 	      (let ((handler-func (plist-get handler :func))
 		    (is-last (plist-get handler :is-last)))
 		(pop ensime-async-handler-stack)
@@ -272,17 +274,19 @@
 	   (lambda (h)
 	     (let* ((head (car h))
 		    (evt (car head))
-		    (val-sym (cadr head))
-		    (func-body (cadr h))
+		    (val-sym (car (cdr head)))
+		    (guard-func (car (cdr (cdr head))))
+		    (func-body (cdr h))
 		    (func `(lambda (,val-sym)
 			     (ensime-test-run-with-handlers
 			      ,title
-			      ,func-body))))
+			      ,@func-body))))
 	       (list
 		:event evt
 		:val-sym val-sym
+		:guard-func guard-func
 		:func func
-		:is-last (equal h last-handler)
+		:is-last (eq h last-handler)
 		)))
 	   handlers))
 	 (trigger-func
@@ -1325,20 +1329,17 @@
       (ensime-rpc-debug-start "Test")
       ))
 
-    ((:debug-event evt)
-     (ensime-assert-equal (plist-get evt :type) 'start))
+    ((:debug-event evt (lambda (evt) (equal (plist-get evt :type) 'start))))
 
-    ((:debug-event evt)
-     (ensime-assert-equal (plist-get evt :type) 'breakpoint)
+    ((:debug-event evt (lambda (evt) (equal (plist-get evt :type) 'breakpoint)))
      (let* ((thread-id (plist-get evt :thread-id))
 	    (backtrace (ensime-rpc-debug-backtrace thread-id 0 -1)))
        (ensime-assert backtrace))
      (ensime-rpc-debug-stop))
 
-    ((:debug-event evt)
+    ((:debug-event evt (lambda (evt) (equal (plist-get evt :type) 'disconnect)))
      (ensime-test-with-proj
       (proj src-files)
-      (ensime-assert-equal (plist-get evt :type) 'disconnect)
       (ensime-test-cleanup proj)))
     )
 

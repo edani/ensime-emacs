@@ -784,7 +784,7 @@ the current project's dependencies. Returns list of form (cmd [arg]*)"
 
 
 (defun ensime-db-start ()
-  "Run a Scala interpreter in an Emacs buffer"
+  "Start a debug VM"
   (interactive)
 
   (ensime-with-conn-interactive
@@ -808,7 +808,7 @@ the current project's dependencies. Returns list of form (cmd [arg]*)"
 
 
 (defun ensime-db-attach ()
-  "Run a Scala interpreter in an Emacs buffer"
+  "Attach to a debug VM"
   (interactive)
 
   (ensime-with-conn-interactive
