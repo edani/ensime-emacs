@@ -766,8 +766,8 @@ If not, message the user."
 
 (defun ensime-temp-file-name (name)
   "Return the path of a temp file with filename 'name'."
-  (concat (file-name-as-directory (ensime-temp-directory))
-	  name))
+  (expand-file-name
+   (concat (file-name-as-directory (ensime-temp-directory)) name)))
 
 (defun ensime-temp-directory ()
   "Return the directory name of the system's temporary file dump."
