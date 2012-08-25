@@ -315,7 +315,8 @@
 	       (list
 		:event evt
 		:val-sym val-sym
-		:guard-func (list 'lambda (list val-sym) guard-expr)
+		:guard-func (when guard-expr
+			      (list 'lambda (list val-sym) guard-expr))
 		:func func
 		:is-last (eq h last-handler)
 		)))
@@ -1363,9 +1364,10 @@
     ((:debug-event evt (equal (plist-get evt :type) 'start)))
 
     ((:debug-event evt (equal (plist-get evt :type) 'breakpoint))
-     (let* ((thread-id (plist-get evt :thread-id))
-	    (backtrace (ensime-rpc-debug-backtrace thread-id 0 -1)))
-       (ensime-assert backtrace))
+     (let* ((thread-id (plist-get evt :thread-id)))
+       (ensime-assert (ensime-rpc-debug-backtrace thread-id 0 -1))
+       (let ((val (ensime-rpc-debug-value-for-name thread-id "a")))
+	 (ensime-assert-equal (plist-get val :summary) "\"cat\"")))
      (ensime-rpc-debug-stop))
 
     ((:debug-event evt (equal (plist-get evt :type) 'disconnect))
