@@ -1408,9 +1408,7 @@
 
     ((:debug-event evt (equal (plist-get evt :type) 'breakpoint))
      (let* ((thread-id (plist-get evt :thread-id)))
-       (ensime-assert (ensime-rpc-debug-backtrace thread-id 0 -1))
-       (let ((val (ensime-rpc-debug-value-for-name thread-id "a")))
-	 (ensime-assert-equal (plist-get val :summary) "\"cat\"")))
+       (ensime-assert (ensime-rpc-debug-backtrace thread-id 0 -1)))
      (ensime-rpc-debug-stop))
 
     ((:debug-event evt (equal (plist-get evt :type) 'disconnect))
