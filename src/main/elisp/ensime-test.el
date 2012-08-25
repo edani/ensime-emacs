@@ -383,6 +383,12 @@
 	 (signal 'ensime-test-assert-failed
 		 (format "Expected %s to equal %S, but was %S." ',a val-b val-a))))))
 
+(defun ensime-assert-file-contains-string (f str)
+  (with-temp-buffer
+    (insert-file-contents-literally f)
+    (goto-char (point-min))
+    (ensime-assert (search-forward str nil t))))
+
 (defun ensime-stop-tests ()
   "Forcibly stop all tests in progress."
   (interactive)
@@ -788,9 +794,8 @@
       (ensime-refactor-organize-imports)))
 
     ((:refactor-at-confirm-buffer val)
-     (progn
-       (switch-to-buffer ensime-refactor-info-buffer-name)
-       (funcall (key-binding (kbd "c")))))
+     (switch-to-buffer ensime-refactor-info-buffer-name)
+     (funcall (key-binding (kbd "c"))))
 
     ((:refactor-done touched-files)
      (ensime-test-with-proj
@@ -804,7 +809,7 @@
 
 
    (ensime-async-test
-    "Test rename refactoring."
+    "Test rename refactoring over multiple files."
     (let* ((proj (ensime-create-tmp-project
 		  `((:name
 		     "hello_world.scala"
@@ -812,8 +817,18 @@
 				 "package com.helloworld"
 				 "class /*1*/HelloWorld{"
 				 "}"
-				 )
-		     )))))
+				 ))
+		    (:name
+		     "another.scala"
+		     :contents ,(ensime-test-concat-lines
+				 "package com.helloworld"
+				 "object Another {"
+				 "def main(args:Array[String]) {"
+				 "val a = new HelloWorld()"
+				 "}"
+				 "}"
+				 ))
+		    ))))
       (ensime-test-init-proj proj))
 
     ((:connected connection-info))
@@ -821,22 +836,52 @@
     ((:full-typecheck-finished val)
      (ensime-test-with-proj
       (proj src-files)
+      (ensime-assert (null (ensime-all-notes))))
       (ensime-test-eat-label "1")
       (forward-char)
       (ensime-save-buffer-no-hooks)
-      (ensime-refactor-rename "DudeFace")))
+      (ensime-refactor-rename "DudeFace"))
 
     ((:refactor-at-confirm-buffer val)
-     (progn
-       (switch-to-buffer ensime-refactor-info-buffer-name)
-       (funcall (key-binding (kbd "c")))))
+     (switch-to-buffer ensime-refactor-info-buffer-name)
+     (funcall (key-binding (kbd "c"))))
 
     ((:refactor-done touched-files)
      (ensime-test-with-proj
       (proj src-files)
+      (ensime-assert-file-contains-string (car src-files) "class DudeFace")
+      (ensime-assert-file-contains-string (cadr src-files) "new DudeFace()")
+      ))
+
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
+      ;; Do a followup refactoring to make sure compiler reloaded
+      ;; all touched files after the first rename...
+      (find-file (car src-files))
       (goto-char (point-min))
-      (ensime-assert (search-forward "class DudeFace" nil t))
-      (ensime-test-cleanup proj)))
+      (search-forward "Dude" nil t)
+      (ensime-refactor-rename "Horse")
+     ))
+
+    ((:refactor-at-confirm-buffer val)
+     (switch-to-buffer ensime-refactor-info-buffer-name)
+     (funcall (key-binding (kbd "c"))))
+
+    ((:refactor-done touched-files)
+     (ensime-test-with-proj
+      (proj src-files)
+      (ensime-assert-file-contains-string (car src-files) "class Horse")
+      (ensime-assert-file-contains-string (cadr src-files) "new Horse()")
+      ))
+
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
+      (ensime-assert (null (ensime-all-notes)))
+      (ensime-test-cleanup proj)
+      ))
+
     )
 
 
@@ -876,13 +921,11 @@
       (ensime-show-uses-of-symbol-at-point)))
 
     ((:references-buffer-shown val)
-     (progn
-       (switch-to-buffer ensime-uses-buffer-name)
-       (goto-char (point-min))
-       (ensime-assert (search-forward "class B(value:String) extends A" nil t))
-       (funcall (key-binding (kbd "q")))
-       (ensime-test-cleanup proj)
-       ))
+     (switch-to-buffer ensime-uses-buffer-name)
+     (goto-char (point-min))
+     (ensime-assert (search-forward "class B(value:String) extends A" nil t))
+     (funcall (key-binding (kbd "q")))
+     (ensime-test-cleanup proj))
 
     )
 
