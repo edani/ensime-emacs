@@ -1038,7 +1038,7 @@
     ((:return-value val)
      (ensime-test-with-proj
       (proj src-files)
-      
+
       ;; Don't check source immediately cause it might not be rendered in buffer..."
       (ensime-typecheck-current-file)))
 
@@ -1482,7 +1482,7 @@
   "Run a signle test selected by title."
   (interactive)
   (catch 'done
-    (let ((key (read-string 
+    (let ((key (read-string
 		"Enter a regex matching a test's title: "))
 	  (tests (append ensime-fast-suite ensime-slow-suite)))
       (dolist (test tests)
