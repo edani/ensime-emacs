@@ -660,21 +660,21 @@
 
 ;; User Commands
 
-(defun ensime-db-value-for-name-at-point (p)
+(defun ensime-db-location-at-point (p)
   "Get the value of the symbol at point."
   (when ensime-db-active-thread-id
     (let* ((sym (ensime-sym-at-point p))
 	   (name (or (plist-get sym :name)
 		     "this")))
-      (ensime-db-with-active-thread (tid)
-				    (ensime-rpc-debug-value-for-name
-				     tid name)
-				    ))))
+      (ensime-db-with-active-thread
+       (tid)
+       (ensime-rpc-debug-locate-name tid name)
+      ))))
 
 (defun ensime-db-inspect-value-at-point (p)
   "Get the value of the symbol at point."
   (interactive (list (point)))
-  (let ((val (ensime-db-value-for-name-at-point (point))))
+  (let ((val (ensime-rpc-debug-value (ensime-db-location-at-point (point)))))
     (if val (ensime-ui-show-nav-buffer ensime-db-value-buffer val t)
       (message "Nothing to inspect."))))
 
