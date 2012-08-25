@@ -504,15 +504,15 @@ Do not show 'Writing..' message."
     (let* ((point (posn-point (event-end event)))
            (ident (tooltip-identifier-from-point point))
            (note-overlays (ensime-overlays-at point))
-	   (val-at-pt (ensime-db-value-for-name-at-point point)))
+	   (val-at-pt (ensime-rpc-debug-to-string
+		       (ensime-db-location-at-point point))))
 
 
       (cond
 
        ;; If debugger is active and we can get the value of the symbol
        ;; at the point, show it in the tooltip.
-       (val-at-pt (ensime-tooltip-show-message (ensime-db-value-short-name
-						val-at-pt)) t)
+       (val-at-pt (ensime-tooltip-show-message val-at-pt) t)
 
        ;; If error or warning overlays exist,
        ;; show that message..
@@ -2957,13 +2957,17 @@ any buffer visiting the given file."
   (ensime-eval-async
    `(swank:debug-backtrace ,thread-id ,index ,count) continue))
 
-(defun ensime-rpc-debug-value-for-name (thread-id name)
+(defun ensime-rpc-debug-locate-name (thread-id name)
   (ensime-eval
-   `(swank:debug-value-for-name ,thread-id ,name)))
+   `(swank:debug-locate-name ,thread-id ,name)))
 
 (defun ensime-rpc-debug-value (location)
   (ensime-eval
    `(swank:debug-value ,location)))
+
+(defun ensime-rpc-debug-to-string (location)
+  (ensime-eval
+   `(swank:debug-to-string ,location)))
 
 (defun ensime-rpc-debug-set-value (location new-val)
   (ensime-eval
