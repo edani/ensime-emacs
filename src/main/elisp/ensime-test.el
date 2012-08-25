@@ -267,7 +267,38 @@
 
 
 (defmacro* ensime-async-test (title trigger &rest handlers)
-  "Define an asynchronous test."
+  "Define an asynchronous test. Tests have the following structure:
+   (ensime-async-test
+    title
+    trigger-expression
+    [handler]*
+   )
+   Where:
+   title is a string that describes the test.
+   trigger-expression is some expression that either constitutes the entire
+     test, or (as is more common) invokes some process that will yield an
+     asynchronous event.
+   handler is of the form (head body)
+     Where:
+     head is of the form (event-type value-name guard-expression?)
+        Where:
+        event-type is a keyword that identifies the event class
+        value-name is the symbol to which to bind the event payload
+        guard-expression is an expression evaluated with value-name bound to
+          the payload.
+     body is an arbitrary expression evaluated with value-name bound to the
+       payload of the event.
+
+   When the test is executed, trigger-expression is evaluated. The test then
+   waits for an asynchronous test event. When an event is signalled, the next
+   handler in line is considered. If the event type of the handler's head
+   matches the type of the event and the guard-expression evaluates to true,
+   the corresponding handler body is executed.
+
+   Handlers must be executed in order, they cannot be skipped. The test will
+   wait in an unfinished state until an event is signalled that matches the
+   next handler in line.
+   "
   (let* ((last-handler (car (last handlers)))
 	 (handler-structs
 	  (mapcar
@@ -275,7 +306,7 @@
 	     (let* ((head (car h))
 		    (evt (car head))
 		    (val-sym (car (cdr head)))
-		    (guard-func (car (cdr (cdr head))))
+		    (guard-expr (car (cdr (cdr head))))
 		    (func-body (cdr h))
 		    (func `(lambda (,val-sym)
 			     (ensime-test-run-with-handlers
@@ -284,7 +315,7 @@
 	       (list
 		:event evt
 		:val-sym val-sym
-		:guard-func guard-func
+		:guard-func (list 'lambda (list val-sym) guard-expr)
 		:func func
 		:is-last (eq h last-handler)
 		)))
@@ -1329,15 +1360,15 @@
       (ensime-rpc-debug-start "Test")
       ))
 
-    ((:debug-event evt (lambda (evt) (equal (plist-get evt :type) 'start))))
+    ((:debug-event evt (equal (plist-get evt :type) 'start)))
 
-    ((:debug-event evt (lambda (evt) (equal (plist-get evt :type) 'breakpoint)))
+    ((:debug-event evt (equal (plist-get evt :type) 'breakpoint))
      (let* ((thread-id (plist-get evt :thread-id))
 	    (backtrace (ensime-rpc-debug-backtrace thread-id 0 -1)))
        (ensime-assert backtrace))
      (ensime-rpc-debug-stop))
 
-    ((:debug-event evt (lambda (evt) (equal (plist-get evt :type) 'disconnect)))
+    ((:debug-event evt (equal (plist-get evt :type) 'disconnect))
      (ensime-test-with-proj
       (proj src-files)
       (ensime-test-cleanup proj)))
