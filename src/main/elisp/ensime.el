@@ -2938,6 +2938,39 @@ any buffer visiting the given file."
 	    (end (cadr range)))
 	(ensime-set-selection start end)))))
 
+(defun ensime-inspect-bytecode ()
+  "Show the bytecode for the current method."
+  (interactive)
+  (let ((bc (ensime-rpc-method-bytecode buffer-file-name (current-line))))
+    (if (not bc)
+	(message "Could not find bytecode.")
+      (progn
+	(ensime-ui-show-nav-buffer "*ensime-method-bytecode-buffer*" bc)
+	))))
+
+(defvar ensime-ui-method-bytecode-handler
+  (list
+   :init (lambda (info)
+	   (ensime-ui-insert-method-bytecode info))
+   :update (lambda (info))
+   :help-text "Press q to quit."
+   :writable nil
+   :keymap `()
+   ))
+
+(defun ensime-ui-insert-method-bytecode (val)
+  (destructuring-bind
+      (&key class-name name bytecode &allow-other-keys) val
+    (insert class-name)
+    (insert "\n")
+    (insert name)
+    (insert "\n\n")
+    (dolist (op bytecode)
+      (ensime-insert-with-face (car op) 'font-lock-constant-face)
+      (insert " ")
+      (ensime-insert-with-face (cadr op) 'font-lock-variable-name-face)
+      (insert "\n")
+      )))
 
 ;; Basic RPC calls
 
