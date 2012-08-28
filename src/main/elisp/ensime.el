@@ -2945,7 +2945,7 @@ any buffer visiting the given file."
     (if (not bc)
 	(message "Could not find bytecode.")
       (progn
-	(ensime-ui-show-nav-buffer "*ensime-method-bytecode-buffer*" bc)
+	(ensime-ui-show-nav-buffer "*ensime-method-bytecode-buffer*" bc t)
 	))))
 
 (defvar ensime-ui-method-bytecode-handler
