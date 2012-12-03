@@ -2753,18 +2753,14 @@ any buffer visiting the given file."
  symbol, return nil."
   (save-excursion
     (goto-char (or point (point)))
-    (let ((start nil)
-	  (end nil))
-      (when (thing-at-point 'symbol)
-	(save-excursion
-	  (search-backward-regexp "\\W" nil t)
-	  (setq start (+ (point) 1)))
-	(save-excursion
-	  (search-forward-regexp "\\W" nil t)
-	  (setq end (- (point) 1)))
-	(list :start start
-	      :end end
-	      :name (buffer-substring-no-properties start end))))))
+    (let* ((info (ensime-rpc-symbol-at-point))
+           (start (ensime-pos-offset (ensime-symbol-decl-pos info)))
+           (name (ensime-symbol-name info)))
+      (when (and info start name)
+        (setq start (+ start ensime-ch-fix))
+        (list :start start
+              :end (+ start (string-width name))
+              :name name)))))
 
 
 (defun ensime-insert-import (qualified-name)
