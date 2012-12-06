@@ -2779,7 +2779,7 @@ any buffer visiting the given file."
       )
 
     (when (looking-at "^\\s-*import\\s-")
-      (left-char 1)
+      (backward-char)
       (while (progn
 	     (if (looking-at "[\n\t ]*import\\s-\\(.+\\)\n")
 		 (let ((imported-name (match-string 1)))
