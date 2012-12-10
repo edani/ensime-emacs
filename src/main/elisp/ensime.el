@@ -3995,7 +3995,11 @@ It should be used for \"background\" messages such as argument lists."
      ))
 
 (defun ensime-internalize-offset (offset)
-  (+ offset ensime-ch-fix))
+  (- offset (- ensime-ch-fix)
+     (if (eq 1 (coding-system-eol-type buffer-file-coding-system))
+         (- (line-number-at-pos (point)) 1)
+       0)
+     ))
 
 (defun ensime-internalize-offset-fields (plist &rest keys)
   (dolist (key keys)
