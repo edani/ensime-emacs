@@ -2168,62 +2168,61 @@ This idiom is preferred over `lexical-let'."
   "Create an overlay highlighting the given line in
 any buffer visiting the given file."
   (let ((beg b)
-	(end e))
+        (end e))
+    (assert (or (integerp line)
+                (and (integerp beg) (integerp end))))
     (when-let (buf (find-buffer-visiting file))
+              (with-current-buffer buf
+                (if (and (integerp beg) (integerp end))
+                    ;; If DOS eol's, fix the positioning
+                    ;; Note: this is impossible without the line argument.
+                    (when (and (integerp line)
+                               (eq 1 (coding-system-eol-type
+                                      (buffer-local-value
+                                       'buffer-file-coding-system buf))))
+                      (setq beg (- beg (1- line)))
+                      (setq end (- end (1- line))))
 
-      ;; If line provided, use line to define region
-      (when (integerp line)
-	(with-current-buffer buf
-	  (save-excursion
-	    (ensime-goto-line line)
-	    (setq beg (point-at-bol))
-	    (setq end (point-at-eol)))))
+                  ;; If line provided, use line to define region
+                  (save-excursion
+                    (goto-line line)
+                    (setq beg (point-at-bol))
+                    (setq end (point-at-eol)))))
 
-      ;; If DOS eol's, fix the positioning
-      (when (eq 1 (coding-system-eol-type
-		   (buffer-local-value
-		    'buffer-file-coding-system buf
-		    )))
-	(with-current-buffer buf
-	  (setq beg (- beg (- (line-number-at-pos beg) 1)))
-	  (setq end (- end (- (line-number-at-pos end) 1)))))
-
-
-      (ensime-make-overlay beg end msg face nil buf))
+              (ensime-make-overlay beg end msg face nil buf))
     ))
-
 
 
 (defun ensime-make-note-overlays (notes)
   (dolist (note notes)
     (destructuring-bind
-	(&key severity msg beg end line col file &allow-other-keys) note
+        (&key severity msg beg end line col file &allow-other-keys) note
 
       ;; No empty note overlays!
       (when (eq beg end)
-	(setq beg (- beg 1)))
+        (setq beg (- beg 1)))
 
       (let ((lang
-	     (cond
-	      ((ensime-java-file-p file) 'java)
-	      ((ensime-scala-file-p file) 'scala)
-	      (t 'scala)))
-	    (face
-	     (cond
-	      ((equal severity 'error)
-	       'ensime-errline-highlight)
-	      (t
-	       'ensime-warnline-highlight))))
+             (cond
+              ((ensime-java-file-p file) 'java)
+              ((ensime-scala-file-p file) 'scala)
+              (t 'scala)))
+            (face
+             (cond
+              ((equal severity 'error)
+               'ensime-errline-highlight)
+              (t
+               'ensime-warnline-highlight))))
 
-	(when-let (ov (ensime-make-overlay-at
-		       file nil
-		       (+ beg ensime-ch-fix)
-		       (+ end ensime-ch-fix)
-		       msg face))
-	  (overlay-put ov 'lang lang)
-	  (push ov ensime-note-overlays))
+        (when-let (ov (ensime-make-overlay-at
+                       file line
+                       (+ beg ensime-ch-fix)
+                       (+ end ensime-ch-fix)
+                       msg face))
+                  (overlay-put ov 'lang lang)
+                  (push ov ensime-note-overlays))
 
-	))))
+        ))))
 
 
 (defun ensime-update-note-counts ()
@@ -3996,7 +3995,11 @@ It should be used for \"background\" messages such as argument lists."
      ))
 
 (defun ensime-internalize-offset (offset)
-  (+ offset ensime-ch-fix))
+  (- offset (- ensime-ch-fix)
+     (if (eq 1 (coding-system-eol-type buffer-file-coding-system))
+         (- (line-number-at-pos (point)) 1)
+       0)
+     ))
 
 (defun ensime-internalize-offset-fields (plist &rest keys)
   (dolist (key keys)
