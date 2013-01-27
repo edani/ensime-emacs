@@ -2261,9 +2261,7 @@ any buffer visiting the given file."
   :group 'ensime-ui)
 
 (defface ensime-errline-highlight
-  '((((class color) (background dark)) (:background "Firebrick3"))
-    (((class color) (background light)) (:background "HotPink"))
-    (t (:bold t)))
+  '((t (:inherit flymake-errline)))
   "Face used for marking the specific region of an error, if available."
   :group 'ensime-ui)
 
@@ -2275,12 +2273,9 @@ any buffer visiting the given file."
   :group 'ensime-ui)
 
 (defface ensime-warnline-highlight
-  '((((class color) (background dark)) (:background "dark slate blue"))
-    (((class color) (background light)) (:background "DeepSkyBlue1"))
-    (t (:bold t)))
+  '((t (:inherit flymake-warnline)))
   "Face used for marking the specific region of an warning, if available."
   :group 'ensime-ui)
-
 
 (defun ensime-make-overlay (beg end tooltip-text face &optional mouse-face buf)
   "Allocate a ensime overlay in range BEG and END."
