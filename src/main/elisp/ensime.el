@@ -2252,24 +2252,9 @@ any buffer visiting the given file."
     (ensime-make-note-overlays notes)
     ))
 
-
-(defface ensime-errline
-  '((((class color) (background dark)) (:background "Firebrick4"))
-    (((class color) (background light)) (:background "LightPink"))
-    (t (:bold t)))
-  "Face used for marking the line on which an error occurs."
-  :group 'ensime-ui)
-
 (defface ensime-errline-highlight
   '((t (:inherit flymake-errline)))
   "Face used for marking the specific region of an error, if available."
-  :group 'ensime-ui)
-
-(defface ensime-warnline
-  '((((class color) (background dark)) (:background "DarkBlue"))
-    (((class color) (background light)) (:background "LightBlue2"))
-    (t (:bold t)))
-  "Face used for marking the line on which an warning occurs."
   :group 'ensime-ui)
 
 (defface ensime-warnline-highlight
