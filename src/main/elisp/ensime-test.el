@@ -197,6 +197,7 @@
 		   (or (null guard-func) (funcall guard-func value)))
 	      (let ((handler-func (plist-get handler :func))
 		    (is-last (plist-get handler :is-last)))
+                (ensime-test-output (format "   ...handling %s" event))
 		(pop ensime-async-handler-stack)
 		(save-excursion
 		  (condition-case signal
@@ -223,7 +224,7 @@
 (defun ensime-test-output-result (result)
   "Helper for writing results to testing buffer."
   (if (equal result t)
-      (ensime-test-output (format "OK" ))
+      (ensime-test-output (format "." ))
     (ensime-test-output (format "%s\n" result))))
 
 (defun ensime-run-suite (suite)
@@ -840,6 +841,7 @@
       (ensime-test-eat-label "1")
       (forward-char)
       (ensime-save-buffer-no-hooks)
+      (ensime-typecheck-current-file) ;; So ensime-sym-at-point sees latest.
       (ensime-refactor-rename "DudeFace"))
 
     ((:refactor-at-confirm-buffer val)
