@@ -2798,7 +2798,7 @@ any buffer visiting the given file."
   "Suggest possible imports of the qualified name at point.
  If user selects and import, add it to the import list."
   (interactive)
-  (let* ((sym (ensime-sym-at-point))
+  (let* ((sym (ensime-local-sym-at-point))
 	 (name (plist-get sym :name))
 	 (name-start (plist-get sym :start))
 	 (name-end (plist-get sym :end))
