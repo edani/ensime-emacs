@@ -504,9 +504,7 @@ Do not show 'Writing..' message."
     (let* ((point (posn-point (event-end event)))
            (ident (tooltip-identifier-from-point point))
            (note-overlays (ensime-overlays-at point))
-	   (val-at-pt (ensime-rpc-debug-to-string
-		       (ensime-db-location-at-point point))))
-
+           (val-at-pt (ensime-db-tooltip point)))
 
       (cond
 
@@ -2991,9 +2989,9 @@ any buffer visiting the given file."
   (ensime-eval
    `(swank:debug-value ,location)))
 
-(defun ensime-rpc-debug-to-string (location)
+(defun ensime-rpc-debug-to-string (thread-id location)
   (ensime-eval
-   `(swank:debug-to-string ,location)))
+   `(swank:debug-to-string ,thread-id ,location)))
 
 (defun ensime-rpc-debug-set-value (location new-val)
   (ensime-eval
