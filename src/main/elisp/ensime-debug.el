@@ -87,7 +87,7 @@
 (defun ensime-db-make-array-el-location (obj-id index)
   `(:type element :object-id ,obj-id :index ,index))
 (defun ensime-db-make-obj-field-location (obj-id field-name)
-  `(:type field :object-id ,obj-id :name ,field-name))
+  `(:type field :object-id ,obj-id :field ,field-name))
 (defun ensime-db-make-stack-slot-location (thread-id frame offset)
   `(:type slot :thread-id ,thread-id :frame ,frame :offset ,offset))
 
@@ -174,6 +174,16 @@
 
 
 ;; UI
+
+(defun ensime-db-tooltip (point)
+  "String to display to user when they hover over a value during a debug
+   session."
+  (interactive)
+  (let ((loc (ensime-db-location-at-point point)))
+    (when (and ensime-db-active-thread-id loc)
+      (ensime-rpc-debug-to-string
+       ensime-db-active-thread-id
+       loc))))
 
 (defun ensime-db-set-debug-marker (file line)
   "Open location in a new window."
