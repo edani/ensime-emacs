@@ -3988,9 +3988,11 @@ It should be used for \"background\" messages such as argument lists."
   (ensime-externalize-offset (point)))
 
 (defun ensime-computed-range ()
-  (list
-   (ensime-externalize-offset (min (mark) (point)))
-   (ensime-externalize-offset (max (mark) (point)))))
+  (if (and transient-mark-mode mark-active)
+      (list
+       (ensime-externalize-offset (min (mark) (point)))
+       (ensime-externalize-offset (max (mark) (point))))
+    (list (ensime-computed-point) (ensime-computed-point))))
 
 (defun ensime-externalize-offset (offset)
   (+ offset (- ensime-ch-fix)
