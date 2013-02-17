@@ -3144,9 +3144,10 @@ with the current project's dependencies loaded. Returns a property list."
   (ensime-eval
    `(swank:inspect-type-at-point ,buffer-file-name ,(ensime-computed-point))))
 
-(defun ensime-rpc-inspect-type-at-range ()
+(defun ensime-rpc-inspect-type-at-range (&optional range)
   (ensime-eval
-   `(swank:inspect-type-at-point ,buffer-file-name ,(ensime-computed-range))))
+   `(swank:inspect-type-at-point ,buffer-file-name
+                                 ,(or range (ensime-computed-range)))))
 
 (defun ensime-rpc-inspect-type-by-id (id)
   (if (and (integerp id) (> id -1))
