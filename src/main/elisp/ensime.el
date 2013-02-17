@@ -3144,6 +3144,10 @@ with the current project's dependencies loaded. Returns a property list."
   (ensime-eval
    `(swank:inspect-type-at-point ,buffer-file-name ,(ensime-computed-point))))
 
+(defun ensime-rpc-inspect-type-at-range ()
+  (ensime-eval
+   `(swank:inspect-type-at-point ,buffer-file-name ,(ensime-computed-range))))
+
 (defun ensime-rpc-inspect-type-by-id (id)
   (if (and (integerp id) (> id -1))
       (ensime-eval
@@ -3429,7 +3433,7 @@ with the current project's dependencies loaded. Returns a property list."
 	(ensime-rpc-inspect-type-by-id
 	 (ensime-type-id imported-type))
       ;; otherwise do normal type inspection
-      (ensime-rpc-inspect-type-at-point))))
+      (ensime-rpc-inspect-type-at-range))))
 
 (defun ensime-inspect-java-type-at-point ()
   "Use the global index to search for type at point.
@@ -3982,6 +3986,11 @@ It should be used for \"background\" messages such as argument lists."
  add the appropriate number of CRs to compensate for characters
  that are hidden by Emacs."
   (ensime-externalize-offset (point)))
+
+(defun ensime-computed-range ()
+  (list
+   (ensime-externalize-offset (min (mark) (point)))
+   (ensime-externalize-offset (max (mark) (point)))))
 
 (defun ensime-externalize-offset (offset)
   (+ offset (- ensime-ch-fix)
