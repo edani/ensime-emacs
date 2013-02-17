@@ -586,6 +586,74 @@
   (ensime-test-suite
 
    (ensime-async-test
+    "Test inspect type at point."
+    (let* ((proj (ensime-create-tmp-project
+                  `((:name
+                     "test.scala"
+                     :contents ,(ensime-test-concat-lines
+                                 "package pack.a"
+                                 "class A(value:/*1*/String){"
+                                 "}"
+                                 )
+                     )
+                    ))))
+      (ensime-test-init-proj proj))
+
+    ((:connected connection-info))
+
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
+      (find-file (car src-files))
+      (ensime-test-eat-label "1")
+      (ensime-write-buffer)
+      (forward-char 1)
+      (let* ((info (ensime-rpc-inspect-type-at-point)))
+	(ensime-assert (not (null info)))
+	(ensime-assert-equal "String" (plist-get (plist-get info :type) :name)))
+      (ensime-test-cleanup proj)
+      ))
+    )
+
+   (ensime-async-test
+    "Test inspect type in range."
+    (let* ((proj (ensime-create-tmp-project
+                  `((:name
+                     "test.scala"
+                     :contents ,(ensime-test-concat-lines
+                                 "package pack.a"
+                                 "class A {"
+                                 " def foo = {"
+                                 "  /*1*/this bar 2"
+                                 "  val x = 10"
+                                 " }"
+                                 " def bar(i:Int) = \"dlkjf\""
+                                 "}"
+                                 )
+                     )
+                    ))))
+      (ensime-test-init-proj proj))
+
+    ((:connected connection-info))
+
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
+      (find-file (car src-files))
+      (ensime-test-eat-label "1")
+      (ensime-typecheck-current-file)
+      (forward-char 1)
+      (push-mark)
+      (goto-char (point-at-eol))
+      (let* ((info (ensime-rpc-inspect-type-at-range)))
+        (ensime-assert (not (null info)))
+        (ensime-assert-equal
+         (plist-get (plist-get info :type) :name) "String")
+        )
+      (ensime-test-cleanup proj)))
+    )
+
+   (ensime-async-test
     "Test completing members."
     (let* ((proj (ensime-create-tmp-project
 		  `((:name
@@ -838,11 +906,11 @@
      (ensime-test-with-proj
       (proj src-files)
       (ensime-assert (null (ensime-all-notes))))
-      (ensime-test-eat-label "1")
-      (forward-char)
-      (ensime-save-buffer-no-hooks)
-      (ensime-typecheck-current-file) ;; So ensime-sym-at-point sees latest.
-      (ensime-refactor-rename "DudeFace"))
+     (ensime-test-eat-label "1")
+     (forward-char)
+     (ensime-save-buffer-no-hooks)
+     (ensime-typecheck-current-file) ;; So ensime-sym-at-point sees latest.
+     (ensime-refactor-rename "DudeFace"))
 
     ((:refactor-at-confirm-buffer val)
      (switch-to-buffer ensime-refactor-info-buffer-name)
@@ -864,7 +932,7 @@
       (goto-char (point-min))
       (search-forward "Dude" nil t)
       (ensime-refactor-rename "Horse")
-     ))
+      ))
 
     ((:refactor-at-confirm-buffer val)
      (switch-to-buffer ensime-refactor-info-buffer-name)
