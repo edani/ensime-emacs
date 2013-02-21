@@ -2933,7 +2933,7 @@ any buffer visiting the given file."
 (defun ensime-inspect-bytecode ()
   "Show the bytecode for the current method."
   (interactive)
-  (let ((bc (ensime-rpc-method-bytecode buffer-file-name (current-line))))
+  (let ((bc (ensime-rpc-method-bytecode buffer-file-name (ensime-current-line))))
     (if (not bc)
 	(message "Could not find bytecode.")
       (progn
