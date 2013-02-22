@@ -2907,6 +2907,7 @@ any buffer visiting the given file."
   (goto-char start)
   (command-execute 'set-mark-command)
   (goto-char end)
+  (setq deactivate-mark nil)
   (ensime-set-selection-overlay start end))
 
 (defun ensime-expand-selection (start end)
