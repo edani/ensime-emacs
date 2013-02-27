@@ -42,6 +42,7 @@
 (require 'tooltip)
 (require 'pp)
 (require 'hideshow)
+(require 'flymake)
 (require 'font-lock)
 (require 'auto-complete)
 (require 'easymenu)
