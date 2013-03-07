@@ -130,23 +130,15 @@
 (defun ensime-refactor-add-import (&optional qual-name)
   "Insert import statement."
   (interactive)
-  (let ((sym (ensime-sym-at-point)))
-    (if sym
-	(let* ((start (plist-get sym :start))
-	       (end (plist-get sym :end))
-	       (qualified-name
-		(or qual-name
-		    (read-string "Qualified of type to import: "))))
-	  (let ((result (ensime-refactor-prepare
-			 'addImport
-			 `(file ,buffer-file-name
-				start ,(- start ensime-ch-fix)
-				end ,(- end ensime-ch-fix)
-				qualifiedName ,qualified-name) t t
-				)))
-	    (ensime-refactor-handle-result result)))
-      (message "Please place cursor on a symbol."))))
-
+  (let ((qualified-name
+         (or qual-name
+             (read-string "Qualified name of type to import: "))))
+    (let ((result (ensime-refactor-prepare
+                   'addImport
+                   `(file ,buffer-file-name
+                          qualifiedName ,qualified-name) t t
+                          )))
+      (ensime-refactor-handle-result result))))
 
 (defun ensime-refactor-prepare
   (refactor-type params &optional non-interactive blocking)
