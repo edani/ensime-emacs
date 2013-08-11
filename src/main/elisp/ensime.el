@@ -933,7 +933,7 @@ The default condition handler for timer functions (see
 			  )))
 
 (defun ensime-http-url-p (s)
-  (and (stringp s) (string-match "http://" s)))
+  (and (stringp s) (or (string-match "http://" s) (string-match "https://" s) (string-match "file://" s))))
 
 (defun ensime-insert-link (text file-path &optional offset face line)
   "Insert text in current buffer and make it into an emacs
