@@ -22,6 +22,8 @@
 (eval-and-compile
   (require 'cl))
 
+(eval-and-compile (require 'ensime-macros))
+
 (defgroup ensime-db nil
   "Customization of ensime debugger support."
   :group 'ensime
