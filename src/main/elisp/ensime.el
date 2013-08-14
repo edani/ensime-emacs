@@ -591,7 +591,7 @@ Do not show 'Writing..' message."
 		 (t (format "%s" pending)))))))
 
 ;; Startup
-
+;;;###autoload
 (defun ensime ()
   "Read config file for settings. Then start an inferior
    ENSIME server and connect to its Swank server."
