@@ -20,6 +20,7 @@
 ;;     MA 02111-1307, USA.
 
 
+(eval-and-compile (require 'ensime-macros))
 
 (defvar ensime-config-file-name ".ensime"
   "The default file name for ensime project configurations.")

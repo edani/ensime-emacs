@@ -33,8 +33,9 @@
   (when (<= emacs-major-version 21)
     (error "Ensime requires an Emacs version of 21, or above")))
 
-(eval-and-compile
-  (require 'cl))
+(eval-when-compile
+  (require 'cl)
+  (require 'ensime-macros))
 
 (require 'thingatpt)
 (require 'comint)
@@ -124,11 +125,8 @@
   :group 'ensime-server)
 
 (defcustom ensime-default-server-root
-  (file-name-directory
-   (file-name-directory
-    (directory-file-name
      (file-name-directory
-      (locate-library "ensime")))))
+      (locate-library "ensime"))
   "Location of ENSIME server library."
   :type 'string
   :group 'ensime-server)
@@ -150,6 +148,126 @@
 (defvar ensime-ch-fix 1
   "Single character offset to convert between emacs and
  0-based character indexing.")
+
+;;; macros
+
+(defmacro ensime-assert-connected (&rest body)
+  "Surround body forms with a check to see if we're connected.
+If not, message the user."
+  `(if (ensime-connected-p)
+       (progn ,@body)
+     (message "This command requires a connection to an ENSIME server.")))
+
+(defmacro ensime-assert-buffer-saved-interactive (&rest body)
+  "Offer to save buffer if buffer is modified. Execute body only if
+buffer is saved."
+  `(if (buffer-modified-p)
+       (if (y-or-n-p "Buffer must be saved to continue. Save now? ")
+	   (progn
+	     (ensime-save-buffer-no-hooks)
+	     ,@body))
+     (progn
+       ,@body)))
+
+(defmacro* ensime-with-connection-buffer ((&optional process) &rest body)
+  "Execute BODY in the process-buffer of PROCESS.
+If PROCESS is not specified, `ensime-connection' is used.
+
+\(fn (&optional PROCESS) &body BODY))"
+  `(with-current-buffer
+       (process-buffer (or ,process (ensime-connection)
+			   (error "No connection")))
+     ,@body))
+
+(defmacro* ensime-with-inspector-buffer ((name object &optional select)
+					 &body body)
+  "Extend the standard popup buffer with inspector-specific bindings."
+  `(ensime-with-popup-buffer
+    (,name t ,select)
+    (use-local-map ensime-popup-inspector-map)
+    (when (not ensime-inspector-paging-in-progress)
+
+      ;; Clamp the history cursor
+      (setq ensime-inspector-history-cursor
+	    (max 0 ensime-inspector-history-cursor))
+      (setq ensime-inspector-history-cursor
+	    (min (- (length ensime-inspector-history) 1)
+		 ensime-inspector-history-cursor))
+
+      ;; Remove all elements preceding the cursor (the 'redo' history)
+      (setq ensime-inspector-history
+	    (subseq ensime-inspector-history
+		    ensime-inspector-history-cursor))
+
+      ;; Add the new history item
+      (push ,object ensime-inspector-history)
+
+      ;; Set cursor to point to the new item
+      (setq ensime-inspector-history-cursor 0)
+
+      )
+    ,@body
+    ))
+
+;;; macros
+
+(defmacro ensime-assert-connected (&rest body)
+  "Surround body forms with a check to see if we're connected.
+If not, message the user."
+  `(if (ensime-connected-p)
+       (progn ,@body)
+     (message "This command requires a connection to an ENSIME server.")))
+
+(defmacro ensime-assert-buffer-saved-interactive (&rest body)
+  "Offer to save buffer if buffer is modified. Execute body only if
+buffer is saved."
+  `(if (buffer-modified-p)
+       (if (y-or-n-p "Buffer must be saved to continue. Save now? ")
+	   (progn
+	     (ensime-save-buffer-no-hooks)
+	     ,@body))
+     (progn
+       ,@body)))
+
+(defmacro* ensime-with-connection-buffer ((&optional process) &rest body)
+  "Execute BODY in the process-buffer of PROCESS.
+If PROCESS is not specified, `ensime-connection' is used.
+
+\(fn (&optional PROCESS) &body BODY))"
+  `(with-current-buffer
+       (process-buffer (or ,process (ensime-connection)
+			   (error "No connection")))
+     ,@body))
+
+(defmacro* ensime-with-inspector-buffer ((name object &optional select)
+					 &body body)
+  "Extend the standard popup buffer with inspector-specific bindings."
+  `(ensime-with-popup-buffer
+    (,name t ,select)
+    (use-local-map ensime-popup-inspector-map)
+    (when (not ensime-inspector-paging-in-progress)
+
+      ;; Clamp the history cursor
+      (setq ensime-inspector-history-cursor
+	    (max 0 ensime-inspector-history-cursor))
+      (setq ensime-inspector-history-cursor
+	    (min (- (length ensime-inspector-history) 1)
+		 ensime-inspector-history-cursor))
+
+      ;; Remove all elements preceding the cursor (the 'redo' history)
+      (setq ensime-inspector-history
+	    (subseq ensime-inspector-history
+		    ensime-inspector-history-cursor))
+
+      ;; Add the new history item
+      (push ,object ensime-inspector-history)
+
+      ;; Set cursor to point to the new item
+      (setq ensime-inspector-history-cursor 0)
+
+      )
+    ,@body
+    ))
 
 ;;;;; ensime-mode
 
@@ -591,11 +709,7 @@ Do not show 'Writing..' message."
 		 (t (format "%s" pending)))))))
 
 ;; Startup
-;;;###autoload
-(defun ensime ()
-  "Read config file for settings. Then start an inferior
-   ENSIME server and connect to its Swank server."
-  (interactive)
+(defun* ensime-1 ()
   (when (and (ensime-source-file-p) (not ensime-mode))
     (ensime-mode 1))
   (let* ((config (ensime-config-find-and-load)))
@@ -614,6 +728,13 @@ Do not show 'Writing..' message."
 	  (ensime-inferior-connect config server-proc)))
       )))
 
+
+;;;###autoload
+(defun ensime ()
+  "Read config file for settings. Then start an inferior
+   ENSIME server and connect to its Swank server."
+  (interactive)
+  (ensime-1))
 
 (defun ensime-reload ()
   "Re-initialize the project with the current state of the config file.
@@ -731,23 +852,6 @@ defined."
   (when (ensime-connected-p)
     (let ((config (ensime-config (ensime-current-connection))))
       (plist-get config :root-dir))))
-
-(defmacro ensime-assert-connected (&rest body)
-  "Surround body forms with a check to see if we're connected.
-If not, message the user."
-  `(if (ensime-connected-p)
-       (progn ,@body)
-     (message "This command requires a connection to an ENSIME server.")))
-
-(defmacro ensime-with-conn-interactive (conn-sym &rest body)
-  "Surround body forms with a check to see if we're connected.
-If not, message the user."
-  `(let* ((,conn-sym (or (ensime-current-connection)
-			 (ensime-prompt-for-connection))))
-     (if conn
-	 (progn ,@body)
-       (message
-	"This command requires a connection to an ENSIME server."))))
 
 (defun ensime-swank-port-file ()
   "Filename where the SWANK server writes its TCP port number."
@@ -1071,17 +1175,6 @@ The default condition handler for timer functions (see
 (defun ensime-strip-dollar-signs (str)
   (replace-regexp-in-string "\\$" "" str))
 
-(defmacro ensime-assert-buffer-saved-interactive (&rest body)
-  "Offer to save buffer if buffer is modified. Execute body only if
-buffer is saved."
-  `(if (buffer-modified-p)
-       (if (y-or-n-p "Buffer must be saved to continue. Save now? ")
-	   (progn
-	     (ensime-save-buffer-no-hooks)
-	     ,@body))
-     (progn
-       ,@body)))
-
 (defun ensime-assert-executable-on-path (name)
   (when (null (executable-find name))
     (error (concat name " not found on your emacs exec-path. "
@@ -1091,14 +1184,6 @@ buffer is saved."
   "Remove all text-properties from str and return str."
   (set-text-properties 0 (length str) nil str)
   str)
-
-
-(defmacro* when-let ((var value) &rest body)
-  "Evaluate VALUE, if the result is non-nil bind it to VAR and eval BODY.
-
-\(fn (VAR VALUE) &rest BODY)"
-  `(let ((,var ,value))
-     (when ,var ,@body)))
 
 
 (defmacro destructure-case (value &rest patterns)
@@ -1730,16 +1815,6 @@ This doesn't mean it will connect right after Ensime is loaded."
 	  (incf ensime-connection-counter))
 
     process))
-
-(defmacro* ensime-with-connection-buffer ((&optional process) &rest body)
-  "Execute BODY in the process-buffer of PROCESS.
-If PROCESS is not specified, `ensime-connection' is used.
-
-\(fn (&optional PROCESS) &body BODY))"
-  `(with-current-buffer
-       (process-buffer (or ,process (ensime-connection)
-			   (error "No connection")))
-     ,@body))
 
 (defun ensime-connect (host port)
   "Connect to a running Swank server. Return the connection."
@@ -3749,37 +3824,6 @@ inspect the package of the current source file."
   "Type and package inspector key bindings.")
 
 
-(defmacro* ensime-with-inspector-buffer ((name object &optional select)
-					 &body body)
-  "Extend the standard popup buffer with inspector-specific bindings."
-  `(ensime-with-popup-buffer
-    (,name t ,select)
-    (use-local-map ensime-popup-inspector-map)
-    (when (not ensime-inspector-paging-in-progress)
-
-      ;; Clamp the history cursor
-      (setq ensime-inspector-history-cursor
-	    (max 0 ensime-inspector-history-cursor))
-      (setq ensime-inspector-history-cursor
-	    (min (- (length ensime-inspector-history) 1)
-		 ensime-inspector-history-cursor))
-
-      ;; Remove all elements preceding the cursor (the 'redo' history)
-      (setq ensime-inspector-history
-	    (subseq ensime-inspector-history
-		    ensime-inspector-history-cursor))
-
-      ;; Add the new history item
-      (push ,object ensime-inspector-history)
-
-      ;; Set cursor to point to the new item
-      (setq ensime-inspector-history-cursor 0)
-
-      )
-    ,@body
-    ))
-
-
 ;; Interface
 
 (defvar ensime-message-function 'message)
@@ -4059,29 +4103,6 @@ See `view-return-to-alist' for a similar idea.")
    "So we can query later whether this is a popup buffer."))
 
 ;; Interface
-(defmacro* ensime-with-popup-buffer ((name &optional connection select)
-				     &body body)
-  "Similar to `with-output-to-temp-buffer'.
-Bind standard-output and initialize some buffer-local variables.
-Restore window configuration when closed.
-
-NAME is the name of the buffer to be created.
-CONNECTION is the value for `ensime-buffer-connection'.
-If nil, no explicit connection is associated with
-the buffer.  If t, the current connection is taken.
-"
-  `(let* ((vars% (list ,(if (eq connection t) '(ensime-connection) connection)))
-	  (standard-output (ensime-make-popup-buffer ,name vars%)))
-     (with-current-buffer standard-output
-       (prog1
-	   (progn
-	     ,@body)
-	 (assert (eq (current-buffer) standard-output))
-	 (setq buffer-read-only t)
-	 (set-window-point (ensime-display-popup-buffer ,(or select 'nil))
-			   (point))))))
-
-
 (defun ensime-make-popup-buffer (name buffer-vars)
   "Return a temporary buffer called NAME.
 The buffer also uses the minor-mode `ensime-popup-buffer-mode'."

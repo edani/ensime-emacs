@@ -20,6 +20,8 @@
 ;;     MA 02111-1307, USA.
 
 
+(eval-when-compile (require 'ensime-macros))
+
 (defvar ensime-refactor-id-counter 0
   "Each refactoring is given a unique id.")
 
