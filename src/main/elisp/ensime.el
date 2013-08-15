@@ -119,7 +119,7 @@
   :type 'integer
   :group 'ensime-server)
 
-(defcustom ensime-default-server-cmd (mapconcat 'identity ((file-name-directory load-file-name) "bin/server") "/") 
+(defcustom ensime-default-server-cmd "bin/server"
   "Command to launch server process."
   :type 'string
   :group 'ensime-server)
