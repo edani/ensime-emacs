@@ -226,7 +226,7 @@
 
 (defun ensime-sbt-project-dir-p (path)
   "Is path an sbt project?"
-  (or (not (null (directory-files path nil "\\.sbt$")))
+  (or 
       (file-exists-p (concat path "/project/Build.scala" ))
       (file-exists-p (concat path "/project/boot" ))
       (file-exists-p (concat path "/project/build.properties" ))))
