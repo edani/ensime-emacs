@@ -179,13 +179,19 @@
       (erase-buffer)
       (comint-send-input t))))
 
+(defun ensime-sbt-compile-on-save-command ()
+  "Gets the command to issue when sbt-compiling on save"
+  (if (plist-get (ensime-config) :sbt-compile-on-save-command)
+    (plist-get (ensime-config) :sbt-compile-on-save-command)
+    "compile"))
+
 (defun ensime-sbt-maybe-auto-compile ()
   "Compile the code."
   (interactive)
   (when (and
 	 (ensime-connected-p)
 	 ensime-sbt-compile-on-save)
-    (ensime-sbt-action "compile")))
+    (ensime-sbt-action (ensime-sbt-compile-on-save-command))))
 
 (defun ensime-sbt-complete ()
   "Complete input at point"
