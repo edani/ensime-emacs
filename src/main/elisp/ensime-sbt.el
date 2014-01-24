@@ -215,10 +215,7 @@
     (comint-send-string buf (concat action "\n"))))
 
 (defvar ensime-sbt-command-history nil
-  "History of commands passed to main sbt.")
-
-(defvar ensime-sbt-command-history nil
-  "History of commands passed to main sbt.")
+  "History of commands passed to sbt.")
 
 (defun ensime-sbt-do (sbt-command)
   (interactive (list (read-string "Sbt command: " ensime-sbt-command-history)))
