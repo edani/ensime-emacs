@@ -214,6 +214,15 @@
     (with-current-buffer buf (goto-char (point-max)))
     (comint-send-string buf (concat action "\n"))))
 
+(defvar ensime-sbt-command-history nil
+  "History of commands passed to sbt.")
+
+(defun ensime-sbt-do (sbt-command)
+  (interactive (list (read-string "Sbt command: " ensime-sbt-command-history)))
+  (setq ensime-sbt-command-history sbt-command)
+  (ensime-sbt-switch)
+  (ensime-sbt-action sbt-command))
+
 (defun ensime-sbt-do-compile ()
   (interactive)
   (ensime-sbt-switch)
@@ -228,7 +237,6 @@
   (interactive)
   (ensime-sbt-switch)
   (ensime-sbt-action "package"))
-
 
 (defun ensime-sbt-project-dir-p (path)
   "Is path an sbt project?"
