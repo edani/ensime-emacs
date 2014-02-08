@@ -2274,7 +2274,7 @@ any buffer visiting the given file."
 
       ;; No empty note overlays!
       (when (eq beg end)
-        (setq beg (- beg 1)))
+        (setq end (+ end 1)))
 
       (let ((lang
              (cond
