@@ -251,7 +251,7 @@
 
 (defun ensime-sbt-parent-path (path)
   "The parent path for the given path."
-  (file-truename (concat path "/..")))
+  (file-name-as-directory (file-truename (concat path "/.."))))
 
 (defun ensime-sbt-find-path-to-project ()
   "Move up the directory tree for the current buffer
@@ -259,10 +259,13 @@
  is found."
   (interactive)
   (let ((fn (buffer-file-name)))
-    (let ((path (file-name-directory fn)))
+    (let ((path (file-name-directory fn))
+          (project-root (file-name-as-directory
+                         (file-truename (ensime-configured-project-root)))))
       (while (and (not (ensime-sbt-project-dir-p path))
+                  (not (equal project-root path))
 		  (not (ensime-sbt-at-root path)))
-	(setf path (file-truename (ensime-sbt-parent-path path))))
+	(setf path (ensime-sbt-parent-path path)))
       path)))
 
 (defun ensime-sbt-find-path-to-parent-project ()
