@@ -4045,17 +4045,38 @@ It should be used for \"background\" messages such as argument lists."
 (defun ensime-externalize-offset (offset)
   (+ offset (- ensime-ch-fix)
      (if (eq 1 (coding-system-eol-type buffer-file-coding-system))
-	 (- (line-number-at-pos offset) 1)
+         (save-restriction
+           (widen)
+           (- (line-number-at-pos offset) 1))
        0)
      ))
 
 (defun ensime-internalize-offset (offset)
-  (when offset
-    (- offset (- ensime-ch-fix)
-       (if (eq 1 (coding-system-eol-type buffer-file-coding-system))
-           (- (line-number-at-pos (point)) 1)
-         0)
-       )))
+  (if (eq 1 (coding-system-eol-type buffer-file-coding-system))
+      (save-excursion
+        (save-restriction
+          (widen)
+          (block nil
+            (when (<= offset 0) (return 1))
+            (when (>= offset (ensime-externalize-offset (point-max)))
+              (return (point-max)))
+
+            (goto-char offset)
+            (while t
+              (let* ((diff (- (ensime-externalize-offset (point)) offset))
+                     (step (/ (abs diff) 2)))
+                (cond
+                 ((eql diff 0) (return (point)))
+
+                 ;; Treat -1 and +1 specially: if offset matches a CR character
+                 ;; we want to avoid an infinite loop
+                 ((eql diff -1) (return (1+ (point))))
+                 ((eql diff 1) (return (1- (point))))
+
+                 ((> diff 0) (backward-char step))
+                 ((< diff 0) (forward-char step))))))))
+    (+ offset ensime-ch-fix)))
+
 
 (defun ensime-internalize-offset-fields (plist &rest keys)
   (dolist (key keys)
