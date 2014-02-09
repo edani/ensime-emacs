@@ -2368,22 +2368,24 @@ any buffer visiting the given file."
 
 (defun ensime-next-note-in-current-buffer (notes forward)
   (let ((best-note nil)
-	(best-dist most-positive-fixnum))
+	(best-dist most-positive-fixnum)
+        (external-offset (ensime-externalize-offset (point)))
+        (max-external-offset (ensime-externalize-offset (point-max))))
     (dolist (note notes)
       (if (and (ensime-files-equal-p (ensime-note-file note)
 				     buffer-file-name)
-	       (/= (ensime-note-beg note) (point)))
+	       (/= (ensime-note-beg note) external-offset))
 	  (let ((dist (cond
 		       (forward
-			(if (< (ensime-note-beg note) (point))
+			(if (< (ensime-note-beg note) external-offset)
 			    (+ (ensime-note-beg note)
-			       (- (point-max) (point)))
-			  (- (ensime-note-beg note) (point))))
+			       (- max-external-offset external-offset))
+			  (- (ensime-note-beg note) external-offset)))
 
-		       (t (if (> (ensime-note-beg note) (point))
-			      (+ (point) (- (point-max)
-					    (ensime-note-beg note)))
-			    (- (point) (ensime-note-beg note)))))))
+		       (t (if (> (ensime-note-beg note) external-offset)
+			      (+ external-offset (- max-external-offset
+                                                    (ensime-note-beg note)))
+			    (- external-offset (ensime-note-beg note)))))))
 
 	    (when (< dist best-dist)
 	      (setq best-dist dist)
@@ -2399,7 +2401,7 @@ any buffer visiting the given file."
 	 (next-note (ensime-next-note-in-current-buffer notes forward)))
     (if next-note
 	(progn
-	  (goto-char (+ ensime-ch-fix (ensime-note-beg next-note)))
+	  (goto-char (ensime-internalize-offset (ensime-note-beg next-note)))
 	  (message (ensime-note-message next-note)))
       (message (concat
 		"No more compilation issues in this buffer. "
@@ -2660,16 +2662,15 @@ any buffer visiting the given file."
       (setq file-visible-window
 	    (ensime-window-showing-file file)))
 
-    (let ((buf (window-buffer file-visible-window))
-	  (pt (cond
-	       ((integerp (ensime-pos-line pos))
-		(ensime-point-at-bol file (ensime-pos-line pos)))
-	       ((integerp (ensime-pos-offset pos))
-		(+ (ensime-pos-offset pos) ensime-ch-fix))
-	       (t 0))))
-      (with-current-buffer buf
-	(goto-char pt))
-      (set-window-point file-visible-window pt))))
+    (with-current-buffer (window-buffer file-visible-window)
+      (let ((pt (cond
+                 ((integerp (ensime-pos-line pos))
+                  (ensime-point-at-bol file (ensime-pos-line pos)))
+                 ((integerp (ensime-pos-offset pos))
+                  (ensime-internalize-offset (ensime-pos-offset pos)))
+                 (t 0))))
+	(goto-char pt)
+        (set-window-point file-visible-window pt)))))
 
 ;; Compilation result interface
 
