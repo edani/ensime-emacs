@@ -1023,8 +1023,9 @@ The default condition handler for timer functions (see
 			  (find-file-other-window ,file-path)
 			  (if (integerp ,line)
 			      (ensime-goto-line ,line)
-			    (goto-char (or ,offset 0)))
-			  )))
+			    (goto-char (if ,offset
+                                           (ensime-internalize-offset ,offset)
+                                         0))))))
 
 (defun ensime-make-code-hyperlink (start end http-path &optional face)
   "Make an emacs button, from start to end in current buffer,
@@ -2248,15 +2249,9 @@ any buffer visiting the given file."
     (when-let (buf (find-buffer-visiting file))
               (with-current-buffer buf
                 (if (and (integerp beg) (integerp end))
-                    ;; If DOS eol's, fix the positioning
-                    ;; Note: this is impossible without the line argument.
-                    (when (and (integerp line)
-                               (eq 1 (coding-system-eol-type
-                                      (buffer-local-value
-                                       'buffer-file-coding-system buf))))
-                      (setq beg (- beg (1- line)))
-                      (setq end (- end (1- line))))
-
+                    (progn
+                      (setq beg (ensime-internalize-offset beg))
+                      (setq end (ensime-internalize-offset end)))
                   ;; If line provided, use line to define region
                   (save-excursion
                     (goto-line line)
@@ -2288,11 +2283,7 @@ any buffer visiting the given file."
               (t
                'ensime-warnline-highlight))))
 
-        (when-let (ov (ensime-make-overlay-at
-                       file line
-                       (+ beg ensime-ch-fix)
-                       (+ end ensime-ch-fix)
-                       msg face))
+        (when-let (ov (ensime-make-overlay-at file line beg end msg face))
                   (overlay-put ov 'lang lang)
                   (push ov ensime-note-overlays))
 
@@ -2468,10 +2459,9 @@ any buffer visiting the given file."
 
 	      (dolist (ed edits)
 		(let* ((text (plist-get ed :text))
-		       (from (+ (plist-get ed :from) ensime-ch-fix))
-		       (to (+ (plist-get ed :to) ensime-ch-fix))
+		       (from (ensime-internalize-offset-for-file file (plist-get ed :from)))
+		       (to (ensime-internalize-offset-for-file file (plist-get ed :to)))
 		       (len (- to from)))
-
 		  (goto-char (+ p (- from chunk-start)))
 		  (delete-char (min len (- (point-max) (point))))
 		  (ensime-insert-with-face text 'font-lock-keyword-face)))
@@ -2757,10 +2747,7 @@ any buffer visiting the given file."
 				(p (point)))
 			    (insert (format "%s: %s : line %s"
 					    header msg line))
-			    (ensime-make-code-link p (point)
-						   file
-						   (+ beg ensime-ch-fix)
-						   face)))
+			    (ensime-make-code-link p (point) file beg face)))
 			(insert "\n\n"))))
 		  notes-by-file)))
      (forward-button 1)
@@ -2812,7 +2799,7 @@ any buffer visiting the given file."
       (if (null pos) (ensime-local-sym-at-point point)
         (let ((start (ensime-pos-offset pos))
               (name (plist-get info :local-name)))
-          (setq start (+ start ensime-ch-fix))
+          (setq start (ensime-externalize-offset start))
           (list :start start
                 :end (+ start (string-width name))
                 :name name))))))
@@ -3327,8 +3314,8 @@ with the current project's dependencies loaded. Returns a property list."
 	   (insert chunk-text)
 
 	   ;; Highlight the occurances
-	   (let* ((from (+ (plist-get pos :start) ensime-ch-fix))
-		  (to (+ (plist-get pos :end) ensime-ch-fix))
+	   (let* ((from (plist-get pos :start))
+		  (to (plist-get pos :end))
 		  (len (- to from))
 		  (buffer-from (+ p (- from chunk-start)))
 		  (buffer-to (+ p (- to chunk-start))))
@@ -3440,8 +3427,7 @@ with the current project's dependencies loaded. Returns a property list."
 			(ensime-make-doc-url type)
 			)))
 	  (ensime-insert-link " doc" url
-			      (+ (or (ensime-pos-offset pos) 0)
-				 ensime-ch-fix))))
+			      (or (ensime-pos-offset pos) 0))))
 
       )))
 
@@ -3480,7 +3466,7 @@ with the current project's dependencies loaded. Returns a property list."
 	(progn
 	  (ensime-insert-link
 	   (format "%s" member-name) url
-	   (+ (or (ensime-pos-offset pos) 0) ensime-ch-fix)
+	   (or (ensime-pos-offset pos) 0)
 	   font-lock-function-name-face)
 	  (tab-to-tab-stop)
 	  (ensime-inspector-insert-linked-type type nil nil))
@@ -4078,6 +4064,15 @@ It should be used for \"background\" messages such as argument lists."
                  ((< diff 0) (forward-char step))))))))
     (+ offset ensime-ch-fix)))
 
+
+(defun ensime-internalize-offset-for-file (file-name offset)
+  (let ((buf (find-buffer-visiting file)))
+    (if buf
+        (with-current-buffer buf
+           (ensime-internalize-offset offset))
+      (with-temp-buffer
+        (insert-file-contents file-name)
+        (ensime-internalize-offset offset)))))
 
 (defun ensime-internalize-offset-fields (plist &rest keys)
   (dolist (key keys)
