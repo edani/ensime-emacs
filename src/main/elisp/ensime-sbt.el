@@ -123,6 +123,8 @@
      (set (make-local-variable 'comint-prompt-read-only) t)
      (set (make-local-variable 'comint-output-filter-functions)
 	  '(ansi-color-process-output comint-postoutput-scroll-to-bottom))
+     (set (make-local-variable 'comint-input-filter-functions)
+          (function (lambda (str) (compilation-forget-errors) str)))
 
      (if ensime-sbt-comint-ansi-support
 	 (set (make-local-variable 'ansi-color-for-comint-mode) t)
@@ -211,7 +213,9 @@
   "Run an sbt action. Where action is a string in the set of valid
    SBT actions names, e.g. 'compile', 'run'"
   (when-let (buf (ensime-sbt-get-buffer))
-    (with-current-buffer buf (goto-char (point-max)))
+    (with-current-buffer buf
+      (goto-char (point-max))
+      (compilation-forget-errors))
     (comint-send-string buf (concat action "\n"))))
 
 (defvar ensime-sbt-command-history nil
