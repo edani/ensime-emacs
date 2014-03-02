@@ -20,6 +20,7 @@
 ;;     MA 02111-1307, USA.
 
 (require 'auto-complete)
+(require 'ensime-core)
 
 (defcustom ensime-ac-enable-argument-placeholders t
   "If non-nil, insert placeholder arguments in the buffer on completion."
@@ -318,6 +319,7 @@ be used later to give contextual help when entering arguments."
 	(make-local-variable 'ac-use-quick-help)
 	(setq ac-use-quick-help t)
 
+;;    (defvar ac-delete-dups)
 	(make-local-variable 'ac-delete-dups)
 	(setq ac-delete-dups nil)
 
