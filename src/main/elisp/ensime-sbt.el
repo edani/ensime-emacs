@@ -210,16 +210,19 @@
 
 (defun ensime-sbt-do-compile ()
   (interactive)
+  (when ensime-save-before-compile (save-some-buffers))
   (ensime-sbt-switch)
   (ensime-sbt-action "compile"))
 
 (defun ensime-sbt-do-clean ()
   (interactive)
+  (when ensime-save-before-compile (save-some-buffers))
   (ensime-sbt-switch)
   (ensime-sbt-action "clean"))
 
 (defun ensime-sbt-do-package ()
   (interactive)
+  (when ensime-save-before-compile (save-some-buffers))
   (ensime-sbt-switch)
   (ensime-sbt-action "package"))
 
