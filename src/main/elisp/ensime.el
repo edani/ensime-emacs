@@ -2083,8 +2083,14 @@ any buffer visiting the given file."
   "Return the text of the given file from start to end."
   (with-temp-buffer
     (insert-file-contents file-name)
-    (let* ((chunk-start (max start (point-min)))
-	   (chunk-end (min end (point-max)))
+    (let* ((chunk-start
+            (progn
+              (goto-char start)
+              (point-at-bol)))
+	   (chunk-end
+            (progn
+              (goto-char end)
+              (point-at-eol)))
 	   (text (buffer-substring-no-properties chunk-start chunk-end)))
       (list :text text
 	    :chunk-start chunk-start
@@ -2810,9 +2816,12 @@ with the current project's dependencies loaded. Returns a property list."
 
      (dolist (pos uses)
        (let* ((file (ensime-pos-file pos))
+              (pos-internal-offset (ensime-internalize-offset-for-file
+                                    file
+                                    (ensime-pos-offset pos)))
 
-	      (range-start (- (ensime-pos-offset pos) 80))
-	      (range-end (+ (ensime-pos-offset pos) 80))
+	      (range-start (- pos-internal-offset 80))
+	      (range-end (+ pos-internal-offset 80))
 	      (result (ensime-extract-file-chunk
 		       file range-start range-end))
 	      (chunk-text (plist-get result :text))
@@ -2831,13 +2840,17 @@ with the current project's dependencies loaded. Returns a property list."
 	   (insert chunk-text)
 
 	   ;; Highlight the occurances
-	   (let* ((from (plist-get pos :start))
-		  (to (plist-get pos :end))
-		  (len (- to from))
+	   (let* ((external-from (plist-get pos :start))
+                  (from (ensime-internalize-offset-for-file
+                         file
+                         (plist-get pos :start)))
+		  (to (ensime-internalize-offset-for-file
+                       file
+                       (plist-get pos :end)))
 		  (buffer-from (+ p (- from chunk-start)))
 		  (buffer-to (+ p (- to chunk-start))))
 	     (ensime-make-code-link
-	      buffer-from buffer-to file from)))
+	      buffer-from buffer-to file external-from)))
 
 	 (insert "\n\n\n")
 	 ))
