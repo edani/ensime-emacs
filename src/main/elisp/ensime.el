@@ -614,6 +614,7 @@ argument is supplied) is a .scala or .java file."
              (posn-point (event-end event)))
 
     (let* ((point (posn-point (event-end event)))
+           (external-pos (ensime-externalize-offset point))
            (ident (tooltip-identifier-from-point point))
            (note-overlays (ensime-overlays-at point))
            (val-at-pt (ensime-db-tooltip point)))
@@ -636,7 +637,7 @@ argument is supplied) is a .scala or .java file."
        ((and ident ensime-tooltip-type-hints)
         (progn
           (ensime-eval-async
-           `(swank:type-at-point ,buffer-file-name ,point)
+           `(swank:type-at-point ,buffer-file-name ,external-pos)
            #'(lambda (type)
                (when type
                  (let ((msg (ensime-type-full-name-with-args type)))
