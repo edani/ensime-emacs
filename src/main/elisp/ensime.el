@@ -62,6 +62,7 @@
 (require 'ensime-doc)
 (require 'ensime-semantic-highlight)
 (require 'ensime-ui)
+(require 'timer)
 (eval-when (compile)
   (require 'apropos)
   (require 'compile))
@@ -530,6 +531,10 @@ argument is supplied) is a .scala or .java file."
         (add-hook 'ensime-source-buffer-loaded-hook
                   'ensime-typecheck-current-file)
 
+        (add-hook 'after-change-functions
+                  'ensime-after-change-function nil t)
+
+        (ensime-idle-typecheck-set-timer)
 
         (when ensime-tooltip-hints
           (add-hook 'tooltip-functions 'ensime-tooltip-handler)
@@ -560,6 +565,9 @@ argument is supplied) is a .scala or .java file."
 
       (remove-hook 'ensime-source-buffer-loaded-hook
                    'ensime-typecheck-current-file)
+
+      (remove-hook 'after-change-functions
+                   'ensime-after-change-function t)
 
       (remove-hook 'tooltip-functions 'ensime-tooltip-handler)
       (make-local-variable 'track-mouse)
@@ -998,6 +1006,56 @@ The default condition handler for timer functions (see
 	 (message "Cancelled connection attempt."))
 	(t (error "Not connecting"))))
 
+
+;; typecheck continually when idle
+
+(ensime-def-connection-var ensime-last-typecheck-run-time 0
+  "Last time `ensime-typecheck-current-file' was run.")
+
+(defvar ensime-idle-typecheck-timer nil
+  "Timer called when emacs is idle")
+
+(defvar ensime-last-change-time 0
+  "Time of last buffer change")
+
+(defcustom ensime-typecheck-when-idle t
+  "Controls whether a modified buffer should be typechecked automatically.
+A typecheck is started when emacs is idle, if the buffer was modified
+since the last typecheck."
+  :type 'boolean
+  :group 'ensime-ui)
+
+(defcustom ensime-typecheck-interval 2
+  "Minimum time to wait between two automatic typechecks."
+  :type 'number
+  :group 'ensime-ui)
+
+(defcustom ensime-typecheck-idle-interval 0.5
+  "Idle time to wait before starting an automatic typecheck."
+  :type 'number
+  :group 'ensime-ui)
+
+(defun ensime-idle-typecheck-set-timer ()
+  (when (timerp ensime-idle-typecheck-timer)
+    (cancel-timer ensime-idle-typecheck-timer))
+  (setq ensime-idle-typecheck-timer
+        (run-with-timer nil
+                        ensime-typecheck-idle-interval
+                        'ensime-idle-typecheck-function)))
+
+(defun ensime-after-change-function (start stop len)
+  (set (make-local-variable 'ensime-last-change-time) (float-time)))
+
+(defun ensime-idle-typecheck-function ()
+  (let* ((now (float-time))
+         (last-typecheck (ensime-last-typecheck-run-time (ensime-connection)))
+         (earliest-allowed-typecheck (+ last-typecheck ensime-typecheck-interval)))
+    (when (and ensime-typecheck-when-idle
+               (ensime-connected-p)
+               (>= now (+ ensime-last-change-time ensime-typecheck-idle-interval))
+               (>= now earliest-allowed-typecheck)
+               (< last-typecheck ensime-last-change-time))
+      (ensime-typecheck-current-file t))))
 
 ;;;; Framework'ey bits
 ;;;
@@ -2295,20 +2353,30 @@ any buffer visiting the given file."
 
 ;; Compilation on request
 
-(defun ensime-typecheck-current-file ()
-  "Send a request for re-typecheck of current file to all ENSIME servers
- managing projects that contains the current file. File is saved
- first if it has unwritten modifications."
-  (interactive)
+(defun ensime-typecheck-current-file (&optional without-saving)
+  "Send a request for re-typecheck of current buffer to all ENSIME servers
+ managing projects that contains the current buffer. By default, the buffer
+ is saved first if it has unwritten modifications. With a prefix argument,
+ the buffer isn't saved, instead the contents of the buffer is sent to the
+ typechecker."
+  (interactive "P")
 
-  (if (buffer-modified-p) (ensime-write-buffer nil t))
+  (when (and (not without-saving) (buffer-modified-p))
+    (ensime-write-buffer nil t))
 
-  ;; Send the reload requist to all servers that might be interested.
+  ;; Send the reload request to all servers that might be interested.
   (dolist (con (ensime-connections-for-source-file buffer-file-name))
+    (setf (ensime-last-typecheck-run-time con) (float-time))
     (let ((ensime-dispatching-connection con))
-      (ensime-rpc-async-typecheck-file
-       buffer-file-name 'identity
-       ))))
+      (if without-saving
+          (save-restriction
+            (widen)
+            (ensime-rpc-async-typecheck-file-with-contents
+             buffer-file-name
+             (ensime-get-buffer-as-string)
+             'identity))
+        (progn
+          (ensime-rpc-async-typecheck-file buffer-file-name 'identity))))))
 
 (defun ensime-typecheck-all ()
   "Send a request for re-typecheck of whole project to the ENSIME server.
@@ -2317,6 +2385,7 @@ any buffer visiting the given file."
   (message "Checking entire project...")
   (if (buffer-modified-p) (ensime-write-buffer nil t))
   (setf (ensime-awaiting-full-typecheck (ensime-connection)) t)
+  (setf (ensime-last-typecheck-run-time (ensime-connection)) (float-time))
   (ensime-rpc-async-typecheck-all 'identity))
 
 (defun ensime-show-all-errors-and-warnings ()
@@ -2665,6 +2734,10 @@ with the current project's dependencies loaded. Returns a property list."
 
 (defun ensime-rpc-async-typecheck-file (file-name continue)
   (ensime-eval-async `(swank:typecheck-file ,file-name) continue))
+
+(defun ensime-rpc-async-typecheck-file-with-contents (file-name contents continue)
+  (ensime-eval-async `(swank:typecheck-file ,file-name ,contents)
+                     continue))
 
 (defun ensime-rpc-async-typecheck-all (continue)
   (ensime-eval-async `(swank:typecheck-all) continue))
@@ -3605,6 +3678,16 @@ It should be used for \"background\" messages such as argument lists."
 		 (ensime-internalize-offset
 		  (plist-get plist key)))))
   plist)
+
+(defun ensime-get-buffer-as-string ()
+  (save-restriction
+    (widen)
+    (let ((contents
+           (buffer-substring-no-properties (point-min) (point-max))))
+      (when (eq 1 (coding-system-eol-type buffer-file-coding-system))
+        (setq contents (replace-regexp-in-string "\n" "\r\n" contents)))
+      contents)))
+
 
 ;; Popup Buffer
 
