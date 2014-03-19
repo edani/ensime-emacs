@@ -83,20 +83,21 @@ setf-able.
 The actual variable bindings are stored buffer-local in the
 process-buffers of connections. The accessor function refers to
 the binding for `ensime-connection'."
-  (let ((real-var (intern (format "%s:connlocal" varname))))
+  (let ((real-var (intern (format "%s:connlocal" varname)))
+        (store-var (gensym)))
     `(progn
        ;; Variable
        (make-variable-buffer-local
-    (defvar ,real-var ,@initial-value-and-doc))
+       (defvar ,real-var ,@initial-value-and-doc))
        ;; Accessor
        (defun ,varname (&optional process)
-     (ensime-with-connection-buffer (process) ,real-var))
+         (ensime-with-connection-buffer (process) ,real-var))
        ;; Setf
        (defsetf ,varname (&optional process) (store)
-     `(ensime-with-connection-buffer
-       (,process)
-       (setq (\, (quote (\, real-var))) (\, store))
-       (\, store)))
+         `(let ((,',store-var ,store))
+            (ensime-with-connection-buffer (,process)
+              (setq ,',real-var ,',store-var)
+              ,',store-var)))
        '(\, varname))))
 
 (put 'ensime-def-connection-var 'lisp-indent-function 2)
