@@ -65,8 +65,8 @@
       (with-current-buffer buf
 	(dolist (sym syms)
 	  (let* ((type (nth 0 sym))
-		 (start (+ ensime-ch-fix (nth 1 sym)))
-		 (end (+ ensime-ch-fix (nth 2 sym)))
+		 (start (ensime-internalize-offset (nth 1 sym)))
+		 (end (ensime-internalize-offset (nth 2 sym)))
 		 (face (cdr (assoc type ensime-sem-high-faces))))
 	    (let ((ov (make-overlay start end buf)))
 	      (overlay-put ov 'face face)
