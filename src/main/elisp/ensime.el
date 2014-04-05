@@ -1533,7 +1533,7 @@ This is more compatible with the CL reader."
   (let ((print-length 20)
 	(print-level 6)
 	(pp-escape-newlines t))
-    (pp event buffer)))
+    (pp (ensime-copy-event-for-print event) buffer)))
 
 (defun ensime-events-buffer ()
   "Return or create the event log buffer."
@@ -1548,7 +1548,16 @@ This is more compatible with the CL reader."
 	    (outline-minor-mode)))
 	buffer)))
 
-
+(defun ensime-copy-event-for-print (event)
+  "Return a mostly-deep-copy of EVENT, with long strings trimmed. Lists are
+copied. Strings are either used unchanged, or relpaced with shortened
+copies. All other objects are used unchanged. List must not contain cycles."
+  (cond
+   ((stringp event)
+    (if (> (length event) 500) (concat (substring event 0 500) "...") event))
+   ((listp event)
+    (mapcar #'ensime-copy-event-for-print event))
+   (t event)))
 
 (defun ensime-init-project (conn config)
   "Send configuration to the server process. Setup handler for
