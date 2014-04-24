@@ -39,6 +39,7 @@
   (require 'ensime-core)
   (require 'ensime-connections))
 
+(require 'arc-mode)
 (require 'thingatpt)
 (require 'comint)
 (require 'timer)
@@ -2246,15 +2247,11 @@ any buffer visiting the given file."
 (defun ensime-goto-source-location (pos &optional where)
   "Move to the source location POS. Don't open
  a new window or buffer if file is open and visible already."
-  (let* ((file (ensime-pos-file pos))
+  (let* ((file (ensime-pos-effective-file pos))
 	 (file-visible-window (ensime-window-showing-file file)))
 
     (when (not file-visible-window)
-      (ecase where
-	((nil)
-	 (find-file file))
-	(window
-	 (find-file-other-window file)))
+      (ensime-find-file-from-pos pos where)
       (setq file-visible-window
 	    (ensime-window-showing-file file)))
 
@@ -2267,6 +2264,24 @@ any buffer visiting the given file."
                  (t 0))))
 	(goto-char pt)
         (set-window-point file-visible-window pt)))))
+
+(defun ensime-find-file-from-pos (pos other-window-p)
+  (let* ((archive (ensime-pos-archive pos))
+         (entry (ensime-pos-file pos))
+         (effective-file (ensime-pos-effective-file pos)))
+    (when archive
+      (with-temp-buffer
+        (archive-zip-extract archive entry)
+        (make-directory (file-name-directory effective-file) t)
+        (write-file effective-file)))
+
+    (if other-window-p
+        (find-file-other-window effective-file)
+      (find-file effective-file))
+
+    (when (ensime-file-in-directory-p effective-file (ensime-source-jars-dir))
+      (with-current-buffer (get-file-buffer effective-file)
+        (setq buffer-read-only t)))))
 
 ;; Compilation result interface
 
@@ -3589,8 +3604,29 @@ It should be used for \"background\" messages such as argument lists."
 (defun ensime-member-pos (member)
   (plist-get member :pos))
 
+
+(defun ensime-source-jars-dir (&optional config)
+  (file-name-as-directory
+   (concat
+    (or
+     (plist-get config :root-dir)
+     (ensime-configured-project-root))
+    (file-name-as-directory ".ensime_cache")
+    (file-name-as-directory "source-jars"))))
+
 (defun ensime-pos-file (pos)
   (plist-get pos :file))
+
+(defun ensime-pos-archive (pos)
+  (plist-get pos :archive))
+
+(defun ensime-pos-effective-file (pos)
+  (if (plist-get pos :archive)
+      (concat
+       (ensime-source-jars-dir)
+       (file-name-as-directory (file-name-nondirectory (plist-get pos :archive)))
+       (plist-get pos :file))
+    (plist-get pos :file)))
 
 (defun ensime-pos-offset (pos)
   (plist-get pos :offset))
@@ -3600,8 +3636,9 @@ It should be used for \"background\" messages such as argument lists."
 
 (defun ensime-pos-valid-local-p (pos)
   (and (stringp (ensime-pos-file pos))
-       (file-exists-p (ensime-pos-file pos))
-       (integerp (ensime-pos-offset pos))
+       (or (file-exists-p (ensime-pos-file pos))
+           (and (stringp (ensime-pos-archive pos))
+                (file-exists-p (ensime-pos-archive pos))))
        (integerp (ensime-pos-offset pos))))
 
 (defun ensime-note-file (note)
