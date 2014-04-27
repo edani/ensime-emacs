@@ -2389,7 +2389,7 @@ any buffer visiting the given file."
     (ensime-write-buffer nil t))
 
   ;; Send the reload request to all servers that might be interested.
-  (dolist (con (ensime-connections-for-source-file buffer-file-name))
+  (dolist (con (ensime-connections-for-source-file buffer-file-name t))
     (setf (ensime-last-typecheck-run-time con) (float-time))
     (let ((ensime-dispatching-connection con))
       (if without-saving
@@ -3605,14 +3605,10 @@ It should be used for \"background\" messages such as argument lists."
   (plist-get member :pos))
 
 
-(defun ensime-source-jars-dir (&optional config)
-  (file-name-as-directory
-   (concat
-    (or
-     (plist-get config :root-dir)
-     (ensime-configured-project-root))
-    (file-name-as-directory ".ensime_cache")
-    (file-name-as-directory "source-jars"))))
+(defun ensime-source-jars-dir ()
+  (when (ensime-connected-p)
+    (let ((config (ensime-config (ensime-current-connection))))
+      (plist-get config :source-jars-dir))))
 
 (defun ensime-pos-file (pos)
   (plist-get pos :file))
