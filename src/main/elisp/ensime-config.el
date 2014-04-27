@@ -337,6 +337,13 @@
 	       )))
 	;; We use the project file's location as the project root.
 	(ensime-set-key config :root-dir dir)
+        (ensime-set-key config
+                        :source-jars-dir
+                        (file-name-as-directory
+                         (concat
+                          dir
+                          (file-name-as-directory ".ensime_cache")
+                          (file-name-as-directory "source-jars"))))
 	(ensime-config-maybe-set-active-subproject config)
 	config)
       )))

@@ -226,14 +226,15 @@ overrides `ensime-buffer-connection'.")
   "Does the given file belong to the given connection(project)?"
   (let* ((file (file-truename file-in))
          (config (ensime-config conn))
-         (source-roots (plist-get config :source-roots)))
+         (source-roots (list* (plist-get config :source-jars-dir)
+                              (plist-get config :source-roots))))
     (catch 'return
       (dolist (dir source-roots)
-        (when (ensime-file-in-directory-p file dir)
+        (when (and dir (ensime-file-in-directory-p file dir))
           (throw 'return t))))))
 
 
-(defun ensime-connections-for-source-file (file-in)
+(defun ensime-connections-for-source-file (file-in &optional no-source-jars)
   "Return the connections corresponding to projects that contain
    the given file in their source trees."
   (let ((file (file-truename file-in)))
@@ -242,10 +243,12 @@ overrides `ensime-buffer-connection'.")
         (dolist (conn ensime-net-processes)
           (when-let (conn (ensime-validated-connection conn))
                     (let* ((config (ensime-config conn))
-                           (source-roots (list* (ensime-source-jars-dir config)
-                                                (plist-get config :source-roots))))
+                           (source-roots
+                            (list* (unless no-source-jars
+                                     (plist-get config :source-jars-dir))
+                                     (plist-get config :source-roots))))
                       (dolist (dir source-roots)
-                        (when (ensime-file-in-directory-p file dir)
+                        (when (and dir (ensime-file-in-directory-p file dir))
                           (setq result (cons conn result)))))))
         result))))
 
@@ -266,12 +269,12 @@ overrides `ensime-buffer-connection'.")
                       (let* ((config (ensime-config conn))
                              (project-root (plist-get config :root-dir))
                              (source-roots (list*
-                                            (ensime-source-jars-dir config)
+                                            (plist-get config :source-jars-dir)
                                             (plist-get config :source-roots))))
                         (if (and loose (ensime-file-in-directory-p file project-root))
                             (throw 'return conn)
                           (dolist (dir source-roots)
-                            (when (ensime-file-in-directory-p file dir)
+                            (when (and dir (ensime-file-in-directory-p file dir))
                               (throw 'return conn)))))))
           )))))
 
