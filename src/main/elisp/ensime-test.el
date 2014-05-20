@@ -155,10 +155,11 @@
         (root-dir (plist-get proj :root-dir)))
     (dolist (f src-files)
       (cond ((file-exists-p f)
-             (progn
-               (find-file f)
-               (set-buffer-modified-p nil)
-               (kill-buffer nil)))
+             (let ((buf (find-buffer-visiting f)))
+               (when buf
+                 (switch-to-buffer buf)
+                 (set-buffer-modified-p nil)
+                 (kill-buffer nil))))
             ((get-buffer f)
              (progn
                (switch-to-buffer (get-buffer f))
