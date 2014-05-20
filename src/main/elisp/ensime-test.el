@@ -664,14 +664,12 @@
       (ensime-test-eat-label "1")
       (ensime-typecheck-current-file)
       (forward-char 1)
-      (let ((mark (point)))
-        (goto-char (point-at-eol))
-        (let* ((info (ensime-rpc-inspect-type-at-range
-                      (list (- mark 1) (- (point) 1)))))
-          (ensime-assert (not (null info)))
-          (ensime-assert-equal
-           (plist-get (plist-get info :type) :name) "String")
-          ))
+      (let ((info (ensime-rpc-inspect-type-at-range
+                   (list (ensime-externalize-offset (point))
+                         (ensime-externalize-offset (point-at-eol))))))
+        (ensime-assert (not (null info)))
+        (ensime-assert-equal
+	 (plist-get (plist-get info :type) :name) "String"))
       (ensime-test-cleanup proj)))
     )
 
