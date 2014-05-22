@@ -1258,7 +1258,10 @@
 
     ((:connected connection-info))
 
-    ((:compiler-ready status)
+    ;; sending the command at :compiler-ready triggers a race condition
+    ;; so we wait for :full-typecheck-finished instead
+    ;;((:compiler-ready status)
+    ((:full-typecheck-finished val)
      (ensime-test-with-proj
       (proj src-files)
       (let ((conf (ensime-rpc-repl-config)))
@@ -1397,7 +1400,10 @@
 
     ((:connected connection-info))
 
-    ((:compiler-ready status)
+    ;; sending the command at :compiler-ready triggers a race condition
+    ;; so we wait for :full-typecheck-finished instead
+    ;;((:compiler-ready status)
+    ((:full-typecheck-finished val)
      (ensime-test-with-proj
       (proj src-files)
       (setq ensime-sem-high-faces ensime-sem-high-all-faces)
@@ -1587,6 +1593,31 @@
     ((:debug-event evt (equal (plist-get evt :type) 'start))
       (ensime-test-cleanup proj))
     )
+
+   (ensime-async-test
+    "race in symbol-designations"
+    (let* ((proj (ensime-create-tmp-project
+                  ensime-tmp-project-hello-world)))
+      (ensime-test-init-proj proj))
+
+    ((:connected connection-info))
+
+    ((:compiler-ready status)
+     (ensime-test-with-proj
+      (proj src-files)
+      ;; The call to ensime-rpc-repl-config may hang. Based on strace and tcpdump,
+      ;; it seems that the client (emacs) sends the request, but the
+      ;; ensime server thread somehow doesn't receive it. It may not be
+      ;; reproducible in Windows. The problem may be related to
+      ;; symbol-designations running asynchronously.
+      (let ((conf (ensime-rpc-repl-config)))
+        (ensime-assert (not (null conf)))
+        (ensime-assert
+         (not (null (plist-get conf :classpath)))))
+
+      (ensime-test-cleanup proj)
+      ))
+    )
 ))
 
 (defun ensime-run-all-tests ()
@@ -1605,7 +1636,9 @@
   (catch 'done
     (let ((key (read-string
                 "Enter a regex matching a test's title: "))
-          (tests (append ensime-fast-suite ensime-slow-suite)))
+          (tests (append ensime-fast-suite
+                         ensime-slow-suite
+                         ensime-non-working-suite)))
       (dolist (test tests)
         (let ((title (plist-get test :title)))
           (when (integerp (string-match key title))
