@@ -1630,13 +1630,11 @@
 ;;  (ensime-run-suite ensime-non-working-suite)
   )
 
-(defun ensime-run-one-test ()
+(defun ensime-run-one-test (key)
   "Run a single test selected by title."
-  (interactive)
+  (interactive "sEnter a regex matching a test's title: ")
   (catch 'done
-    (let ((key (read-string
-                "Enter a regex matching a test's title: "))
-          (tests (append ensime-fast-suite
+    (let ((tests (append ensime-fast-suite
                          ensime-slow-suite
                          ensime-non-working-suite)))
       (dolist (test tests)
