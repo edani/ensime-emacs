@@ -33,6 +33,3 @@
 (menu-bar-mode 0)
 (toggle-scroll-bar 0)
 (setq backup-directory-alist '(("." . (ensime-temp-directory))))
-
-(when (y-or-n-p "Run ENSIME tests?")
-  (ensime-run-all-tests))
