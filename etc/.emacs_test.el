@@ -1,4 +1,20 @@
-(add-to-list 'load-path "../dist/elisp/")
+(setq user-emacs-directory (expand-file-name "./emacs.d"))
+(require 'package)
+(add-to-list 'package-archives
+             '("melpa" . "http://melpa.milkbox.net/packages/") t)
+(when (< emacs-major-version 24)
+  (add-to-list 'package-archives '("gnu" . "http://elpa.gnu.org/packages/")))
+(package-initialize)
+(require 'cl)
+(let ((needed-packages '(auto-complete)))
+  (unless (every #'package-installed-p needed-packages)
+    (package-refresh-contents)
+    (dolist (p needed-packages)
+      (unless (package-installed-p p)
+        (package-install p)))))
+
+
+(add-to-list 'load-path "../dist/")
 (require 'ensime)
 (require 'ensime-test)
 (setq ensime-test-dev-home (expand-file-name "../"))
@@ -17,6 +33,3 @@
 (menu-bar-mode 0)
 (toggle-scroll-bar 0)
 (setq backup-directory-alist '(("." . (ensime-temp-directory))))
-
-(when (y-or-n-p "Run ENSIME tests?")
-  (ensime-run-all-tests))
