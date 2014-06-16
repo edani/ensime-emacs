@@ -122,7 +122,9 @@
      (set (make-local-variable 'comint-use-prompt-regexp) t)
      (set (make-local-variable 'comint-prompt-read-only) t)
      (set (make-local-variable 'comint-output-filter-functions)
-	  '(ansi-color-process-output comint-postoutput-scroll-to-bottom))
+	  '(ansi-color-process-output
+            comint-postoutput-scroll-to-bottom
+            ensime-inf-postoutput-filter))
      (set (make-local-variable 'comint-input-filter-functions)
           (function (lambda (str) (compilation-forget-errors) str)))
 

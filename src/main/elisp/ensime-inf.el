@@ -92,7 +92,9 @@ server."
        'ensime-inf-input-sender)
 
   (set (make-local-variable 'comint-output-filter-functions)
-       '(ansi-color-process-output comint-postoutput-scroll-to-bottom))
+       '(ansi-color-process-output
+         comint-postoutput-scroll-to-bottom
+         ensime-inf-postoutput-filter))
 
   (if ensime-inf-ansi-support
       (set (make-local-variable 'ansi-color-for-comint-mode) t)
@@ -257,5 +259,70 @@ Used for determining the default in the next one.")
   (interactive)
   (ensime-inf-assert-running)
   (ensime-inf-send-string "\n:quit"))
+
+
+(defun ensime-inf-postoutput-filter (ignored)
+  (ensime-inf-highlight-stack-traces
+   comint-last-output-start
+   (process-mark (get-buffer-process (current-buffer)))))
+
+(defun ensime-inf-highlight-stack-traces (begin end)
+  "Highlight stack traces in the given region"
+  (save-excursion
+    (goto-char begin)
+    (goto-char (point-at-bol))
+    (while
+        (search-forward-regexp
+         "^[[:space:]]+at .+(.+)[[:space:]]*$"
+         end t)
+      (let ((b (match-beginning 0))
+            (e (match-end 0)))
+        (ensime-inf-highlight-1-stack-trace-line b)
+        (setf begin b)))))
+
+(defun ensime-inf-highlight-1-stack-trace-line (point)
+  "Highlight the lin of stack trace that contains POINT."
+  ;; Highlight exception message
+  (save-excursion
+    (goto-char (point-at-bol 0)) ;; back up one line
+    (when (search-forward-regexp "^[^[:space:]]" (point-at-eol) t)
+      (put-text-property (point-at-bol) (point-at-eol)
+                         'font-lock-face 'compilation-error-face)))
+
+  (save-excursion
+    (goto-char (point-at-bol))
+    (put-text-property (point-at-bol) (point-at-eol)
+                       'font-lock-face 'compilation-error-face)
+    (when
+        (search-forward-regexp
+         "^[[:space:]]+at \\([a-zA-Z0-9_$.]+\\)\\.\\([^.]+\\)(\\(.+\\):\\([0-9]+\\))[[:space:]]*$"
+         (point-at-eol) t)
+      (let ((class (match-string-no-properties 1))
+            (method (match-string-no-properties 2))
+            (file (match-string-no-properties 3))
+            (line (string-to-number (match-string-no-properties 4)))
+            (link-start (match-beginning 3))
+            (link-end (match-end 4)))
+        (ensime-inf-make-method-button class method file line link-start link-end)))))
+
+(defun ensime-inf-make-method-button(class method file line link-start link-end)
+  (let* ((scala-type
+         (cond
+          ((string-match "^\\([^$]+\\)\\$\\$.*$" class) (match-string 1 class))
+          ((string-match "^\\([^$]+\\$\\).*$" class) (match-string 1 class))
+          ((string-match "^\\([^$]+\\).*$" class) (match-string 1 class))))
+         (info (ensime-rpc-get-type-by-name scala-type)))
+    (when (and (not info) (search "$" scala-type))
+      ;; Try the type without "$". We can't always tell classes an objects
+      ;; apart.
+      (setq scala-type (replace-regexp-in-string "\\$" "" scala-type ))
+      (setq info (ensime-rpc-get-type-by-name scala-type)))
+    (when (and info (plist-get info :pos))
+      (let ((pos (list* :line line (plist-get info :pos))))
+        (make-text-button link-start link-end
+                          'help-echo "mouse-1, RET: go to source"
+                          'follow-link t
+                          'action `(lambda (ignore)
+                                     (ensime-goto-source-location ',pos t)))))))
 
 (provide 'ensime-inf)
