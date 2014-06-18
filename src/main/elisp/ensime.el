@@ -681,10 +681,9 @@ argument is supplied) is a .scala or .java file."
 		  (t " [ENSIME: No Connection]")))
 
 		((and ensime-mode (ensime-connected-p conn))
-		 (concat " "
-			 "[ENSIME: "
+		 (concat " ["
 			 (or (plist-get (ensime-config conn) :project-name)
-			     "Connected...")
+			     "ENSIME: Connected...")
 			 (let ((status (ensime-modeline-state-string conn))
 			       (unready (not (ensime-analyzer-ready conn))))
 			   (cond (status (concat " (" status ")"))
