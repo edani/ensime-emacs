@@ -2281,6 +2281,7 @@ any buffer visiting the given file."
 
     (when (ensime-file-in-directory-p effective-file (ensime-source-jars-dir))
       (with-current-buffer (get-file-buffer effective-file)
+	(auto-revert-mode t)
         (setq buffer-read-only t)))))
 
 ;; Compilation result interface
