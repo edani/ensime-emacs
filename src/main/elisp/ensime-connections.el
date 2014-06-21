@@ -343,9 +343,8 @@ This doesn't mean it will connect right after Ensime is loaded."
 (defun ensime-connect (host port)
   "Connect to a running Swank server. Return the connection."
   (interactive (list
-        (read-from-minibuffer "Host: " ensime-default-server-host)
-        (read-from-minibuffer "Port: " (format "%d" ensime-default-port)
-                      nil t)))
+        (read-from-minibuffer "Host: " "127.0.0.1")
+        (read-from-minibuffer "Port: " (format "%d" ensime-default-server-port) nil t)))
   (when (and (interactive-p) ensime-net-processes
          (y-or-n-p "Close old connections first? "))
     (ensime-disconnect-all))
