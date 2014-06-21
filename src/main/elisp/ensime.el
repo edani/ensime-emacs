@@ -31,7 +31,7 @@
 
 (eval-and-compile
   (when (<= emacs-major-version 21)
-    (error "Ensime requires an Emacs version of 21, or above")))
+    (error "Ensime requires Emacs 22 or higher")))
 
 (eval-when-compile
   (require 'cl)
@@ -63,6 +63,7 @@
 (require 'ensime-doc)
 (require 'ensime-semantic-highlight)
 (require 'ensime-ui)
+(require 'ensime-server-downloader)
 (require 'timer)
 (eval-when (compile)
   (require 'apropos)
@@ -75,6 +76,11 @@
 (defgroup ensime-ui nil
   "Interaction with the ENhanced Scala Environment UI."
   :group 'ensime)
+
+(defcustom ensime-default-buffer-prefix "inferior-ensime-server-"
+  "The prefix of the buffer that the ENSIME server process runs in."
+  :type 'string
+  :group 'ensime-ui)
 
 (defcustom ensime-truncate-lines t
   "Set `truncate-lines' in popup buffers.
@@ -118,25 +124,48 @@
   :type 'hook
   :group 'ensime-server)
 
-(defcustom ensime-default-server-host "127.0.0.1"
-  "The default hostname (or IP address) to connect to."
-  :type 'string
+(defcustom ensime-default-server-port "0"
+  "The port that a new server will use for Swank communication.
+   A value of 0 allows the server to assign the first available port."
+  :type 'int
   :group 'ensime-server)
 
-(defcustom ensime-default-port 0
-  "Port to use as the default for `ensime-connect'."
-  :type 'integer
+(defcustom ensime-default-server-env ()
+  "A `process-environment' compatible list of environment variables"
+  :type '(repeat string)
   :group 'ensime-server)
 
-(defcustom ensime-default-server-cmd "bin/server"
-  "Command to launch server process."
+(defun ensime--parent-dir (dir)
+  (unless (equal "/" dir)
+    (file-name-directory (directory-file-name dir))))
+
+(defcustom ensime-default-java-home
+  (cond ((getenv "JDK_HOME"))
+	((getenv "JAVA_HOME"))
+	('t (let ((java (file-truename (executable-find "java"))))
+	      (warn "JDK_HOME and JAVA_HOME are not set, inferring from %s" java)
+	      (ensime--parent-dir (ensime--parent-dir java)))))
+  "Location of the JDK's base directory"
   :type 'string
   :group 'ensime-server)
 
 (defcustom ensime-default-server-root
-     (file-name-directory
-      (locate-library "ensime"))
-  "Location of ENSIME server library."
+  (expand-file-name "~/.emacs.d/ensime-servers/")
+  "Location of ENSIME server(s), further classified by a directory
+   named by the scala version, and then release jars."
+  :type 'directory
+  :group 'ensime-server)
+
+(defcustom ensime-server-maven-prefix
+  "http://dl.bintray.com/ensime/maven/org/ensime/ensime_"
+  "Prefix of binary server downloads from a remote maven repository."
+  :type 'string
+  :group 'ensime-server)
+
+(defcustom ensime-default-scala-version
+  "2.9.3"
+  "Default version of scala. An appropriate version of the server
+   will be obtained. Must be exact to minor release."
   :type 'string
   :group 'ensime-server)
 
@@ -149,8 +178,6 @@
 
 (defvar ensime-prefer-noninteractive nil
   "State variable used for regression testing.")
-
-(defvar ensime-server-buffer-name "*inferior-ensime-server*")
 
 (defvar ensime-popup-in-other-frame nil)
 
@@ -710,27 +737,44 @@ argument is supplied) is a .scala or .java file."
 	   (cond ((zerop pending) nil)
 		 (t (format "%s" pending)))))))
 
+(defun ensime--age-file (file)
+  (float-time
+   (time-subtract (current-time)
+		  (nth 5 (or (file-attributes (file-truename file))
+			     (file-attributes file))))))
+
 ;; Startup
-(defun* ensime-1 ()
+(defun* ensime--1 ()
   (when (and (ensime-source-file-p) (not ensime-mode))
     (ensime-mode 1))
-  (let* ((config (ensime-config-find-and-load)))
-
+  (let* ((config-file (ensime-config-find))
+	 (config (ensime-config-load config-file))
+	 (cache-dir (concat config-file "_cache")))
     (when (not (null config))
-      (let* ((cmd (or (plist-get config :server-cmd)
-		      ensime-default-server-cmd))
-	     (env (plist-get config :server-env))
-	     (dir (or (plist-get config :server-root)
-		      ensime-default-server-root))
-	     (buffer ensime-server-buffer-name)
-	     (server-host (or (plist-get config :server-host) ensime-default-server-host))
-	     (server-port (number-to-string (or (plist-get config :server-port) ensime-default-port)))
-	     (args (list (ensime-swank-port-file) server-host server-port)))
+      ;; the cache-dir is based on the filename, not the :root-dir, so
+      ;; projects can potentially have multiple ENSIME servers
+      ;; attached (each with a different config)
+      (make-directory cache-dir 't)
+      (let* ((scala-version (or (plist-get config :scala-version) ensime-default-scala-version))
+	     (server-port (or (plist-get config :server-port) ensime-default-server-port))
+	     (server-env (or (plist-get config :server-env) ensime-default-server-env))
+	     (name (or (plist-get config :name) "NO_NAME"))
+	     (buffer (or (plist-get config :buffer) (concat ensime-default-buffer-prefix name)))
+	     (server-jar (ensime-get-or-download-server scala-version ))
+	     (server-java (or (plist-get config :java-home) ensime-default-java-home)))
 
-	(ensime-delete-swank-port-file 'quiet)
-	(let ((server-proc (ensime-maybe-start-server cmd args env dir buffer)))
-	  (ensime-inferior-connect config server-proc)))
-      )))
+	;; TODO: get this working
+	;; (when (> (ensime--age-file server-jar) 1209600.0)
+	;;   (message (concat "Your version of the ENSIME server is over two weeks old"
+	;; 		   "consider upgrading with `M-x ensime-update-server " scala-version
+	;; 		   "` . `touch " server-jar "` to make this message go away."
+	;;;)))
+	
+	(let ((server-proc (ensime--maybe-start-server
+			    (generate-new-buffer-name (concat "*" buffer "*"))
+			    server-java server-jar server-env cache-dir server-port)))
+	      (when server-proc
+	        (ensime--retry-connect server-proc config cache-dir 2)))))))
 
 
 ;;;###autoload
@@ -738,7 +782,7 @@ argument is supplied) is a .scala or .java file."
   "Read config file for settings. Then start an inferior
    ENSIME server and connect to its Swank server."
   (interactive)
-  (ensime-1))
+  (ensime--1))
 
 (defun ensime-reload ()
   "Re-initialize the project with the current state of the config file.
@@ -747,50 +791,39 @@ Analyzer will be restarted. All source will be recompiled."
   (ensime-assert-connected
    (let* ((conn (ensime-current-connection))
 	  (current-conf (ensime-config conn))
-	  (config (ensime-config-find-and-load
-		   (plist-get current-conf :root-dir))))
+	  (force-dir (plist-get current-conf :root-dir))
+	  (config (ensime-config-load (ensime-config-find force-dir) force-dir)))
 
      (when (not (null config))
        (ensime-set-config conn config)
        (ensime-init-project conn config)))))
 
-(defun ensime-maybe-start-server (program program-args env directory buffer)
+(defun ensime--maybe-start-server (buffer javahome jar env cache-dir request-port)
   "Return a new or existing inferior server process."
-  (cond ((not (comint-check-proc buffer))
-	 (ensime-start-server program program-args env directory buffer))
-	((ensime-reinitialize-inferior-server-p program program-args env buffer)
-	 (when-let (conn (find (get-buffer-process buffer) ensime-net-processes
-			       :key #'ensime-server-process))
-                   (ensime-net-close conn))
-	 (get-buffer-process buffer))
-	(t (ensime-start-server program program-args env directory
-				(generate-new-buffer-name buffer)))))
-
-
-(defun ensime-reinitialize-inferior-server-p (program program-args env buffer)
-  (let ((args (ensime-inferior-server-args (get-buffer-process buffer))))
-    (and (equal (plist-get args :program) program)
-	 (equal (plist-get args :program-args) program-args)
-	 (equal (plist-get args :env) env)
-	 (not (y-or-n-p "Create an additional *inferior-server*? ")))))
-
+  (let (existing (comint-check-proc buffer))
+    (if existing existing
+      (ensime--start-server buffer javahome jar env cache-dir request-port))))
 
 (defvar ensime-server-process-start-hook nil
   "Hook called whenever a new process gets started.")
 
-(defun ensime-start-server (program program-args env directory buffer)
-  "Does the same as `inferior-server' but less ugly.
+(defun ensime--start-server (buffer javahome jar user-env cache-dir request-port)
+  "Starts an ensime server in the given buffer.
    Return the created process."
   (with-current-buffer (get-buffer-create buffer)
-    (when directory
-      (cd (expand-file-name directory)))
     (comint-mode)
-    (let ((process-environment (append env process-environment))
-	  (process-connection-type nil))
+    (let* ((process-environment (append user-env process-environment))
+	  (command (concat javahome "/bin/java"))
+	  (tools (concat "-Xbootclasspath/a:" javahome "/lib/tools.jar"))
+	  (args (list tools
+		      "-classpath" jar "-Dscala.usejavacp=true"
+		      (concat "-Densime.cachedir=" (expand-file-name cache-dir))
+		      (concat "-Densime.requestport=" request-port)
+		      "org.ensime.server.Server")))
       (set (make-local-variable 'comint-process-echoes) nil)
       (set (make-local-variable 'comint-use-prompt-regexp) nil)
-      (comint-exec (current-buffer) ensime-server-buffer-name
-		   program nil program-args))
+      (insert "Starting ENSIME: " command " " (mapconcat 'identity args " "))
+      (comint-exec (current-buffer) buffer command nil args))
     (let ((proc (get-buffer-process (current-buffer))))
       (ensime-set-query-on-exit-flag proc)
       (run-hooks 'ensime-server-process-start-hook)
@@ -801,21 +834,6 @@ Analyzer will be restarted. All source will be recompiled."
   "Request that the current ENSIME server kill itself."
   (interactive)
   (ensime-quit-connection (ensime-current-connection)))
-
-
-(defvar ensime-inferior-server-args nil
-  "A buffer local variable in the inferior proccess. See `ensime-start'.")
-
-(defun ensime-inferior-server-args (process)
-  "Return the initial process arguments.
-   See `ensime-start'."
-  (with-current-buffer (process-buffer process)
-    ensime-inferior-server-args))
-
-(defun ensime-inferior-connect (config server-proc)
-  "Start a Swank server in the inferior Server and connect."
-  (ensime-read-port-and-connect config server-proc nil))
-
 
 (defun ensime-file-in-directory-p (file-name dir-name)
   "Determine if file named by file-name is contained in the
@@ -857,25 +875,24 @@ defined."
     (let ((config (ensime-config (ensime-current-connection))))
       (plist-get config :root-dir))))
 
-(defun ensime-swank-port-file ()
-  "Filename where the SWANK server writes its TCP port number."
-  (ensime-temp-file-name (format "ensime_port.%S" (emacs-pid))))
-
-(defun ensime-read-swank-port ()
-  "Read the Swank server port number from the `ensime-swank-port-file'."
-  (save-excursion
-    (with-temp-buffer
-      (insert-file-contents (ensime-swank-port-file))
-      (goto-char (point-min))
-      (let ((port (read (current-buffer))))
-	(assert (integerp port))
-	port))))
+(defun ensime-read-swank-port (portfile)
+  "Read the Swank server port number from the `cache-dir',
+   or nil if none was found."
+  (when (file-exists-p portfile) 
+    (save-excursion
+      (with-temp-buffer
+	(insert-file-contents portfile)
+	(goto-char (point-min))
+	(let ((port (read (current-buffer))))
+	  (assert (integerp port))
+	  port)))))
 
 (defun ensime-temp-file-name (name)
   "Return the path of a temp file with filename 'name'."
   (expand-file-name
    (concat (file-name-as-directory (ensime-temp-directory)) name)))
 
+; TODO deprecate and rewrite callers to use the cache-dir
 (defun ensime-temp-directory ()
   "Return the directory name of the system's temporary file dump."
   (cond ((fboundp 'temp-directory) (temp-directory))
@@ -897,116 +914,66 @@ defined."
   (concat (file-name-as-directory (ensime-temp-directory))
 	  name))
 
-(defun ensime-delete-swank-port-file (&optional quiet)
-  (condition-case data
-      (delete-file (ensime-swank-port-file))
-    (error
-     (ecase quiet
-       ((nil) (signal (car data) (cdr data)))
-       (quiet)
-       (message (message "Unable to delete swank port file %S"
-			 (ensime-swank-port-file)))))))
-
-(defun ensime-read-port-and-connect (config server-proc retries)
-  (ensime-cancel-connect-retry-timer)
-  (ensime-attempt-connection config server-proc retries 1))
-
-
-(defun ensime-attempt-connection (config server-proc retries attempt)
-  ;; A small one-state machine to attempt a connection with
-  ;; timer-based retries.
-  (let ((host (or (plist-get config :server-host) ensime-default-server-host))
-	(port-file (ensime-swank-port-file)))
-    (unless (active-minibuffer-window)
-      (message "Polling %S.. (Abort with `M-x ensime-abort-connection'.)"
-	       port-file))
-    (cond ((and (file-exists-p port-file)
-		(> (nth 7 (file-attributes port-file)) 0)) ; file size
-	   (ensime-cancel-connect-retry-timer)
-	   (let ((port (ensime-read-swank-port))
-		 (args (ensime-inferior-server-args server-proc)))
-	     (message "Read port %S from %S." port port-file)
-	     (ensime-delete-swank-port-file 'message)
-	     (let ((c (ensime-connect host port)))
-
-	       ;; It may take a few secs to get the
-	       ;; source roots back from the server,
-	       ;; so we won't know immediately if currently
-	       ;; visited source is part of the new
-	       ;; project.
-	       ;;
-	       ;; Make an educated guess for the sake
-	       ;; of UI snappiness (fast mode-line
-	       ;; update).
-	       (when (and (ensime-source-file-p)
-			  (plist-get config :root-dir)
-			  (ensime-file-in-directory-p
-			   buffer-file-name
-			   (plist-get config :root-dir))
-			  (not (ensime-connected-p)))
-		 (setq ensime-buffer-connection c))
-
-	       (ensime-set-config c config)
-
-	       (let ((ensime-dispatching-connection c))
-		 (ensime-eval-async
-		  '(swank:connection-info)
-		  (ensime-curry #'ensime-handle-connection-info c)))
-
-	       (ensime-set-server-process c server-proc)
-	       ;; As a conveniance, we associate the client connection with
-	       ;; the server buffer.
-	       ;; This assumes that there's only one client connection
-	       ;; per server. So far this is a safe assumption.
-	       (when-let (server-buf (process-buffer server-proc))
-                         (with-current-buffer server-buf
-                           (setq ensime-buffer-connection c)))
-
-	       )))
-	  ((and retries (zerop retries))
-	   (ensime-cancel-connect-retry-timer)
-	   (message "Gave up connecting to Swank after %d attempts." attempt))
+(defun ensime--retry-connect (server-proc config cache-dir attempts)
+  (let* ((portfile (concat cache-dir "/port"))
+	 (port (ensime-read-swank-port portfile)))
+    (cond (ensime--abort-connection
+	   (setq ensime--abort-connection nil)
+	   (message "Aborted"))
+	  ((>= 0 attempts)
+	   (message "Ran out of connection attempts."))
 	  ((eq (process-status server-proc) 'exit)
-	   (ensime-cancel-connect-retry-timer)
-	   (message "Failed to connect to Swank: server process exited."))
+	   (message "Failed to connect: server process exited."))
 	  (t
-	   (when (and (file-exists-p port-file)
-		      (zerop (nth 7 (file-attributes port-file))))
-	     (message "(Zero length port file)")
-	     ;; the file may be in the filesystem but not yet written
-	     (unless retries (setq retries 3)))
-	   (unless ensime-connect-retry-timer
-	     (setq ensime-connect-retry-timer
-		   (run-with-timer
-		    0.3 0.3
-		    #'ensime-timer-call #'ensime-attempt-connection
-		    config server-proc (and retries (1- retries))
-		    (1+ attempt))))))))
+	   (unless (when port (ensime--connect server-proc config port))
+	     (run-at-time "1 sec" nil
+			  #'ensime-timer-call #'ensime--retry-connect
+			  server-proc config cache-dir (1- attempts)))))))
 
-(defvar ensime-connect-retry-timer nil
-  "Timer object while waiting for the inferior server to start.")
-
+(defun ensime--connect (server-proc config port)
+  ; non-nil if a connection was made, nil otherwise
+  (let ((c (ensime-connect "127.0.0.1" port)))
+    ;; It may take a few secs to get the source roots back from the
+    ;; server, so we won't know immediately if currently visited
+    ;; source is part of the new project. Make an educated guess for
+    ;; the sake of UI snappiness (fast mode-line update).
+    (when (and (ensime-source-file-p)
+	       (plist-get config :root-dir)
+	       (ensime-file-in-directory-p
+		buffer-file-name
+		(plist-get config :root-dir))
+	       (not (ensime-connected-p)))
+      (setq ensime-buffer-connection c))
+    
+    (ensime-set-config c config)
+    
+    (let ((ensime-dispatching-connection c))
+      (ensime-eval-async
+       '(swank:connection-info)
+       (ensime-curry #'ensime-handle-connection-info c)))
+    
+    (ensime-set-server-process c server-proc)
+    ;; As a convenience, we associate the client connection with the
+    ;; server buffer. This assumes that there's only one client
+    ;; connection per server. So far this is a safe assumption.
+    (when-let (server-buf (process-buffer server-proc))
+	      (with-current-buffer server-buf
+		(setq ensime-buffer-connection c)))))
+  
 (defun ensime-timer-call (fun &rest args)
   "Call function FUN with ARGS, reporting all errors.
-
-The default condition handler for timer functions (see
-`timer-event-handler') ignores errors."
+   The default condition handler for timer functions (see
+   `timer-event-handler') ignores errors."
   (condition-case data
       (apply fun args)
     (error (debug nil (list "Error in timer" fun args data)))))
 
-(defun ensime-cancel-connect-retry-timer ()
-  (when ensime-connect-retry-timer
-    (cancel-timer ensime-connect-retry-timer)
-    (setq ensime-connect-retry-timer nil)))
+(defvar ensime--abort-connection nil)
 
-(defun ensime-abort-connection ()
+(defun ensime--abort-connection ()
   "Abort connection the current connection attempt."
   (interactive)
-  (cond (ensime-connect-retry-timer
-	 (ensime-cancel-connect-retry-timer)
-	 (message "Cancelled connection attempt."))
-	(t (error "Not connecting"))))
+  (setq ensime-abort-connection 't))
 
 
 ;; typecheck continually when idle

@@ -278,7 +278,7 @@
 	(if (not (equal dir (directory-file-name dir)))
 	    (ensime-config-find-file (directory-file-name dir)))))))
 
-(defun ensime-config-find-and-load (&optional force-dir)
+(defun ensime-config-find (&optional force-dir)
   "Query the user for the path to a config file, then load it."
   (let* ((hint (or force-dir buffer-file-name default-directory))
 	 (guess (when hint (ensime-config-find-file hint)))
@@ -312,17 +312,14 @@
 				    " instructions on how to write or"
 				    " generate a config file."))
 		   nil))
-
-	;; If does exist, load it.
-	(ensime-config-load file hint))
-
-      )))
+	file))))
 
 
-(defun ensime-config-load (file-name &optional source-path)
+(defun ensime-config-load (file-name &optional force-dir)
   "Load and parse a project config file. Return the resulting plist.
    The :root-dir setting will be deduced from the location of the project file."
-  (let ((dir (expand-file-name (file-name-directory file-name))))
+  (let ((dir (expand-file-name (file-name-directory file-name)))
+	(source-path (or force-dir buffer-file-name default-directory)))
     (save-excursion
       (let ((config
 	     (let ((buf (find-file-read-only file-name ensime-config-file-name))
@@ -342,7 +339,7 @@
                         (file-name-as-directory
                          (concat
                           dir
-                          (file-name-as-directory ".ensime_cache")
+                          (file-name-as-directory ".ensime_cache/dep-src")
                           (file-name-as-directory "source-jars"))))
 	(ensime-config-maybe-set-active-subproject config source-path)
 	config)
