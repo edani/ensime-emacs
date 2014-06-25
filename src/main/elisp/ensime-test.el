@@ -598,8 +598,41 @@
      "c:/home/blamon/a/b/d.txt"
      (ensime-relativise-path  "c:/home/blamon/a/b/d.txt" "c:/home/aemon/")))
 
-   ))
+   (ensime-test
+    "Test ensime-config-candidate-subprojects"
+    (let ((config
+           '(
+             :source-roots ("/common/sources")
+             :subprojects
+             ((:module-name "C"
+               :source-roots ("/sources/of/c"))
+              (:module-name "A"
+               :depends-on-modules ("B")
+               :source-roots ("/sources/of/a"))
+              (:module-name "B"
+               :depends-on-modules ("C")
+               :source-roots ("/sources/of/b"))
+              (:module-name "Y"
+               :source-roots ("/common/sources"))
+              (:module-name "Z")))))
+      (ensime-assert-equal
+       (ensime-config-candidate-subprojects config "/sources/of/c/FILE")
+       '("A" "B" "C"))
+      (ensime-assert-equal
+       (ensime-config-candidate-subprojects config "/sources/of/b/FILE")
+       '("A" "B"))
+      (ensime-assert-equal
+       (ensime-config-candidate-subprojects config "/sources/of/a/FILE")
+       '("A"))
+      (ensime-assert-equal
+       (ensime-config-candidate-subprojects config "/something/else")
+       '("A" "B" "C" "Y" "Z"))
+      (ensime-assert-equal
+       (ensime-config-candidate-subprojects config "/common/sources/FILE")
+       '("A" "B" "C" "Y" "Z"))
+      ))
 
+   ))
 
 
 (defvar ensime-slow-suite
