@@ -3108,16 +3108,18 @@ with the current project's dependencies loaded. Returns a property list."
   (let* ((type (ensime-member-type m))
 	 (pos (ensime-member-pos m))
 	 (member-name (ensime-member-name m))
-	 (url (or (ensime-pos-file pos)
-		  (ensime-make-doc-url owner-type m)
-		  )))
+	 (url-or-pos
+          (if (ensime-pos-valid-local-p pos)
+              pos
+            (ensime-make-doc-url owner-type m))))
 
     (if (or (equal 'method (ensime-declared-as m))
 	    (equal 'field (ensime-declared-as m)))
 	(progn
 	  (ensime-insert-link
-	   (format "%s" member-name) url
-	   (or (ensime-pos-offset pos) 0)
+	   (format "%s" member-name)
+           url-or-pos
+           nil
 	   font-lock-function-name-face)
 	  (tab-to-tab-stop)
 	  (ensime-inspector-insert-linked-type type nil nil))
