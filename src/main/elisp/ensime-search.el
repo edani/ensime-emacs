@@ -201,14 +201,14 @@
 	;; jump there..
 	(let ((pos (ensime-search-sym-pos item)))
 	  (let* ((file-name (ensime-pos-file pos))
-		 (offset (+ (ensime-pos-offset pos) ensime-ch-fix)))
+		 (offset (ensime-pos-offset pos)))
 	    (if (and file-name
 		     (integerp (string-match
 				"\\.scala$\\|\\.java$"
 				file-name)))
 		(progn
 		  (find-file file-name)
-		  (goto-char offset))
+		  (goto-char (ensime-internalize-offset offset)))
 
 	      ;; Otherwise, open the inspector
 	      (let ((decl-as (ensime-search-sym-decl-as item)))
