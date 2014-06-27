@@ -1081,6 +1081,14 @@ since the last typecheck."
                                            (ensime-internalize-offset ,offset)
                                          0))))))
 
+(defun ensime-make-pos-link (start end pos &optional face)
+  "Make an emacs button, from start to end in current buffer,
+ linking to pos"
+  (make-button start end
+	       'face (or face font-lock-keyword-face)
+	       'action `(lambda (x)
+			  (ensime-goto-source-location ',pos t))))
+
 (defun ensime-make-code-hyperlink (start end http-path &optional face)
   "Make an emacs button, from start to end in current buffer,
  hyperlinking to http-path."
@@ -1094,21 +1102,26 @@ since the last typecheck."
 (defun ensime-http-url-p (s)
   (and (stringp s) (or (string-match "http://" s) (string-match "https://" s) (string-match "file://" s))))
 
-(defun ensime-insert-link (text file-path &optional offset face line)
+(defun ensime-insert-link (text pos-or-path &optional offset face line)
   "Insert text in current buffer and make it into an emacs
  button, linking to file-path and offset. Intelligently decide
  whether to make a source link or an http link based on the file-path."
   (let ((start (point)))
     (cond
-     ((and file-path (ensime-http-url-p file-path))
+     ((and pos-or-path (ensime-http-url-p pos-or-path))
       (progn
 	(insert text)
-	(ensime-make-code-hyperlink start (point) file-path face)))
+	(ensime-make-code-hyperlink start (point) pos-or-path face)))
 
-     ((and file-path (or (integerp offset) (integerp line)))
+     ((and pos-or-path (stringp pos-or-path) (or (integerp offset) (integerp line)))
       (progn
 	(insert text)
-	(ensime-make-code-link start (point) file-path offset face line)))
+	(ensime-make-code-link start (point) pos-or-path offset face line)))
+
+     ((and (listp pos-or-path) (ensime-pos-valid-local-p pos-or-path))
+      (progn
+	(insert text)
+        (ensime-make-pos-link start (point) pos-or-path face)))
 
      (t
       (progn
@@ -3060,12 +3073,12 @@ with the current project's dependencies loaded. Returns a property list."
 	  (insert "]")))
 
       (when with-doc-link
-	(let* ((pos (plist-get type :pos))
-	       (url (or (ensime-pos-file pos)
-			(ensime-make-doc-url type)
-			)))
-	  (ensime-insert-link " doc" url
-			      (or (ensime-pos-offset pos) 0))))
+        (insert " ")
+        (ensime-insert-link "doc" (ensime-make-doc-url type))
+	(let ((pos (plist-get type :pos)))
+          (when (ensime-pos-valid-local-p pos)
+            (insert " ")
+            (ensime-insert-link "source" pos))))
 
       )))
 
