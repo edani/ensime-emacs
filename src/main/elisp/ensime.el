@@ -3384,7 +3384,7 @@ inspect the package of the current source file."
     (let ((ensime-indent-level (+ ensime-indent-level 5)))
       (dolist (ea members)
 	(when (not (ensime-package-p ea))
-	  (ensime-inspector-insert-linked-type ea nil nil)
+	  (ensime-inspector-insert-linked-type ea t nil)
 	  (ensime-insert-with-face
 	   (format " %s" (ensime-declared-as-str ea))
 	   font-lock-comment-face)
