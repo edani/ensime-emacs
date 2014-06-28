@@ -53,7 +53,7 @@
     (if latest
 	(progn (message
 		"This ENSIME server is the latest locally available for scala %s: %s"
-		scala-version latest)
+		scala-version (first latest))
 	       (car latest))
       (warn (concat "No local ENSIME servers were found, trying to download one."
 	    " This might freeze emacs if you're behind a corporate firewall."
