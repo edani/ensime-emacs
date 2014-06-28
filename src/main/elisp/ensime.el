@@ -163,7 +163,7 @@
   :group 'ensime-server)
 
 (defcustom ensime-default-scala-version
-  "2.9.3"
+  "2.10.4"
   "Default version of scala. An appropriate version of the server
    will be obtained. Must be exact to minor release."
   :type 'string
