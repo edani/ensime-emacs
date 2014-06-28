@@ -39,6 +39,7 @@
   (require 'ensime-core)
   (require 'ensime-connections))
 
+(require 'dash)
 (require 'arc-mode)
 (require 'thingatpt)
 (require 'comint)
@@ -147,6 +148,11 @@
 	      (ensime--parent-dir (ensime--parent-dir java)))))
   "Location of the JDK's base directory"
   :type 'string
+  :group 'ensime-server)
+
+(defcustom ensime-default-java-flags ()
+  "Flags sent to the java instance when the server is started"
+  :type '(repeat string)
   :group 'ensime-server)
 
 (defcustom ensime-default-server-root
@@ -761,7 +767,8 @@ argument is supplied) is a .scala or .java file."
 	     (name (or (plist-get config :name) "NO_NAME"))
 	     (buffer (or (plist-get config :buffer) (concat ensime-default-buffer-prefix name)))
 	     (server-jar (ensime-get-or-download-server scala-version ))
-	     (server-java (or (plist-get config :java-home) ensime-default-java-home)))
+	     (server-java (or (plist-get config :java-home) ensime-default-java-home))
+	     (server-flags (or (plist-get config :java-flags) ensime-default-java-flags)))
 
 	;; TODO: get this working
 	;; (when (> (ensime--age-file server-jar) 1209600.0)
@@ -772,7 +779,7 @@ argument is supplied) is a .scala or .java file."
 	
 	(let ((server-proc (ensime--maybe-start-server
 			    (generate-new-buffer-name (concat "*" buffer "*"))
-			    server-java server-jar server-env cache-dir server-port)))
+			    server-java server-flags server-jar server-env cache-dir server-port)))
 	      (when server-proc
 	        (ensime--retry-connect server-proc config cache-dir 2)))))))
 
@@ -798,16 +805,16 @@ Analyzer will be restarted. All source will be recompiled."
        (ensime-set-config conn config)
        (ensime-init-project conn config)))))
 
-(defun ensime--maybe-start-server (buffer javahome jar env cache-dir request-port)
+(defun ensime--maybe-start-server (buffer javahome flags jar env cache-dir request-port)
   "Return a new or existing inferior server process."
   (let (existing (comint-check-proc buffer))
     (if existing existing
-      (ensime--start-server buffer javahome jar env cache-dir request-port))))
+      (ensime--start-server buffer javahome flags jar env cache-dir request-port))))
 
 (defvar ensime-server-process-start-hook nil
   "Hook called whenever a new process gets started.")
 
-(defun ensime--start-server (buffer javahome jar user-env cache-dir request-port)
+(defun ensime--start-server (buffer javahome flags jar user-env cache-dir request-port)
   "Starts an ensime server in the given buffer.
    Return the created process."
   (with-current-buffer (get-buffer-create buffer)
@@ -815,11 +822,12 @@ Analyzer will be restarted. All source will be recompiled."
     (let* ((process-environment (append user-env process-environment))
 	  (command (concat javahome "/bin/java"))
 	  (tools (concat "-Xbootclasspath/a:" javahome "/lib/tools.jar"))
-	  (args (list tools
-		      "-classpath" jar "-Dscala.usejavacp=true"
-		      (concat "-Densime.cachedir=" (expand-file-name cache-dir))
-		      (concat "-Densime.requestport=" request-port)
-		      "org.ensime.server.Server")))
+	  (args (-flatten (list tools
+				"-classpath" jar "-Dscala.usejavacp=true"
+				flags
+				(concat "-Densime.cachedir=" (expand-file-name cache-dir))
+				(concat "-Densime.requestport=" request-port)
+				"org.ensime.server.Server"))))
       (set (make-local-variable 'comint-process-echoes) nil)
       (set (make-local-variable 'comint-use-prompt-regexp) nil)
       (insert "Starting ENSIME: " command " " (mapconcat 'identity args " "))
