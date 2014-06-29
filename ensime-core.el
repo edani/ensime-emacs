@@ -177,3 +177,8 @@ Do not show 'Writing..' message."
       (ensime-type-type-args-postfix type)))
 
 (provide 'ensime-core)
+
+;; Local Variables:
+;; no-byte-compile: t
+;; End:
+

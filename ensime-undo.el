@@ -87,3 +87,8 @@
 
 
 (provide 'ensime-undo)
+
+;; Local Variables:
+;; no-byte-compile: t
+;; End:
+

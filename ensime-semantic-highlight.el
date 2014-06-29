@@ -140,3 +140,8 @@
 
 
 (provide 'ensime-semantic-highlight)
+
+;; Local Variables:
+;; no-byte-compile: t
+;; End:
+

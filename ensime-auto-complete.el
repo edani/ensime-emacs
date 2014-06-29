@@ -337,3 +337,8 @@ be used later to give contextual help when entering arguments."
   )
 
 (provide 'ensime-auto-complete)
+
+;; Local Variables:
+;; no-byte-compile: t
+;; End:
+
