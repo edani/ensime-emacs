@@ -39,6 +39,10 @@ There are two ways to install this extension. You can use MELPA:
 ;; and then do a M-x package-install RET "ensime" RET
 ```
 
+**WARNING**: there is [a bug that means](https://github.com/ensime/ensime-server/issues/310)
+byte compiled files from MELPA are not currently working. As a workaround, delete all your
+elpa/ensime `.elc` files before loading ENSIME.
+
 Or fork and clone this repository into a directory of your choice and
 add it explicitly into your `~/.emacs`
 
