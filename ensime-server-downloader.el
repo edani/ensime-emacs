@@ -1,6 +1,9 @@
+;;; ensime-server-downloader.el --- Downloads the ENSIME server
+
 (require 'url-handlers)
 (require 'xml)
 
+;;; Code:
 (defun ensime--latest-server-version (scala-version)
   "Query the remote repository for the latest ENSIME release name for scala-version."
   (let* ((ensime-server-base (concat ensime-default-server-root scala-version "/"))
@@ -26,11 +29,12 @@
 
 (defun ensime--download-server (scala-version latest-release)
   "Persists the jar associated to the (scala, ensime) version pair,
-   making it available for immediate use."
+   making it available for immediate use. Returns the jar name."
   (let* ((target (ensime--server-jar scala-version latest-release))
 	 (url (concat ensime-server-maven-prefix scala-version "/" latest-release "/ensime_" scala-version "-" latest-release "-assembly.jar")))
     (warn "Downloading ENSIME server %s to %s (~30MB)" url target)
-    (url-copy-file url target)))
+    (url-copy-file url target)
+    target))
 
 (defun ensime-update-server (scala-version)
   "Check for updates and download the updated server if one is available."
@@ -59,7 +63,7 @@
 	    " This might freeze emacs if you're behind a corporate firewall."
 	    " If that happens, use a developer installation (see the README)."))
       (let* ((updated (ensime-update-server scala-version)))
-	(unless updated
+	(if updated updated
 	  (error
 	   (concat "No ENSIME servers are available for scala %s!"
 		   " The remote server may be unavailable or your config is incorrect."
@@ -67,11 +71,9 @@
 	   scala-version))))))
 
 
-
-
-;(ensime-get-or-download-server "2.9.2")
+;(ensime-get-or-download-server "2.10")
 ;(ensime-get-or-download-server "2.9.3")
 ;(ensime-update-server "2.9.3")
 
 (provide 'ensime-server-downloader)
-
+;;; ensime-server-downloader.el ends here
