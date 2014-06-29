@@ -276,3 +276,8 @@
 
 
 (provide 'ensime-sbt)
+
+;; Local Variables:
+;; no-byte-compile: t
+;; End:
+

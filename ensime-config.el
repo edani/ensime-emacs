@@ -431,3 +431,8 @@
 
 
 (provide 'ensime-config)
+
+;; Local Variables:
+;; no-byte-compile: t
+;; End:
+

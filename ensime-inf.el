@@ -326,3 +326,8 @@ Used for determining the default in the next one.")
                                      (ensime-goto-source-location ',pos t)))))))
 
 (provide 'ensime-inf)
+
+;; Local Variables:
+;; no-byte-compile: t
+;; End:
+

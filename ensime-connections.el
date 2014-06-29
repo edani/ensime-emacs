@@ -380,3 +380,8 @@ This doesn't mean it will connect right after Ensime is loaded."
   )
 
 (provide 'ensime-connections)
+
+;; Local Variables:
+;; no-byte-compile: t
+;; End:
+

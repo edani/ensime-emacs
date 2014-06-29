@@ -843,3 +843,8 @@ the current project's dependencies. Returns list of form (cmd [arg]*)"
    ))
 
 (provide 'ensime-debug)
+
+;; Local Variables:
+;; no-byte-compile: t
+;; End:
+
