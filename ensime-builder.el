@@ -59,3 +59,8 @@ builder can avoid extra work."
       (message "Nothing to rebuild."))))
 
 (provide 'ensime-builder)
+
+;; Local Variables:
+;; no-byte-compile: t
+;; End:
+

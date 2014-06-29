@@ -77,3 +77,8 @@
 
 (provide 'ensime-server-downloader)
 ;;; ensime-server-downloader.el ends here
+
+;; Local Variables:
+;; no-byte-compile: t
+;; End:
+

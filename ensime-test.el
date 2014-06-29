@@ -1679,3 +1679,8 @@
 
 
 (provide 'ensime-test)
+
+;; Local Variables:
+;; no-byte-compile: t
+;; End:
+

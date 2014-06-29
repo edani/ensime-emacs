@@ -4014,3 +4014,8 @@ PROP is the name of a text property."
 
 
 (provide 'ensime)
+
+;; Local Variables:
+;; no-byte-compile: t
+;; End:
+

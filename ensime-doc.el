@@ -181,3 +181,7 @@ browsing the documentation for that symbol."
 
 
 (provide 'ensime-doc)
+;; Local Variables:
+;; no-byte-compile: t
+;; End:
+
