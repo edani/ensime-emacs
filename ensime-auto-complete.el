@@ -20,7 +20,6 @@
 ;;     MA 02111-1307, USA.
 
 (require 'auto-complete)
-(require 'ensime-core)
 
 (defcustom ensime-ac-enable-argument-placeholders t
   "If non-nil, insert placeholder arguments in the buffer on completion."
@@ -204,6 +203,19 @@ be used later to give contextual help when entering arguments."
 
 	  )))))
 
+(defun ensime-in-string-or-comment (pos)
+  "A helper to determine if the text at point is in a string
+   or comment, and therefore should not be considered as part
+   of a paren-balancing calculation.
+
+   TODO: Currently this relies on font-lock-mode. Could be
+   better."
+  (let ((face (plist-get (text-properties-at pos) 'face)))
+    (and face
+     (or
+      (equal face 'font-lock-doc-face)
+      (equal face 'font-lock-string-face)
+      (equal face 'font-lock-comment-face)))))
 
 (defun ensime-ac-get-active-param-info ()
   "Search backward from point for the param info of the call that

@@ -60,10 +60,149 @@ the buffer.  If t, the current connection is taken.
 	 (set-window-point (ensime-display-popup-buffer ,(or select 'nil))
 			   (point))))))
 
+(defmacro ensime-assert-connected (&rest body)
+  "Surround body forms with a check to see if we're connected.
+If not, message the user."
+  `(if (ensime-connected-p)
+       (progn ,@body)
+     (message "This command requires a connection to an ENSIME server.")))
+
+(defmacro ensime-assert-buffer-saved-interactive (&rest body)
+  "Offer to save buffer if buffer is modified. Execute body only if
+buffer is saved."
+  `(if (buffer-modified-p)
+       (if (y-or-n-p "Buffer must be saved to continue. Save now? ")
+	   (progn
+	     (ensime-save-buffer-no-hooks)
+	     ,@body))
+     (progn
+       ,@body)))
+
+(defmacro* ensime-with-connection-buffer ((&optional process) &rest body)
+  "Execute BODY in the process-buffer of PROCESS.
+If PROCESS is not specified, `ensime-connection' is used.
+
+\(fn (&optional PROCESS) &body BODY))"
+  `(with-current-buffer
+       (process-buffer (or ,process (ensime-connection)
+			   (error "No connection")))
+     ,@body))
+
+(defmacro* ensime-with-inspector-buffer ((name object &optional select)
+					 &body body)
+  "Extend the standard popup buffer with inspector-specific bindings."
+  `(ensime-with-popup-buffer
+    (,name t ,select)
+    (use-local-map ensime-popup-inspector-map)
+    (when (not ensime-inspector-paging-in-progress)
+
+      ;; Clamp the history cursor
+      (setq ensime-inspector-history-cursor
+	    (max 0 ensime-inspector-history-cursor))
+      (setq ensime-inspector-history-cursor
+	    (min (- (length ensime-inspector-history) 1)
+		 ensime-inspector-history-cursor))
+
+      ;; Remove all elements preceding the cursor (the 'redo' history)
+      (setq ensime-inspector-history
+	    (subseq ensime-inspector-history
+		    ensime-inspector-history-cursor))
+
+      ;; Add the new history item
+      (push ,object ensime-inspector-history)
+
+      ;; Set cursor to point to the new item
+      (setq ensime-inspector-history-cursor 0)
+
+      )
+    ,@body
+    ))
+
+(defmacro destructure-case (value &rest patterns)
+  "Dispatch VALUE to one of PATTERNS.
+A cross between `case' and `destructuring-bind'.
+The pattern syntax is:
+  ((HEAD . ARGS) . BODY)
+The list of patterns is searched for a HEAD `eq' to the car of
+VALUE. If one is found, the BODY is executed with ARGS bound to the
+corresponding values in the CDR of VALUE."
+  (let ((operator (gensym "op-"))
+	(operands (gensym "rand-"))
+	(tmp (gensym "tmp-")))
+    `(let* ((,tmp ,value)
+	    (,operator (car ,tmp))
+	    (,operands (cdr ,tmp)))
+       (case ,operator
+	 ,@(mapcar (lambda (clause)
+		     (if (eq (car clause) t)
+			 `(t ,@(cdr clause))
+		       (destructuring-bind ((op &rest rands) &rest body) clause
+			 `(,op (destructuring-bind ,rands ,operands
+				 . ,body)))))
+		   patterns)
+	 ,@(if (eq (caar (last patterns)) t)
+	       '()
+	     `((t (error "Elisp destructure-case failed: %S" ,tmp))))))))
+
+
+(defmacro ensime-define-keys (keymap &rest key-command)
+  "Define keys in KEYMAP. Each KEY-COMMAND is a list of (KEY COMMAND)."
+  `(progn . ,(mapcar (lambda (k-c) `(define-key ,keymap . ,k-c))
+		     key-command)))
+
+
+(defmacro* with-struct ((conc-name &rest slots) struct &body body)
+  "Like with-slots but works only for structs.
+\(fn (CONC-NAME &rest SLOTS) STRUCT &body BODY)"
+  (flet ((reader (slot) (intern (concat (symbol-name conc-name)
+					(symbol-name slot)))))
+    (let ((struct-var (gensym "struct")))
+      `(let ((,struct-var ,struct))
+	 (symbol-macrolet
+	     ,(mapcar (lambda (slot)
+			(etypecase slot
+			  (symbol `(,slot (,(reader slot) ,struct-var)))
+			  (cons `(,(first slot) (,(reader (second slot))
+						 ,struct-var)))))
+		      slots)
+	   . ,body)))))
+
+
+(defvar ensime-qualified-type-regexp
+  "^\\(?:object \\)?\\(\\(?:[a-z0-9_]+\\.\\)*\\)\\(?:\\([^\\.]+\\)\\$\\)?\\([^\\.]+\\$?\\)$"
+  "Match strings of form pack.pack1.pack2.Types$Type or pack.pack1.pack2.Type")
+(defmacro* ensime-with-name-parts (str (path outer-type-name name) &rest body)
+  "Evaluate BODY with path bound to the dot-separated path of
+ this type-name, and name bound to the final type name."
+  (let ((tmp (gensym)))
+    `(let ((matchedp (integerp (string-match
+				ensime-qualified-type-regexp
+				,str))))
+       (let* ((,tmp (if matchedp (match-string 1 ,str) nil))
+	      (,path (if (> (length ,tmp) 0)
+			 (substring ,tmp 0 (- (length ,tmp) 1)) ,tmp))
+	      (,outer-type-name (if matchedp (match-string 2 ,str) nil))
+	      (,name (if matchedp (match-string 3 ,str) ,str)))
+	 ,@body))))
+
+(defvar ensime-qualified-path-and-name-regexp
+  "^\\(\\(?:[a-z0-9_]+\\.\\)*\\)\\([^\\.]*\\)$")
+(defmacro* ensime-with-path-and-name (str (path name) &rest body)
+  "Evaluate body with path bound to all sections up to the
+ last, concatenated, and name bound to the last section."
+  (let ((tmp (gensym)))
+    `(let ((matchedp (integerp (string-match
+				ensime-qualified-path-and-name-regexp
+				,str))))
+       (let* ((,tmp (if matchedp (match-string 1 ,str) nil))
+	      (,path (if (> (length ,tmp) 0)
+			 (substring ,tmp 0 (- (length ,tmp) 1)) ,tmp))
+	      (,name (if matchedp (match-string 2 ,str) nil)))
+	 ,@body))))
+
 
 (provide 'ensime-macros)
 
 ;; Local Variables:
 ;; no-byte-compile: t
 ;; End:
-
