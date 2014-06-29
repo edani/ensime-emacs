@@ -19,8 +19,7 @@
 ;;     Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
 ;;     MA 02111-1307, USA.
 
-(require 'ensime-core)
-(require 'ensime-connections)
+(require 'ensime-client)
 
 (defun ensime-builder-build ()
   "Start the incremental builder. This command will trigger
