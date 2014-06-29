@@ -71,7 +71,7 @@ We would love to receive a user-contributed maven or ant generator.
 For best behaviour, the ENSIME server needs to be running the same
 version of scala that your project uses. The default version of scala
 is defined by `ensime-default-scala-version` but you can specify
-a per-project version by setting, e.g. `scala-version: "2.9.3"` in
+a per-project version by setting, e.g. `:scala-version "2.9.3"` in
 `.ensime`.
 
 Then simply `M-x ensime` and point it at your project config.
