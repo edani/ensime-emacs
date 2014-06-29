@@ -933,9 +933,10 @@ defined."
 	  ((eq (process-status server-proc) 'exit)
 	   (message "Failed to connect: server process exited."))
 	  (t
-	   (unless (when port (ensime--connect server-proc config port))
+	   (if port
+	       (ensime--connect server-proc config port)
 	     (run-at-time "1 sec" nil
-			  #'ensime-timer-call #'ensime--retry-connect
+			  'ensime-timer-call 'ensime--retry-connect
 			  server-proc config cache-dir (1- attempts)))))))
 
 (defun ensime--connect (server-proc config port)
