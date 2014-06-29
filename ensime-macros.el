@@ -62,3 +62,8 @@ the buffer.  If t, the current connection is taken.
 
 
 (provide 'ensime-macros)
+
+;; Local Variables:
+;; no-byte-compile: t
+;; End:
+

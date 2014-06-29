@@ -127,3 +127,8 @@ the output received after a call to `ensime-comint-complete'.")
     (set-process-filter proc old-proc-filter)))
 
 (provide 'ensime-comint-utils)
+
+;; Local Variables:
+;; no-byte-compile: t
+;; End:
+
