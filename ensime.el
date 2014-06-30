@@ -71,7 +71,6 @@
 (require 'ensime-doc)
 (require 'ensime-semantic-highlight)
 (require 'ensime-ui)
-(require 'ensime-server-downloader)
 (require 'timer)
 (eval-when (compile)
   (require 'apropos)
