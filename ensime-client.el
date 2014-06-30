@@ -353,7 +353,7 @@ This doesn't mean it will connect right after Ensime is loaded."
       ))
 
   (run-hooks 'ensime-connected-hook)
-  (message "Connected.")
+  (message "Connected to ENSIME, please wait while the project is loaded.")
 
   ;; Send the project initialization..
   (let ((config (ensime-config connection)))
