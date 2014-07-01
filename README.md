@@ -80,29 +80,29 @@ The first time you run this command (for incompatible versions of scala), it wil
 relevant ENSIME server.
 If the download fails (or freezes emacs, which can happen behind some firewalls)
 then you can manually install the server following the instructions on
-[the ENSIME server github page](https://github.com/ensime/ensime-server#quick-start).
+[the ENSIME server github page](http://github.com/ensime/ensime-server#quick-start).
 
 
 Once the server is available, wait for the analyzer to complete and
 enjoy editing with the ENSIME commands that are conveniently
 summarised in our
-[ENSIME Quick command reference](https://github.com/ensime/ensime-emacs/wiki/Quick-command-reference)
-(or [read it straight from the source](https://github.com/ensime/ensime-emacs/blob/master/ensime.el#L393)).
+[ENSIME Quick command reference](http://github.com/ensime/ensime-emacs/wiki/Quick-command-reference)
+(or [read it straight from the source](http://github.com/ensime/ensime-emacs/blob/master/ensime-mode.el#L49)).
 
+Emacs-wide customisations are defined in [ensime-vars.el](http://github.com/ensime/ensime-emacs/blob/master/ensime-vars.el) and will appear in `M-x customize`.
 
 Keeping up to date with releases is recommended. Melpa manages upgrading of
 packages and if you're running from source you will need to
 `git pull --rebase upstream master` regularly.
 
-The server can also be upgraded very easily: we create a new binary release every time a
-pull request is merged. Simply type `M-x ensime-upgrade-server`. Your old servers will
-remain in your `.emacs.d/ensime-servers` directory.
+The server will be automatically updated every time a pull request is merged.
+If you want to stick to a specific release, use the developer server installation.
 
 
 ## Further Information
 
 Although the ENSIME's options are fully documented in the emacs
-help pages (`C-h P RET "ensime"`), you may also wish to read the [ENSIME User
+customization pages (`M-x customize RET "ensime"`), you may also wish to read the [ENSIME User
 Manual](http://ensime.github.io/).
 
 [Older releases](https://www.dropbox.com/sh/ryd981hq08swyqr/V9o9rDvxkS/ENSIME%20Releases)
