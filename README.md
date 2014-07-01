@@ -71,17 +71,11 @@ We would love to receive a user-contributed maven or ant generator.
 For best behaviour, the ENSIME server needs to be running the same
 version of scala that your project uses. The default version of scala
 is defined by `ensime-default-scala-version` but you can specify
-a per-project version by setting, e.g. `:scala-version "2.9.3"` in
-`.ensime`.
+this per-project with `:scala-version "2.9.3"` in `.ensime`.
 
-Then simply `M-x ensime` and point it at your project config.
-
-The first time you run this command (for incompatible versions of scala), it will download the
-relevant ENSIME server.
-If the download fails (or freezes emacs, which can happen behind some firewalls)
-then you can manually install the server following the instructions on
+Then simply `M-x ensime` and point it at your project config, which may download the latest ENSIME server for the specified version of scala.
+If the download fails, install the developer version following the instructions on
 [the ENSIME server github page](http://github.com/ensime/ensime-server#quick-start).
-
 
 Once the server is available, wait for the analyzer to complete and
 enjoy editing with the ENSIME commands that are conveniently
