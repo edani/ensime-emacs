@@ -55,10 +55,10 @@
   :type 'hook
   :group 'ensime-server)
 
-(defcustom ensime-default-server-port "0"
-  "The port that a new server will use for Swank communication.
-   A value of 0 allows the server to assign the first available port."
-  :type 'int
+(defcustom ensime-sbt-command
+  (executable-find "sbt")
+  "Location of the sbt executable for starting the server."
+  :type 'string
   :group 'ensime-server)
 
 (defcustom ensime-default-server-env ()
@@ -81,21 +81,8 @@
   :type '(repeat string)
   :group 'ensime-server)
 
-(defcustom ensime-default-server-root
-  (expand-file-name "~/.emacs.d/ensime-servers/")
-  "Location of ENSIME server(s), further classified by a directory
-   named by the scala version, and then release jars."
-  :type 'directory
-  :group 'ensime-server)
-
-(defcustom ensime-server-maven-prefix
-  "http://dl.bintray.com/ensime/maven/org/ensime/ensime_"
-  "Prefix of binary server downloads from a remote maven repository."
-  :type 'string
-  :group 'ensime-server)
-
 (defcustom ensime-default-scala-version
-  "2.10"
+  "2.10.4"
   "Default version of scala. An appropriate version of the server
    will be obtained. May need to be exact to minor release."
   :type 'string
