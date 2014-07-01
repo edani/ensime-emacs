@@ -74,7 +74,7 @@ is defined by `ensime-default-scala-version` but you can specify
 this per-project with `:scala-version "2.9.3"` in `.ensime`.
 
 Then simply `M-x ensime` and point it at your project config, which may download the latest ENSIME server for the specified version of scala.
-If the download fails, install the developer version following the instructions on
+If the download fails, or you want to use a specific version of the server, install the developer version following the instructions on
 [the ENSIME server github page](http://github.com/ensime/ensime-server#quick-start).
 
 Once the server is available, wait for the analyzer to complete and
@@ -88,9 +88,6 @@ Emacs-wide customisations are defined in [ensime-vars.el](http://github.com/ensi
 Keeping up to date with releases is recommended. Melpa manages upgrading of
 packages and if you're running from source you will need to
 `git pull --rebase upstream master` regularly.
-
-The server will be automatically updated every time a pull request is merged.
-If you want to stick to a specific release, use the developer server installation.
 
 
 ## Further Information
