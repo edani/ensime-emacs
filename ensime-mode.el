@@ -407,6 +407,7 @@
 			     (file-attributes file))))))
 
 ;; Startup
+
 (defun* ensime--1 ()
   (when (and (ensime-source-file-p) (not ensime-mode))
     (ensime-mode 1))
@@ -419,11 +420,9 @@
       ;; attached (each with a different config)
       (make-directory cache-dir 't)
       (let* ((scala-version (or (plist-get config :scala-version) ensime-default-scala-version))
-	     (server-port (or (plist-get config :server-port) ensime-default-server-port))
 	     (server-env (or (plist-get config :server-env) ensime-default-server-env))
 	     (name (or (plist-get config :name) "NO_NAME"))
 	     (buffer (or (plist-get config :buffer) (concat ensime-default-buffer-prefix name)))
-	     (server-jar (ensime-get-or-download-server scala-version ))
 	     (server-java (or (plist-get config :java-home) ensime-default-java-home))
 	     (server-flags (or (plist-get config :java-flags) ensime-default-java-flags)))
 
@@ -433,12 +432,16 @@
 	;; 		   "consider upgrading with `M-x ensime-update-server " scala-version
 	;; 		   "` . `touch " server-jar "` to make this message go away."
 	;;;)))
-	
+
 	(let ((server-proc (ensime--maybe-start-server
 			    (generate-new-buffer-name (concat "*" buffer "*"))
-			    server-java server-flags server-jar server-env cache-dir server-port)))
-	      (when server-proc
-	        (ensime--retry-connect server-proc config cache-dir 2)))))))
+			    scala-version
+			    server-flags
+			    (cons (concat "JAVA_HOME=" server-java) server-env)
+			    (file-name-as-directory cache-dir))))
+	  (when server-proc
+	    (ensime--retry-connect server-proc config cache-dir 10)))))))
+
 
 ;; typecheck continually when idle
 
@@ -484,38 +487,78 @@ Analyzer will be restarted. All source will be recompiled."
        (ensime-set-config conn config)
        (ensime-init-project conn config)))))
 
-(defun ensime--maybe-start-server (buffer javahome flags jar env cache-dir request-port)
-  "Return a new or existing inferior server process."
+(defun ensime--maybe-start-server (buffer scala-version flags env cache-dir)
+  "Return a new or existing server process."
   (let (existing (comint-check-proc buffer))
     (if existing existing
-      (ensime--start-server buffer javahome flags jar env cache-dir request-port))))
+      (ensime--start-server buffer scala-version flags env cache-dir))))
 
 (defvar ensime-server-process-start-hook nil
   "Hook called whenever a new process gets started.")
 
-(defun ensime--start-server (buffer javahome flags jar user-env cache-dir request-port)
-  "Starts an ensime server in the given buffer.
-   Return the created process."
+(defun ensime--start-server (buffer scala-version flags user-env cache-dir)
+  "Start an ensime server in the given buffer and return the created process.
+BUFFER is the buffer to receive the server output.
+FLAGS is a list of JVM flags.
+USER-ENV is a list of environment variables.
+CACHE-DIR is the server's persistent output directory."
   (with-current-buffer (get-buffer-create buffer)
     (comint-mode)
-    (let* ((process-environment (append user-env process-environment))
-	  (command (concat javahome "/bin/java"))
-	  (tools (concat "-Xbootclasspath/a:" javahome "/lib/tools.jar"))
-	  (args (-flatten (list tools
-				"-classpath" jar "-Dscala.usejavacp=true"
-				flags
-				(concat "-Densime.cachedir=" (expand-file-name cache-dir))
-				(concat "-Densime.requestport=" request-port)
-				"org.ensime.server.Server"))))
+    (let* ((default-directory cache-dir)
+	   (buildfile (concat cache-dir "build.sbt"))
+	  (buildcontents (ensime--create-server-start-script scala-version cache-dir)))
+      (set (make-local-variable 'process-environment)
+	   (append user-env process-environment))
       (set (make-local-variable 'comint-process-echoes) nil)
       (set (make-local-variable 'comint-use-prompt-regexp) nil)
-      (insert "Starting ENSIME: " command " " (mapconcat 'identity args " "))
-      (comint-exec (current-buffer) buffer command nil args))
+      (when (file-exists-p buildfile) (delete-file buildfile))
+      (append-to-file buildcontents nil buildfile)
+      (dolist (flag flags)
+	(append-to-file (concat "\njavaOptions += \"" flag "\"\n") nil buildfile))
+      (comint-exec (current-buffer) buffer ensime-sbt-command nil (list "run")))
     (let ((proc (get-buffer-process (current-buffer))))
       (ensime-set-query-on-exit-flag proc)
       (run-hooks 'ensime-server-process-start-hook)
       proc)))
 
+(defun ensime--create-server-start-script(scala-version cache-dir)
+  (replace-regexp-in-string "CACHE_DIR" (expand-file-name cache-dir)
+			    (replace-regexp-in-string "SCALA_VERSION" scala-version
+						      ensime--server-start-template t nil) t nil))
+
+(defconst ensime--server-start-template
+"
+import sbt._
+import java.io._
+
+scalaVersion := \"SCALA_VERSION\"
+
+resolvers += Resolver.sonatypeRepo(\"snapshots\")
+
+libraryDependencies += \"org.ensime\" %% \"ensime\" % \"0.9.10-SNAPSHOT\"
+
+val JavaTools = List (
+  sys.env.get(\"JDK_HOME\").getOrElse(\"\"),
+  sys.env.get(\"JAVA_HOME\").getOrElse(\"\"),
+  System.getProperty(\"java.home\")
+).map {
+  n => new File(n + \"/lib/tools.jar\")
+}.find(_.exists).getOrElse (
+  throw new FileNotFoundException(\"tools.jar\")
+)
+
+unmanagedClasspath in Runtime += { Attributed.blank(JavaTools) }
+
+mainClass in Compile := Some(\"org.ensime.server.Server\")
+
+fork := true
+
+javaOptions ++= Seq (
+  \"-Dscala.usejavacp=true\",
+  \"-Densime.requestport=0\",
+  \"-Densime.cachedir=CACHE_DIR\"
+)
+")
 
 (defun ensime-shutdown()
   "Request that the current ENSIME server kill itself."
@@ -534,7 +577,7 @@ defined."
 (defun ensime-read-swank-port (portfile)
   "Read the Swank server port number from the `cache-dir',
    or nil if none was found."
-  (when (file-exists-p portfile) 
+  (when (file-exists-p portfile)
     (save-excursion
       (with-temp-buffer
 	(insert-file-contents portfile)
@@ -556,7 +599,7 @@ defined."
 	  (t
 	   (if port
 	       (ensime--connect server-proc config port)
-	     (run-at-time "1 sec" nil
+	     (run-at-time "6 sec" nil
 			  'ensime-timer-call 'ensime--retry-connect
 			  server-proc config cache-dir (1- attempts)))))))
 
@@ -574,14 +617,14 @@ defined."
 		(plist-get config :root-dir))
 	       (not (ensime-connected-p)))
       (setq ensime-buffer-connection c))
-    
+
     (ensime-set-config c config)
-    
+
     (let ((ensime-dispatching-connection c))
       (ensime-eval-async
        '(swank:connection-info)
        (ensime-curry #'ensime-handle-connection-info c)))
-    
+
     (ensime-set-server-process c server-proc)
     ;; As a convenience, we associate the client connection with the
     ;; server buffer. This assumes that there's only one client
@@ -589,7 +632,7 @@ defined."
     (when-let (server-buf (process-buffer server-proc))
 	      (with-current-buffer server-buf
 		(setq ensime-buffer-connection c)))))
-  
+
 (defun ensime-timer-call (fun &rest args)
   "Call function FUN with ARGS, reporting all errors.
    The default condition handler for timer functions (see
