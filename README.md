@@ -28,7 +28,7 @@ and many more.
 
 # Quick Start
 
-There are two ways to install this extension. You can use MELPA (**recomended**):
+There are two ways to install this extension. You can use MELPA (**recommended**):
 
 ```elisp
 ;; if you're new to the MELPA package manager, this is how to add it
