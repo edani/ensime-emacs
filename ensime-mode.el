@@ -463,15 +463,15 @@
   (set (make-local-variable 'ensime-last-change-time) (float-time)))
 
 (defun ensime-idle-typecheck-function ()
-  (let* ((now (float-time))
-         (last-typecheck (ensime-last-typecheck-run-time (ensime-connection)))
-         (earliest-allowed-typecheck (+ last-typecheck ensime-typecheck-interval)))
-    (when (and ensime-typecheck-when-idle
-               (ensime-connected-p)
-               (>= now (+ ensime-last-change-time ensime-typecheck-idle-interval))
-               (>= now earliest-allowed-typecheck)
-               (< last-typecheck ensime-last-change-time))
-      (ensime-typecheck-current-file t))))
+  (when (and ensime-typecheck-when-idle
+             (ensime-connected-p))
+    (let* ((now (float-time))
+           (last-typecheck (ensime-last-typecheck-run-time (ensime-connection)))
+           (earliest-allowed-typecheck (+ last-typecheck ensime-typecheck-interval)))
+      (when (and (>= now (+ ensime-last-change-time ensime-typecheck-idle-interval))
+                 (>= now earliest-allowed-typecheck)
+                 (< last-typecheck ensime-last-change-time))
+      (ensime-typecheck-current-file t)))))
 
 (defun ensime-reload ()
   "Re-initialize the project with the current state of the config file.
