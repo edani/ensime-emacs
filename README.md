@@ -28,7 +28,7 @@ and many more.
 
 # Quick Start
 
-There are two ways to install this extension. You can use MELPA:
+There are two ways to install this extension. You can use MELPA (**recomended**):
 
 ```elisp
 ;; if you're new to the MELPA package manager, this is how to add it
@@ -40,7 +40,7 @@ There are two ways to install this extension. You can use MELPA:
 ```
 
 Or fork and clone this repository into a directory of your choice and
-add it explicitly into your `~/.emacs`
+add it explicitly into your `~/.emacs` (developer front-end install, manual dependency management):
 
 ```elisp
 ;; assuming you put the repository in ~/.emacs.d/ensime
@@ -60,13 +60,19 @@ Much of the actual text editing is provided by the excellent
 be customised.
 
 
+
 ## Getting Started
 
 A project needs to have a `.ensime` configuration file. Luckily we
 have a [plugin for SBT projects](https://github.com/ensime/ensime-sbt/)
 and [`maker` provides out-of-the-box support](https://github.com/cage433/maker),
 which will automatically create an appropriate `.ensime` config.
-We would love to receive a user-contributed maven or ant generator.
+The [example `.ensime` configuration documents the available entries and options](https://github.com/ensime/ensime-server/wiki/Example-Configuration-File).
+
+
+We would love to receive user-contributed
+[maven](https://github.com/ensime/ensime-server/issues/481)
+and [ivy](https://github.com/ensime/ensime-server/issues/482) generators.
 
 For best behaviour, the ENSIME server needs to be running the same
 version of scala that your project uses. The default version of scala
@@ -88,6 +94,14 @@ Emacs-wide customisations are defined in [ensime-vars.el](http://github.com/ensi
 Keeping up to date with releases is recommended. Melpa manages upgrading of
 packages and if you're running from source you will need to
 `git pull --rebase upstream master` regularly.
+
+
+Before reporting any problems with ENSIME, please:
+
+* check the [tickets flagged as FAQ](https://github.com/ensime/ensime-server/issues?labels=FAQ).
+* check the [most recently updated tickets](http://github.com/ensime/ensime-server/issues?direction=desc&sort=updated) (others are probably talking about it already with workarounds).
+* do a few keyword searches using the github search (top of the page) to see if anybody has reported this already.
+
 
 
 ## Further Information
