@@ -101,9 +101,6 @@
       (define-key prefix-map (kbd "C-r i") 'ensime-refactor-inline-local)
       (define-key prefix-map (kbd "C-r t") 'ensime-import-type-at-point)
 
-      (define-key prefix-map (kbd "C-b b") 'ensime-builder-build)
-      (define-key prefix-map (kbd "C-b r") 'ensime-builder-rebuild)
-
       (define-key map ensime-mode-key-prefix prefix-map)
 
       ;; Prefix-less shortcuts bindings...
@@ -128,10 +125,6 @@
 (easy-menu-define ensime-mode-menu ensime-mode-map
   "Menu for ENSIME mode"
   '("ENSIME"
-    ("Build"
-     ["Build project" ensime-builder-build]
-     ["Rebuild project" ensime-builder-rebuild])
-
     ("Test")
 
     ("Source"
