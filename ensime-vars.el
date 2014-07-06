@@ -69,7 +69,7 @@
 (defcustom ensime-default-java-home
   (cond ((getenv "JDK_HOME"))
 	((getenv "JAVA_HOME"))
-	('t (let ((java (file-truename (executable-find "java"))))
+	('t (let ((java (file-truename (executable-find "javac"))))
 	      (warn "JDK_HOME and JAVA_HOME are not set, inferring from %s" java)
 	      (ensime--parent-dir (ensime--parent-dir java)))))
   "Location of the JDK's base directory"
