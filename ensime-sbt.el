@@ -128,6 +128,10 @@
      (set (make-local-variable 'comint-input-filter-functions)
           (function (lambda (str) (compilation-forget-errors) str)))
 
+     (set (make-local-variable 'process-environment)
+          (let ((java-home (or (plist-get (ensime-config) :java-home) ensime-default-java-home)))
+            (cons (concat "JAVA_HOME=" java-home) process-environment)))
+
      (if ensime-sbt-comint-ansi-support
 	 (set (make-local-variable 'ansi-color-for-comint-mode) t)
        (set (make-local-variable 'ansi-color-for-comint-mode) 'filter))
