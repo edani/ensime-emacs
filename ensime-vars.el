@@ -1,5 +1,7 @@
 ;;; ensime-var.el --- Customizaton variables
 
+(require 's)
+
 (defgroup ensime nil
   "Interaction with the ENhanced Scala Environment."
   :group 'tools)
@@ -69,6 +71,8 @@
 (defcustom ensime-default-java-home
   (cond ((getenv "JDK_HOME"))
 	((getenv "JAVA_HOME"))
+	((file-exists-p "/usr/libexec/java_home")
+	 (s-chomp (shell-command-to-string "/usr/libexec/java_home")))
 	('t (let ((java (file-truename (executable-find "javac"))))
 	      (warn "JDK_HOME and JAVA_HOME are not set, inferring from %s" java)
 	      (ensime--parent-dir (ensime--parent-dir java)))))
