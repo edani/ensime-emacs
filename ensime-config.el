@@ -370,6 +370,18 @@
 	    ))
 	)))
 
+(defun ensime-config-get-activeproject (full-config)
+  "Returns the configuration plist for the active-subproject. If
+ :active-subproject has not been set then the original full-config
+ is returned"
+  (let ((active-name (plist-get full-config :active-subproject))
+        (sps (plist-get full-config :subprojects)))
+    (flet ((match (a b) (equal a (plist-get b :module-name))))
+      (if active-name
+        (find active-name sps :test 'match)
+        full-config)
+      )))
+
 (defun ensime-config-candidate-subprojects (config source-path)
   (catch 'return
     (let ((all-subprojects
@@ -428,7 +440,6 @@
               (push j deps)))
           (push (cons i deps) response)))
       response)))
-
 
 (provide 'ensime-config)
 
