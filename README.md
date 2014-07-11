@@ -31,12 +31,16 @@ and many more.
 There are two ways to install this extension. You can use MELPA (**recommended**):
 
 ```elisp
-;; if you're new to the MELPA package manager, this is how to add it
+;; if you're new to the MELPA package manager, include this in your `~/.emacs` file to add it
 (require 'package)
 (add-to-list 'package-archives
 	     '("melpa" . "http://melpa.milkbox.net/packages/") t)
 (package-initialize)
-;; and then do a M-x package-install RET "ensime" RET
+
+(when (not package-archive-contents)
+  (package-refresh-contents))
+
+;; restart emacs and then do M-x package-install [RETURN] ensime [RETURN]
 ```
 
 Or fork and clone this repository into a directory of your choice and
@@ -48,7 +52,7 @@ add it explicitly into your `~/.emacs` (developer front-end install, manual depe
 ```
 
 
-In either case, enable ensime with the following:
+In either case, add the following to `~/.emacs` to enable ensime:
 
 ```elisp
 (require 'ensime)
