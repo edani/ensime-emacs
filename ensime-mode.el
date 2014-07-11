@@ -412,12 +412,13 @@
       ;; projects can potentially have multiple ENSIME servers
       ;; attached (each with a different config)
       (make-directory cache-dir 't)
-      (let* ((scala-version (or (plist-get config :scala-version) ensime-default-scala-version))
-	     (server-env (or (plist-get config :server-env) ensime-default-server-env))
-	     (name (or (plist-get config :name) "NO_NAME"))
-	     (buffer (or (plist-get config :buffer) (concat ensime-default-buffer-prefix name)))
-	     (server-java (or (plist-get config :java-home) ensime-default-java-home))
-	     (server-flags (or (plist-get config :java-flags) ensime-default-java-flags)))
+      (let* ((active (ensime-config-get-activeproject config))
+             (scala-version (or (plist-get active :scala-version) ensime-default-scala-version))
+	     (server-env (or (plist-get active :server-env) ensime-default-server-env))
+	     (name (or (plist-get active :name) "NO_NAME"))
+	     (buffer (or (plist-get active :buffer) (concat ensime-default-buffer-prefix name)))
+	     (server-java (or (plist-get active :java-home) ensime-default-java-home))
+	     (server-flags (or (plist-get active :java-flags) ensime-default-java-flags)))
 
 	;; TODO: get this working
 	;; (when (> (ensime--age-file server-jar) 1209600.0)
