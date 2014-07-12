@@ -429,13 +429,19 @@
 
 	(let ((server-proc (ensime--maybe-start-server
 			    (generate-new-buffer-name (concat "*" buffer "*"))
-			    scala-version
+			    (ensime-fix-short-version scala-version)
 			    server-flags
 			    (cons (concat "JAVA_HOME=" server-java) server-env)
 			    (file-name-as-directory cache-dir))))
 	  (when server-proc
 	    (ensime--retry-connect server-proc config cache-dir 10)))))))
 
+
+(defun ensime-fix-short-version (v)
+  (let ((vs (split-string v "\\.")))
+    (when (eq 2 (length vs))
+      (add-to-list 'vs "0" t))
+    (mapconcat 'identity vs ".")))
 
 ;; typecheck continually when idle
 
