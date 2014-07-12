@@ -412,12 +412,13 @@
       ;; projects can potentially have multiple ENSIME servers
       ;; attached (each with a different config)
       (make-directory cache-dir 't)
-      (let* ((scala-version (or (plist-get config :scala-version) ensime-default-scala-version))
-	     (server-env (or (plist-get config :server-env) ensime-default-server-env))
-	     (name (or (plist-get config :name) "NO_NAME"))
-	     (buffer (or (plist-get config :buffer) (concat ensime-default-buffer-prefix name)))
-	     (server-java (or (plist-get config :java-home) ensime-default-java-home))
-	     (server-flags (or (plist-get config :java-flags) ensime-default-java-flags)))
+      (let* ((active (ensime-config-get-activeproject config))
+             (scala-version (or (plist-get active :scala-version) (plist-get config :scala-version) ensime-default-scala-version))
+	     (server-env (or (plist-get active :server-env) (plist-get config :server-env) ensime-default-server-env))
+	     (name (or (plist-get active :name) (plist-get config :name) "NO_NAME"))
+	     (buffer (or (plist-get active :buffer) (plist-get config :buffer) (concat ensime-default-buffer-prefix name)))
+	     (server-java (or (plist-get active :java-home) (plist-get config :java-home) ensime-default-java-home))
+	     (server-flags (or (plist-get active :java-flags) (plist-get config :java-flags) ensime-default-java-flags)))
 
 	;; TODO: get this working
 	;; (when (> (ensime--age-file server-jar) 1209600.0)
@@ -428,13 +429,19 @@
 
 	(let ((server-proc (ensime--maybe-start-server
 			    (generate-new-buffer-name (concat "*" buffer "*"))
-			    scala-version
+			    (ensime-fix-short-version scala-version)
 			    server-flags
 			    (cons (concat "JAVA_HOME=" server-java) server-env)
 			    (file-name-as-directory cache-dir))))
 	  (when server-proc
 	    (ensime--retry-connect server-proc config cache-dir 10)))))))
 
+
+(defun ensime-fix-short-version (v)
+  (let ((vs (split-string v "\\.")))
+    (when (eq 2 (length vs))
+      (add-to-list 'vs "0" t))
+    (mapconcat 'identity vs ".")))
 
 ;; typecheck continually when idle
 
