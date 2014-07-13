@@ -316,16 +316,12 @@
   "Key bindings for the build result popup.")
 
 (defface ensime-compile-errline
-  '((((class color) (background dark)) (:foreground "#ff5555"))
-    (((class color) (background light)) (:foreground "Firebrick4"))
-    (t (:bold t)))
+  '((t (:inherit compilation-error)))
   "Face used for marking the line on which an error occurs."
   :group 'ensime-ui)
 
 (defface ensime-compile-warnline
-  '((((class color) (background dark)) (:foreground "LightBlue2"))
-    (((class color) (background light)) (:foreground "DarkBlue"))
-    (t (:bold t)))
+  '((t (:inherit compilation-warning)))
   "Face used for marking the line on which an warning occurs."
   :group 'ensime-ui)
 

@@ -119,6 +119,32 @@ since the last typecheck."
   :type 'number
   :group 'ensime-ui)
 
+(defcustom ensime-sem-high-enabled-p t
+  "If true, ensime semantic highlighting is applied whenever the buffer
+is saved."
+  :type 'boolean
+  :group 'ensime-ui)
+
+(defcustom ensime-sem-high-faces
+  '((var . scala-font-lock:var-face)
+    (val . (:inherit font-lock-constant-face :slant italic))
+    (varField . scala-font-lock:var-face)
+    (valField . (:inherit font-lock-constant-face :slant italic))
+    (functionCall . font-lock-function-name-face)
+    (operator . font-lock-keyword-face)
+    (param . (:slant italic))
+    (class . font-lock-type-face)
+    (trait .  (:inherit font-lock-type-face :slant italic))
+    (object . (:inherit font-lock-type-face :underline t))
+    (package . font-lock-preprocessor-face))
+  "Faces for semantic highlighting. Symbol types not mentioned here
+will not be requested from server.  The format is an alist of the form
+  ( SYMBOL-TYPE . FACE-SPEC )
+where SYMBOL-TYPE is one of:
+  var val varField valField functionCall
+  operator params class trait object package"
+  :type 'alist
+  :group 'ensime-ui)
 
 (provide 'ensime-vars)
 
