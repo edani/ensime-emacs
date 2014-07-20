@@ -632,6 +632,50 @@
        '("A" "B" "C" "Y" "Z"))
       ))
 
+   (ensime-test
+    "Test ensime-sem-high-internalize-syms in Unix mode"
+    (with-temp-buffer
+      (let* ((contents "a\nbc\nd\nef\ngh")
+             (num-chars (length contents))
+             (last-offset num-chars)
+             syms
+             internalized-syms
+             expected)
+        (insert contents)
+        (dotimes (i last-offset)
+          (push (list 'a i last-offset) syms)
+          (push (list 'a
+                      (ensime-internalize-offset i)
+                      (ensime-internalize-offset last-offset))
+                expected))
+        (setf expected (sort expected (lambda (a b) (< (nth 1 a) (nth 1 b)))))
+        (setf internalized-syms
+              (sort (ensime-sem-high-internalize-syms syms)
+                    (lambda (a b) (< (nth 1 a) (nth 1 b)))))
+        (ensime-assert-equal internalized-syms expected))))
+
+   (ensime-test
+    "Test ensime-sem-high-internalize-syms in DOS mode"
+    (with-temp-buffer
+      (setf buffer-file-coding-system 'undecided-dos)
+      (let* ((contents "a\nbc\nd\nef\ngh")
+             (num-chars (length contents))
+             (last-offset (+ 5 num-chars))
+             syms
+             internalized-syms
+             expected)
+        (insert contents)
+        (dotimes (i last-offset)
+          (push (list 'a i last-offset) syms)
+          (push (list 'a
+                      (ensime-internalize-offset i)
+                      (ensime-internalize-offset last-offset))
+                expected))
+        (setf expected (sort expected (lambda (a b) (< (nth 1 a) (nth 1 b)))))
+        (setf internalized-syms
+              (sort (ensime-sem-high-internalize-syms syms)
+                    (lambda (a b) (< (nth 1 a) (nth 1 b)))))
+        (ensime-assert-equal internalized-syms expected))))
    ))
 
 

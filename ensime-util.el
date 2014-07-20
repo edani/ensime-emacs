@@ -266,7 +266,7 @@ This idiom is preferred over `lexical-let'."
      (if (eq 1 (coding-system-eol-type buffer-file-coding-system))
          (save-restriction
            (widen)
-           (- (line-number-at-pos offset) 1))
+           (1- (line-number-at-pos offset)))
        0)
      ))
 
@@ -289,13 +289,56 @@ This idiom is preferred over `lexical-let'."
 
                  ;; Treat -1 and +1 specially: if offset matches a CR character
                  ;; we want to avoid an infinite loop
-                 ((eql diff -1) (return (1+ (point))))
-                 ((eql diff 1) (return (1- (point))))
+                 ((eql diff -1) (if (eql (char-after (point)) ?\n)
+                                    (return (point))
+                                  (return (1+ (point)))))
+                 ((eql diff 1)  (return (1- (point))))
 
                  ((> diff 0) (backward-char step))
                  ((< diff 0) (forward-char step))))))))
     (+ offset ensime-ch-fix)))
 
+(defun ensime-internalize-offset-at-line (offset line-end-offset line)
+  "Return the internal offset of OFFSET, given that the offset is at line
+number LINE, and the end of the line has external offset LINE-END-OFFSET.
+This function may be faster than `ensime-internalize-offset'"
+  (if (eq 1 (coding-system-eol-type buffer-file-coding-system))
+      (if (eql offset line-end-offset)
+          (- offset (- ensime-ch-fix) line)
+        (- offset (- ensime-ch-fix) (1- line)))
+    (+ offset ensime-ch-fix)))
+
+(defun ensime-external-offsets-to-lines ()
+  "For the current buffer, return an alist that associates the external
+offset of each line's last character, to the line number"
+  (save-excursion
+    (save-restriction
+      (widen)
+      (let ((lines-map nil)
+            (line-num 1)
+            (line-factor
+             (if (eq 1 (coding-system-eol-type buffer-file-coding-system)) 1 0)))
+        (goto-char (point-min))
+        (end-of-line)
+        (while (< (point) (point-max))
+          (push (cons (+ (point) (- ensime-ch-fix) (* line-factor line-num))
+                      line-num)
+                lines-map)
+          (forward-line 1)
+          (end-of-line)
+          (incf line-num))
+        (unless (eql (line-beginning-position) (line-end-position))
+          (push (cons (+ (point) (- ensime-ch-fix) (* line-factor line-num))
+                      line-num)
+                lines-map))
+        (nreverse lines-map)))))
+
+(defun ensime-get-line-for-external-offset (offset-lines offset)
+  (while (and offset-lines
+              (> offset (caar offset-lines))
+              (cdr offset-lines))
+    (setf offset-lines (cdr offset-lines)))
+  offset-lines)
 
 (defun ensime-internalize-offset-for-file (file-name offset)
   (let ((buf (find-buffer-visiting file)))
