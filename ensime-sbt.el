@@ -58,9 +58,9 @@
   :type 'string
   :group 'ensime-sbt)
 
-(defcustom ensime-sbt-compile-on-save t
-  "Compile on save?"
-  :type 'boolean
+(defcustom ensime-sbt-perform-on-save "compile"
+  "Which (if any) sbt action to perform when a file is saved."
+  :type '(choice (const nil) string)
   :group 'ensime-sbt)
 
 (defun ensime-sbt-build-buffer-name ()
@@ -191,9 +191,9 @@
   "Compile the code."
   (interactive)
   (when (and
-	 (ensime-connected-p)
-	 ensime-sbt-compile-on-save)
-    (ensime-sbt-action "compile")))
+         (ensime-connected-p)
+         ensime-sbt-perform-on-save)
+    (ensime-sbt-action ensime-sbt-perform-on-save)))
 
 (defun ensime-sbt-complete ()
   "Complete input at point"
