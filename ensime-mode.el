@@ -413,6 +413,7 @@
       ;; attached (each with a different config)
       (make-directory cache-dir 't)
       (let* ((active (ensime-config-get-activeproject config))
+	     (active-name (plist-get active :name))
              (scala-version (or (plist-get active :scala-version) (plist-get config :scala-version) ensime-default-scala-version))
 	     (server-env (or (plist-get active :server-env) (plist-get config :server-env) ensime-default-server-env))
 	     (name (or (plist-get active :name) (plist-get config :name) "NO_NAME"))
@@ -426,7 +427,8 @@
 			    server-flags
 			    (cons (concat "JAVA_HOME=" server-java) server-env)
 			    (file-name-as-directory cache-dir)
-			    config-file)))
+			    config-file
+			    active-name)))
 	  (when server-proc
 	    (ensime--retry-connect server-proc config cache-dir 10)))))))
 
@@ -481,16 +483,16 @@ Analyzer will be restarted. All source will be recompiled."
        (ensime-set-config conn config)
        (ensime-init-project conn config)))))
 
-(defun ensime--maybe-start-server (buffer scala-version flags env cache-dir config-file)
+(defun ensime--maybe-start-server (buffer scala-version flags env cache-dir config-file active)
   "Return a new or existing server process."
   (let (existing (comint-check-proc buffer))
     (if existing existing
-      (ensime--start-server buffer scala-version flags env cache-dir config-file))))
+      (ensime--start-server buffer scala-version flags env cache-dir config-file active))))
 
 (defvar ensime-server-process-start-hook nil
   "Hook called whenever a new process gets started.")
 
-(defun ensime--start-server (buffer scala-version flags user-env cache-dir config-file)
+(defun ensime--start-server (buffer scala-version flags user-env cache-dir config-file active)
   "Start an ensime server in the given buffer and return the created process.
 BUFFER is the buffer to receive the server output.
 FLAGS is a list of JVM flags.
@@ -500,7 +502,8 @@ CACHE-DIR is the server's persistent output directory."
     (comint-mode)
     (let* ((default-directory cache-dir)
 	   (buildfile (concat cache-dir "build.sbt"))
-	  (buildcontents (ensime--create-server-start-script scala-version cache-dir config-file)))
+	  (buildcontents (ensime--create-server-start-script
+			  scala-version cache-dir config-file active)))
       (set (make-local-variable 'process-environment)
 	   (append user-env process-environment))
       (set (make-local-variable 'comint-process-echoes) nil)
@@ -518,11 +521,12 @@ CACHE-DIR is the server's persistent output directory."
       (run-hooks 'ensime-server-process-start-hook)
       proc)))
 
-(defun ensime--create-server-start-script (scala-version cache-dir config-file)
+(defun ensime--create-server-start-script (scala-version cache-dir config-file active)
   ;; emacs has some weird case-preservation rules in regexp replace
   ;; see http://github.com/magnars/s.el/issues/62
   (s-replace-all (list (cons "_cache_dir_" (expand-file-name cache-dir))
 		       (cons "_scala_version_" scala-version)
+		       (cons "_active_module_" active)
 		       (cons "_config_file_" (expand-file-name config-file)))
 		 ensime--server-start-template))
 
@@ -550,6 +554,7 @@ fork := true
 javaOptions ++= Seq (
   \"-Dscala.usejavacp=true\",
   \"-Densime.config=_config_file_\",
+  \"-Densime.active=_active_module_\",
   \"-Densime.cachedir=_cache_dir_\"
 )
 ")
