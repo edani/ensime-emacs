@@ -501,17 +501,21 @@ CACHE-DIR is the server's persistent output directory."
   (with-current-buffer (get-buffer-create buffer)
     (comint-mode)
     (let* ((default-directory cache-dir)
-	   (buildfile (concat cache-dir "build.sbt"))
-	  (buildcontents (ensime--create-server-start-script
-			  scala-version cache-dir config-file active)))
+           (buildfile (concat cache-dir "build.sbt"))
+           (buildcontents (ensime--create-server-start-script
+                          scala-version cache-dir config-file active))
+           (buildpropsfile (concat cache-dir "project/build.properties")))
       (set (make-local-variable 'process-environment)
-	   (append user-env process-environment))
+           (append user-env process-environment))
       (set (make-local-variable 'comint-process-echoes) nil)
       (set (make-local-variable 'comint-use-prompt-regexp) nil)
       (when (file-exists-p buildfile) (delete-file buildfile))
       (append-to-file buildcontents nil buildfile)
+      (make-directory "project" cache-dir)
+      (when (file-exists-p buildpropsfile) (delete-file buildpropsfile))
+      (append-to-file "sbt.version=0.13.5\n" nil buildpropsfile)
       (dolist (flag flags)
-	(append-to-file (concat "\njavaOptions += \"" flag "\"\n") nil buildfile))
+        (append-to-file (concat "\njavaOptions += \"" flag "\"\n") nil buildfile))
       (message "Starting an ENSIME server in %s" buffer)
       (if (executable-find ensime-sbt-command)
           (comint-exec (current-buffer) buffer ensime-sbt-command nil (list "run"))
@@ -525,10 +529,10 @@ CACHE-DIR is the server's persistent output directory."
   ;; emacs has some weird case-preservation rules in regexp replace
   ;; see http://github.com/magnars/s.el/issues/62
   (s-replace-all (list (cons "_cache_dir_" (expand-file-name cache-dir))
-		       (cons "_scala_version_" scala-version)
-		       (cons "_active_module_" active)
-		       (cons "_config_file_" (expand-file-name config-file)))
-		 ensime--server-start-template))
+                       (cons "_scala_version_" scala-version)
+                       (cons "_active_module_" active)
+                       (cons "_config_file_" (expand-file-name config-file)))
+                 ensime--server-start-template))
 
 
 (defconst ensime--server-start-template
