@@ -500,16 +500,19 @@ USER-ENV is a list of environment variables.
 CACHE-DIR is the server's persistent output directory."
   (with-current-buffer (get-buffer-create buffer)
     (comint-mode)
-    (let* ((default-directory cache-dir)
-	   (buildfile (concat cache-dir "build.sbt"))
-	  (buildcontents (ensime--create-server-start-script
-			  scala-version cache-dir config-file active)))
+    (let* ((buildfile (concat cache-dir "build.sbt"))
+	   (buildcontents (ensime--create-server-start-script
+			  scala-version cache-dir config-file active))
+	   (buildpropsfile (concat cache-dir "project/build.properties"))
       (set (make-local-variable 'process-environment)
 	   (append user-env process-environment))
       (set (make-local-variable 'comint-process-echoes) nil)
       (set (make-local-variable 'comint-use-prompt-regexp) nil)
       (when (file-exists-p buildfile) (delete-file buildfile))
       (append-to-file buildcontents nil buildfile)
+      (make-directory "project" cache-dir)
+      (when (file-exists-p buildpropsfile) (delete-file buildpropsfile))
+      (append-to-file "sbt.version=0.13.5\n" nil buildpropsfile)
       (dolist (flag flags)
 	(append-to-file (concat "\njavaOptions += \"" flag "\"\n") nil buildfile))
       (message "Starting an ENSIME server in %s" buffer)
