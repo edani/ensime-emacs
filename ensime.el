@@ -60,6 +60,7 @@
 (require 'ensime-debug)
 (require 'ensime-builder)
 (require 'ensime-editor)
+(require 'ensime-goto-test)
 (require 'ensime-inspector)
 (require 'ensime-mode)
 (require 'ensime-model)
