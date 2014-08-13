@@ -68,6 +68,9 @@
       (define-key prefix-map (kbd "C-v t") 'ensime-show-doc-for-symbol-at-point)
       (define-key prefix-map (kbd "C-v .") 'ensime-expand-selection-command)
 
+      (define-key prefix-map (kbd "C-t t") 'ensime-goto-test)
+      (define-key prefix-map (kbd "C-t i") 'ensime-goto-impl)
+
       (define-key prefix-map (kbd "C-d d") 'ensime-db-start)
       (define-key prefix-map (kbd "C-d b") 'ensime-db-set-break)
       (define-key prefix-map (kbd "C-d u") 'ensime-db-clear-break)
@@ -151,6 +154,8 @@
      ["Lookup definition" ensime-edit-definition]
      ["Lookup definition in other window" ensime-edit-definition-other-window]
      ["Lookup definition in other frame" ensime-edit-definition-other-frame]
+     ["Go to test class" ensime-goto-test]
+     ["Go to implementation class" ensime-goto-impl]
      ["Pop definition stack" ensime-pop-find-definition-stack]
      ["Backward compilation note" ensime-backward-note]
      ["Forward compilation note" ensime-forward-note]
