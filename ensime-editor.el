@@ -336,7 +336,7 @@
     "Latest Compilation Results (q to quit, r to refresh, TAB to jump to next error)"
     'font-lock-constant-face)
    (if (null notes-in)
-       (insert "0 errors, 0 warnings.")
+       (insert "\n0 errors, 0 warnings.")
      (save-excursion
 
        ;; Group notes by their file and sort by
