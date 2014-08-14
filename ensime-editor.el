@@ -308,6 +308,7 @@
     (define-key map (kbd "q") (lambda()(interactive)
 				(ensime-popup-buffer-quit-function)
 				))
+    (define-key map (kbd "r") 'ensime-show-all-errors-and-warnings)
     (define-key map [?\t] 'forward-button)
     (define-key map [mouse-1] 'push-button)
     (define-key map (kbd "M-n") 'forward-button)
@@ -332,13 +333,10 @@
    (ensime-compile-result-buffer-name t t)
    (use-local-map ensime-compile-result-map)
    (ensime-insert-with-face
-    "Latest Compilation Results (q to quit, TAB to jump to next error)"
+    "Latest Compilation Results (q to quit, r to refresh, TAB to jump to next error)"
     'font-lock-constant-face)
-   (ensime-insert-with-face
-    "\n----------------------------------------\n\n"
-    'font-lock-comment-face)
    (if (null notes-in)
-       (insert "0 errors, 0 warnings.")
+       (insert "\n0 errors, 0 warnings.")
      (save-excursion
 
        ;; Group notes by their file and sort by
@@ -356,8 +354,7 @@
 
 		      ;; Output file heading
 		      (ensime-insert-with-face
-		       (concat "\n" file-heading
-			       "\n----------------------------------------\n\n")
+		       (concat "\n" file-heading "\n")
 		       'font-lock-comment-face)
 
 		      ;; Output the notes
@@ -381,7 +378,7 @@
 			    (insert (format "%s: %s : line %s"
 					    header msg line))
 			    (ensime-make-code-link p (point) file beg face)))
-			(insert "\n\n"))))
+			(insert "\n"))))
 		  notes-by-file)))
      (forward-button 1)
      )))
@@ -430,8 +427,7 @@
   (let ((notes
          (append (ensime-java-compiler-notes (ensime-connection))
                  (ensime-scala-compiler-notes (ensime-connection)))))
-    (ensime-show-compile-result-buffer
-     notes)))
+    (ensime-show-compile-result-buffer notes)))
 
 (defun ensime-sym-at-point (&optional point)
   "Return information about the symbol at point, using the an RPC request.
