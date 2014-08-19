@@ -42,7 +42,7 @@
   (ensime-update-note-counts))
 
 
-(defun ensime-make-overlay-at (file line b e msg face)
+(defun ensime-make-overlay-at (file line b e msg visuals)
   "Create an overlay highlighting the given line in
 any buffer visiting the given file."
   (let ((beg b)
@@ -61,7 +61,7 @@ any buffer visiting the given file."
                     (setq beg (point-at-bol))
                     (setq end (point-at-eol)))))
 
-              (ensime-make-overlay beg end msg face nil buf))
+              (ensime-make-overlay beg end msg visuals nil buf))
     ))
 
 
@@ -79,14 +79,20 @@ any buffer visiting the given file."
               ((ensime-java-file-p file) 'java)
               ((ensime-scala-file-p file) 'scala)
               (t 'scala)))
-            (face
+            (visuals
              (cond
               ((equal severity 'error)
-               'ensime-errline-highlight)
+               (list :face 'ensime-errline-highlight
+		     :char "!"
+		     :bitmap 'exclamation-mark
+		     :fringe 'ensime-compile-errline))
               (t
-               'ensime-warnline-highlight))))
+               (list :face 'ensime-warnline-highlight
+		     :char "?"
+		     :bitmap 'question-mark
+		     :fringe 'ensime-compile-warnline)))))
 
-        (when-let (ov (ensime-make-overlay-at file line beg end msg face))
+        (when-let (ov (ensime-make-overlay-at file line beg end msg visuals))
                   (overlay-put ov 'lang lang)
                   (push ov ensime-note-overlays))
 
@@ -130,16 +136,20 @@ any buffer visiting the given file."
   "Face used for marking the specific region of an warning, if available."
   :group 'ensime-ui)
 
-(defun ensime-make-overlay (beg end tooltip-text face &optional mouse-face buf)
+(defun ensime-make-overlay (beg end tooltip-text visuals &optional mouse-face buf)
   "Allocate a ensime overlay in range BEG and END."
   (let ((ov (make-overlay beg end buf t t)))
-    (overlay-put ov 'face           face)
+    (overlay-put ov 'face           (plist-get visuals :face))
     (overlay-put ov 'mouse-face     mouse-face)
     (overlay-put ov 'help-echo      tooltip-text)
     (overlay-put ov 'ensime-overlay  t)
     (overlay-put ov 'priority 100)
-    ov)
-  )
+    (overlay-put ov 'before-string (propertize (plist-get visuals :char)
+					       'display
+					       (list 'left-fringe
+						     (plist-get visuals :bitmap)
+						     (plist-get visuals :fringe))))
+    ov))
 
 (defun ensime-overlays-at (point)
   "Return list of overlays of type 'ensime-overlay at point."
