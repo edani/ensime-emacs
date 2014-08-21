@@ -100,9 +100,6 @@ This is automatically synchronized from Lisp.")
 (ensime-def-connection-var ensime-connection-name nil
   "The short name for connection.")
 
-(ensime-def-connection-var ensime-server-process nil
-  "The inferior process for the connection if any.")
-
 (ensime-def-connection-var ensime-config nil
   "The project configuration corresponding to this connection.")
 
@@ -472,19 +469,6 @@ This doesn't mean it will connect right after Ensime is loaded."
   (if (featurep 'xemacs)
       (car (process-id connection))
     (cadr (process-contact connection))))
-
-(defun ensime-process (&optional connection)
-  "Return the ENSIME server process for CONNECTION
- (default `ensime-connection'). Return nil if there's no process
- object for the connection."
-  (let ((proc (ensime-server-process connection)))
-    (if (and proc
-	     (memq (process-status proc) '(run stop)))
-	proc)))
-
-;; Non-macro version to keep the file byte-compilable.
-(defun ensime-set-server-process (connection process)
-  (setf (ensime-server-process connection) process))
 
 (defun ensime-set-config (connection config)
   (setf (ensime-config connection) config))
