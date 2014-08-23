@@ -1,4 +1,4 @@
-;;; ensime-goto-test.el  -- Navigate to test classes
+;;; ensime-goto-testfile.el  -- Navigate to test classes
 
 (defun ensime-goto-test (&optional other-window-p)
   "Locate the test file that corresponds to the class around the point,
@@ -318,7 +318,7 @@ class %TESTCLASS% extends Specification {
 
 }")
 
-(provide 'ensime-goto-test)
+(provide 'ensime-goto-testfile)
 
 ;; Local Variables:
 ;; no-byte-compile: t
