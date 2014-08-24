@@ -273,19 +273,18 @@ Used for determining the default in the next one.")
     (goto-char (point-at-bol))
     (while
         (search-forward-regexp
-         "^[[:space:]]+at .+(.+)[[:space:]]*$"
+         "^[ \t]+at .+(.+)[ \t]*$"
          end t)
       (let ((b (match-beginning 0))
             (e (match-end 0)))
-        (ensime-inf-highlight-1-stack-trace-line b)
-        (setf begin b)))))
+        (ensime-inf-highlight-1-stack-trace-line b)))))
 
 (defun ensime-inf-highlight-1-stack-trace-line (point)
-  "Highlight the lin of stack trace that contains POINT."
+  "Highlight the line of stack trace that contains POINT."
   ;; Highlight exception message
   (save-excursion
     (goto-char (point-at-bol 0)) ;; back up one line
-    (when (search-forward-regexp "^[^[:space:]]" (point-at-eol) t)
+    (when (search-forward-regexp "^[^ \t]" (point-at-eol) t)
       (put-text-property (point-at-bol) (point-at-eol)
                          'font-lock-face 'compilation-error-face)))
 
@@ -295,7 +294,7 @@ Used for determining the default in the next one.")
                        'font-lock-face 'compilation-error-face)
     (when
         (search-forward-regexp
-         "^[[:space:]]+at \\([a-zA-Z0-9_$.]+\\)\\.\\([^.]+\\)(\\(.+\\):\\([0-9]+\\))[[:space:]]*$"
+         "^[ \t]+at \\([a-zA-Z0-9_$.]+\\)\\.\\([^.]+\\)(\\(.+\\):\\([0-9]+\\))[ \t]*$"
          (point-at-eol) t)
       (let ((class (match-string-no-properties 1))
             (method (match-string-no-properties 2))
