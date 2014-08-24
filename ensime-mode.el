@@ -85,6 +85,7 @@
       (define-key prefix-map (kbd "C-d a") 'ensime-db-clear-all-breaks)
 
       (define-key prefix-map (kbd "C-b s") 'ensime-sbt-switch)
+      (define-key prefix-map (kbd "C-b S") 'ensime-stacktrace-switch)
       (define-key prefix-map (kbd "C-b c") 'ensime-sbt-do-compile)
       (define-key prefix-map (kbd "C-b n") 'ensime-sbt-do-clean)
       (define-key prefix-map (kbd "C-b p") 'ensime-sbt-do-package)
@@ -188,6 +189,7 @@
 
     "---"
     ["Go to SBT console" ensime-sbt-switch]
+    ["Go to stacktrace buffer" ensime-stacktrace-switch]
     ["Go to Scala REPL" ensime-inf-switch]
     ["Shutdown ENSIME server" ensime-shutdown]
     ))
