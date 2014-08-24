@@ -57,6 +57,7 @@
 (require 'ensime-auto-complete)
 (require 'ensime-sbt)
 (require 'ensime-inf)
+(require 'ensime-stacktrace)
 (require 'ensime-debug)
 (require 'ensime-builder)
 (require 'ensime-editor)
