@@ -308,8 +308,9 @@
     (define-key map (kbd "q") (lambda()(interactive)
 				(ensime-popup-buffer-quit-function)
 				))
-    (define-key map (kbd "r") 'ensime-show-all-errors-and-warnings)
-    (define-key map [?\t] 'forward-button)
+    (define-key map (kbd "g") 'ensime-show-all-errors-and-warnings)
+    (define-key map (kbd "TAB") 'forward-button)
+    (define-key map (kbd "<backtab>") 'backward-button)
     (define-key map [mouse-1] 'push-button)
     (define-key map (kbd "M-n") 'forward-button)
     (define-key map (kbd "M-p") 'backward-button)
@@ -333,7 +334,7 @@
    (ensime-compile-result-buffer-name t t)
    (use-local-map ensime-compile-result-map)
    (ensime-insert-with-face
-    "Latest Compilation Results (q to quit, r to refresh, TAB to jump to next error)"
+    "Latest Compilation Results (q to quit, g to refresh, TAB to jump to next error)"
     'font-lock-constant-face)
    (if (null notes-in)
        (insert "\n0 errors, 0 warnings.")
