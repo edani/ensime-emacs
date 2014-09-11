@@ -205,22 +205,11 @@
 	 (pos (ensime-symbol-decl-pos info))
 	 (offset (ensime-pos-offset pos))
 	 (type (ensime-symbol-type info)))
-    (cond
-     ((ensime-pos-valid-local-p pos)
-      (progn
-	(ensime-push-definition-stack)
-	(ensime-goto-source-location pos where)))
-
-     (type
-      (let ((info (ensime-rpc-inspect-type-by-id (ensime-type-id type))))
-	(if info
-	    (progn
-	      (ensime-push-definition-stack)
-	      (ensime-type-inspector-show info))
-	  (message "Sorry, no definition found."))))
-
-     (t
-      (message "Sorry, no definition found.")))))
+    (if (ensime-pos-valid-local-p pos)
+	(progn
+	  (ensime-push-definition-stack)
+	  (ensime-goto-source-location pos where))
+      (message "Sorry, no definition found."))))
 
 
 (defun ensime-files-equal-p (f1 f2)
