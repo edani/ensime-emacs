@@ -412,7 +412,7 @@
   (when (and (ensime-source-file-p) (not ensime-mode))
     (ensime-mode 1))
   (let* ((config-file (ensime-config-find))
-	 (config (ensime-config-load config-file))
+	 (config (and config-file (ensime-config-load config-file)))
 	 (cache-dir (concat config-file "_cache")))
     (when (not (null config))
       ;; the cache-dir is based on the filename, not the :root-dir, so
