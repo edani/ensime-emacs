@@ -401,6 +401,19 @@
         (progn
           (ensime-rpc-async-typecheck-file buffer-file-name 'identity))))))
 
+(defun ensime-reload-open-files ()
+  "Make the ENSIME server forget about all files ; reload .class files
+in the project's path ;  then reload only the Scala files that are
+currently open in emacs."
+  (interactive)
+  (message "Unloading all files...")
+  (ensime-rpc-unload-all)
+  (message "Reloading open files...")
+  (setf (ensime-last-typecheck-run-time (ensime-connection)) (float-time))
+  (let ((files (mapcar #'buffer-file-name
+                       (ensime-connection-visiting-buffers (ensime-connection)))))
+    (ensime-rpc-async-typecheck-files files 'identity)))
+
 (defun ensime-typecheck-all ()
   "Send a request for re-typecheck of whole project to the ENSIME server.
    Current file is saved if it has unwritten modifications."
