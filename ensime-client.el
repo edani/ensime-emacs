@@ -1030,8 +1030,14 @@ with the current project's dependencies loaded. Returns a property list."
 (defun ensime-rpc-remove-file (file-name)
   (ensime-eval `(swank:remove-file ,file-name)))
 
+(defun ensime-rpc-unload-all ()
+  (ensime-eval `(swank:unload-all)))
+
 (defun ensime-rpc-async-typecheck-file (file-name continue)
   (ensime-eval-async `(swank:typecheck-file ,file-name) continue))
+
+(defun ensime-rpc-async-typecheck-files (file-names continue)
+  (ensime-eval-async `(swank:typecheck-files ,file-names) continue))
 
 (defun ensime-rpc-async-typecheck-file-with-contents (file-name contents continue)
   (ensime-eval-async `(swank:typecheck-file ,file-name ,contents)

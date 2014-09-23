@@ -55,9 +55,6 @@
 	'ensime-inspect-type-at-point-other-frame)
       (define-key prefix-map (kbd "C-v p") 'ensime-inspect-package-at-point)
       (define-key prefix-map (kbd "C-v o") 'ensime-inspect-project-package)
-      (define-key prefix-map (kbd "C-v c") 'ensime-typecheck-current-file)
-      (define-key prefix-map (kbd "C-v a") 'ensime-typecheck-all)
-      (define-key prefix-map (kbd "C-v e") 'ensime-show-all-errors-and-warnings)
       (define-key prefix-map (kbd "C-v r") 'ensime-show-uses-of-symbol-at-point)
       (define-key prefix-map (kbd "C-v s") 'ensime-sbt-switch)
       (define-key prefix-map (kbd "C-v z") 'ensime-inf-switch)
@@ -67,6 +64,11 @@
       (define-key prefix-map (kbd "C-v x") 'ensime-scalex)
       (define-key prefix-map (kbd "C-v t") 'ensime-show-doc-for-symbol-at-point)
       (define-key prefix-map (kbd "C-v .") 'ensime-expand-selection-command)
+
+      (define-key prefix-map (kbd "C-c c") 'ensime-typecheck-current-file)
+      (define-key prefix-map (kbd "C-c a") 'ensime-typecheck-all)
+      (define-key prefix-map (kbd "C-c r") 'ensime-reload-open-files)
+      (define-key prefix-map (kbd "C-c e") 'ensime-show-all-errors-and-warnings)
 
       (define-key prefix-map (kbd "C-t t") 'ensime-goto-test)
       (define-key prefix-map (kbd "C-t i") 'ensime-goto-impl)
@@ -138,10 +140,13 @@
      ["Inspect type in another frame" ensime-inspect-type-at-point-other-frame]
      ["Inspect enclosing package" ensime-inspect-package-at-point]
      ["Inspect project package" ensime-inspect-project-package]
+     ["Undo source change" ensime-undo-peek])
+
+    ("Typecheck"
      ["Typecheck file" ensime-typecheck-current-file]
      ["Typecheck project" ensime-typecheck-all]
-     ["Show all errors and warnings" ensime-show-all-errors-and-warnings]
-     ["Undo source change" ensime-undo-peek])
+     ["Reload typecheker" ensime-reload-open-files]
+     ["Show all errors and warnings" ensime-show-all-errors-and-warnings])
 
     ("Refactor"
      ["Organize imports" ensime-refactor-organize-imports]
