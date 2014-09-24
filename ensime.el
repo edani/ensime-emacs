@@ -92,7 +92,11 @@
   "Read config file for settings. Then start an inferior
    ENSIME server and connect to its Swank server."
   (interactive)
-  (ensime--1))
+  (condition-case ex
+      (ensime--1)
+    ('error (error (format
+                    "check that sbt is on your PATH and that your config is compatible with %s [%s]"
+                    "http://github.com/ensime/ensime-server/wiki/Example-Configuration-File" ex)))))
 
 ;;;###autoload
 (defun ensime-remote (host port)

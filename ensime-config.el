@@ -72,8 +72,7 @@
       nil)))
 
 (defun ensime-config-load (file-name &optional force-dir)
-  "Load and parse a project config file. Return the resulting plist.
-   The :root-dir setting will be deduced from the location of the project file."
+  "Load and parse a project config file. Return the resulting plist."
   (let ((dir (expand-file-name (file-name-directory file-name)))
 	(source-path (or force-dir buffer-file-name default-directory)))
     (save-excursion
@@ -86,57 +85,16 @@
 		   (read src)
 		 (error
 		  (error "Error reading configuration file, %s: %s" src error)
-		  ))
-	       )))
-	;; We use the project file's location as the project root.
-	(ensime-set-key config :root-dir dir)
+		  )))))
         (ensime-set-key config
+                        ;; bit of a hack: for extracted sources from jars
                         :source-jars-dir
                         (file-name-as-directory
-                         (concat
-                          dir
-                          (file-name-as-directory ".ensime_cache/dep-src")
-                          (file-name-as-directory "source-jars"))))
-	(ensime-config-maybe-set-active-subproject config source-path)
-	config)
-      )))
+                         (concat dir
+                                 (file-name-as-directory ".ensime_cache/dep-src")
+                                 (file-name-as-directory "source-jars"))))
+        config))))
 
-(defun ensime-config-maybe-set-active-subproject (config &optional source-path)
-  "If the subprojects key exists in the config, prompt the
- user for the desired subproject, and add an active-subproject
- value to the config."
-  (when-let (sps (plist-get config :subprojects))
-
-    ;; For testing purposes..
-    (if (or ensime-prefer-noninteractive
-	    (= (length sps) 1))
-	(ensime-set-key
-	 config :active-subproject
-	 (plist-get (car sps) :module-name))
-
-      ;; Otherwise prompt the user
-      (let ((keys (ensime-config-candidate-subprojects config source-path)))
-	(when-let (chosen (when keys
-		     (completing-read
-		      (concat "Which project? ("
-			      (mapconcat #'identity keys ", ")
-			      "): ")
-		      keys nil t (car keys))))
-           (ensime-set-key config :active-subproject chosen)
-	    ))
-	)))
-
-(defun ensime-config-get-activeproject (full-config)
-  "Returns the configuration plist for the active-subproject. If
- :active-subproject has not been set then the original full-config
- is returned"
-  (let ((active-name (plist-get full-config :active-subproject))
-        (sps (plist-get full-config :subprojects)))
-    (flet ((match (a b) (equal a (plist-get b :module-name))))
-      (if active-name
-        (find active-name sps :test 'match)
-        full-config)
-      )))
 
 (defun ensime-config-candidate-subprojects (config source-path)
   (catch 'return
