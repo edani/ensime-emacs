@@ -144,11 +144,14 @@ any buffer visiting the given file."
     (overlay-put ov 'help-echo      tooltip-text)
     (overlay-put ov 'ensime-overlay  t)
     (overlay-put ov 'priority 100)
-    (overlay-put ov 'before-string (propertize (plist-get visuals :char)
-					       'display
-					       (list 'left-fringe
-						     (plist-get visuals :bitmap)
-						     (plist-get visuals :fringe))))
+    (let ((char (plist-get visuals :char)))
+      (when char
+        (overlay-put ov 'before-string
+                     (propertize char
+                      'display
+                      (list 'left-fringe
+                            (plist-get visuals :bitmap)
+                            (plist-get visuals :fringe))))))
     ov))
 
 (defun ensime-overlays-at (point)
