@@ -69,8 +69,11 @@
   (let ((map (make-sparse-keymap)))
     (define-key map "\C-c\C-q" 'ensime-search-quit)
     (define-key map "\C-q" 'ensime-search-quit)
-    (define-key map "\C-n" 'ensime-search-next-match)
+    (define-key map "\C-g" 'ensime-search-quit)
+    (define-key map (kbd "<up>") 'ensime-search-prev-match)
     (define-key map "\C-p" 'ensime-search-prev-match)
+    (define-key map (kbd "<down>") 'ensime-search-next-match)
+    (define-key map "\C-n" 'ensime-search-next-match)
     (define-key map "\C-i" 'ensime-search-insert-import-of-current-result)
     (define-key map [(return)] 'ensime-search-choose-current-result)
     map)
@@ -79,8 +82,10 @@
 (defvar ensime-search-target-buffer-map
   (let ((map (make-sparse-keymap)))
     (define-key map "q" 'ensime-search-quit)
-    (define-key map "\C-n" 'ensime-search-next-match)
     (define-key map "\C-p" 'ensime-search-prev-match)
+    (define-key map (kbd "<up>") 'ensime-search-prev-match)
+    (define-key map "\C-n" 'ensime-search-next-match)
+    (define-key map (kbd "<down>") 'ensime-search-next-match)
     (define-key map "\C-i" 'ensime-search-insert-import-of-current-result)
     (define-key map [(return)] 'ensime-search-choose-current-result)
     map)
@@ -398,9 +403,9 @@
 
     (ensime-insert-with-face
      (concat "Enter space-separated keywords. "
-	     "C-n, C-p to navigate. "
+	     "C-n, C-p (or up/down) to navigate. "
 	     "C-i to insert import statement. "
-	     "RETURN to goto source location. C-q to quit.")
+	     "RETURN to goto source location. C-q (or C-g) to quit.")
      'font-lock-constant-face)
     (insert "\n\n")
 
