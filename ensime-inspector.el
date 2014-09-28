@@ -7,6 +7,13 @@
 (defvar ensime-indent-level 0
   "In inspector UI, how much to indent.")
 
+(defun ensime-print-type-at-point ()
+  "Echo the type at point to the minibuffer."
+  (interactive)
+  (let* ((type (ensime-rpc-get-type-at-point))
+         (fullname (ensime-type-full-name-with-args type)))
+    (message fullname)))
+
 (defun ensime-inspector-buffer-p (buffer)
   "Is this an ensime inspector buffer?"
   (eq (get-buffer ensime-inspector-buffer-name) buffer))
