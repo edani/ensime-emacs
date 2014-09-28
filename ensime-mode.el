@@ -62,7 +62,8 @@
       (define-key prefix-map (kbd "C-v u") 'ensime-undo-peek)
       (define-key prefix-map (kbd "C-v v") 'ensime-search)
       (define-key prefix-map (kbd "C-v x") 'ensime-scalex)
-      (define-key prefix-map (kbd "C-v t") 'ensime-show-doc-for-symbol-at-point)
+      (define-key prefix-map (kbd "C-v d") 'ensime-show-doc-for-symbol-at-point)
+      (define-key prefix-map (kbd "C-v t") 'ensime-print-type-at-point)
       (define-key prefix-map (kbd "C-v .") 'ensime-expand-selection-command)
 
       (define-key prefix-map (kbd "C-c c") 'ensime-typecheck-current-file)
