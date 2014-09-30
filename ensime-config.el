@@ -95,66 +95,6 @@
                                  (file-name-as-directory "source-jars"))))
         config))))
 
-
-(defun ensime-config-candidate-subprojects (config source-path)
-  (catch 'return
-    (let ((all-subprojects
-           (sort
-            (mapcar (lambda (sp) (plist-get sp :module-name))
-                    (plist-get config :subprojects))
-             'string<)))
-
-      (unless source-path
-        (throw 'return all-subprojects))
-
-      (dolist (d (plist-get config :source-roots))
-        (when (ensime-file-in-directory-p source-path d)
-          (throw 'return all-subprojects)))
-
-      (let ((all-deps (ensime-config-transitive-dependencies config))
-            (modules-by-name (make-hash-table :test 'equal))
-            (result nil))
-        (dolist (sp (plist-get config :subprojects))
-          (let ((m (plist-get sp :module-name)))
-            (puthash m sp modules-by-name)))
-
-        (dolist (module-and-deps all-deps)
-          (dolist (m module-and-deps)
-            (let* ((sp (gethash m modules-by-name))
-                   (source-dirs (plist-get sp :source-roots)))
-              (dolist (d source-dirs)
-                (when (ensime-file-in-directory-p source-path d)
-                  (push (first module-and-deps) result))))))
-
-        (if result
-            (sort (remove-duplicates result :test 'equal) 'string<)
-          all-subprojects)))))
-
-(defun ensime-config-transitive-dependencies (config)
-  (let ((names nil)
-        (all-deps (make-hash-table :test 'equal)))
-    (dolist (sp (plist-get config :subprojects))
-      (let ((m (plist-get sp :module-name))
-            (deps (plist-get sp :depends-on-modules)))
-        (push m names)
-        (dolist (d deps) (puthash (cons m d) 1 all-deps))))
-    ;; Warshal's transitive closure algorithm
-    (dolist (k names)
-      (dolist (i names)
-        (dolist (j names)
-          (when (and (gethash (cons i k) all-deps)
-                     (gethash (cons k j) all-deps))
-            (puthash (cons i j) 1 all-deps)))))
-
-    (let ((response nil))
-      (dolist (i names)
-        (let ((deps nil))
-          (dolist (j names)
-            (when (gethash (cons i j) all-deps)
-              (push j deps)))
-          (push (cons i deps) response)))
-      response)))
-
 (provide 'ensime-config)
 
 ;; Local Variables:
