@@ -736,6 +736,10 @@ copies. All other objects are used unchanged. List must not contain cycles."
                            (ensime-handle-compiler-ready)
                            (ensime-event-sig :compiler-ready t))
 
+                          ((:compiler-restarted)
+                           ;; Ignore for now
+                           )
+
                           ((:indexer-ready)
                            (ensime-event-sig :indexer-ready t))
 
