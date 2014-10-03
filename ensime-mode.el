@@ -433,7 +433,9 @@
                              (list (ensime--maybe-start-server
                                     (generate-new-buffer-name (concat "*" buffer "*"))
                                     scala-version server-flags
-                                    (cons (concat "JAVA_HOME=" server-java) server-env)
+                                    (list* (concat "JDK_HOME=" server-java)
+                                           (concat "JAVA_HOME=" server-java)
+                                           server-env)
                                     config-file cache-dir)
                                    "127.0.0.1"
                                    (lambda () (ensime-read-swank-port (concat cache-dir "/port")))))))
