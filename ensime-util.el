@@ -36,7 +36,7 @@
 (defun ensime-http-url-p (s)
   (and (stringp s) (or (string-match "http://" s) (string-match "https://" s) (string-match "file://" s))))
 
-(defun ensime-insert-link (text pos-or-path &optional offset face line)
+(defun ensime-insert-link (text pos-or-path &optional face)
   "Insert text in current buffer and make it into an emacs
  button, linking to file-path and offset. Intelligently decide
  whether to make a source link or an http link based on the file-path."
@@ -47,20 +47,13 @@
 	(insert text)
 	(ensime-make-code-hyperlink start (point) pos-or-path face)))
 
-     ((and pos-or-path (stringp pos-or-path) (or (integerp offset) (integerp line)))
-      (progn
-	(insert text)
-	(ensime-make-code-link start (point) pos-or-path offset face line)))
-
      ((and (listp pos-or-path) (ensime-pos-valid-local-p pos-or-path))
       (progn
 	(insert text)
         (ensime-make-pos-link start (point) pos-or-path face)))
 
      (t
-      (progn
-	(insert text))))
-    ))
+      (insert text)))))
 
 
 (defun ensime-insert-action-link (text action &optional face)

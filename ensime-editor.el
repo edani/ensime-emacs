@@ -202,9 +202,7 @@
   (interactive)
 
   (let* ((info (ensime-rpc-symbol-at-point))
-	 (pos (ensime-symbol-decl-pos info))
-	 (offset (ensime-pos-offset pos))
-	 (type (ensime-symbol-type info)))
+	 (pos (ensime-symbol-decl-pos info)))
     (if (ensime-pos-valid-local-p pos)
 	(progn
 	  (ensime-push-definition-stack)
@@ -254,10 +252,10 @@
 
     (with-current-buffer (window-buffer file-visible-window)
       (let ((pt (cond
-                 ((integerp (ensime-pos-line pos))
-                  (ensime-point-at-bol file (ensime-pos-line pos)))
                  ((integerp (ensime-pos-offset pos))
                   (ensime-internalize-offset (ensime-pos-offset pos)))
+                 ((integerp (ensime-pos-line pos))
+                  (ensime-point-at-bol file (ensime-pos-line pos)))
                  (t 0))))
 	(goto-char pt)
         (set-window-point file-visible-window pt)))))

@@ -99,19 +99,8 @@
      The full body of text presented in the results list,
      may contain leading and trailing text, in addition to the match.
 
-  * metadata
-
   * match-file-name
     The filename of the buffer containing the match
-
-  * match-start
-    The point in buffer at which the match started
-
-  * match-end
-    The point in buffer at which the match ended
-
-  * match-line
-    The line number in buffer match started
 
   * summary-start
     The offset at which summary begins in the results buffer.
@@ -119,14 +108,9 @@
   * data
   "
   (summary nil)
-  (metadata nil)
   (match-file-name nil)
-  (match-start nil)
-  (match-end nil)
-  (match-line nil)
   (summary-start 0)
-  (data nil)
-  )
+  (data nil))
 
 
 (defun ensime-search ()
@@ -206,6 +190,7 @@
 	;; jump there..
 	(let ((pos (ensime-search-sym-pos item)))
 	  (let* ((file-name (ensime-pos-file pos))
+                 (line (ensime-pos-line pos))
 		 (offset (ensime-pos-offset pos)))
 	    (if (and file-name
 		     (integerp (string-match
@@ -213,7 +198,9 @@
 				file-name)))
 		(progn
 		  (find-file file-name)
-		  (goto-char (ensime-internalize-offset offset)))
+                  (cond
+                   (offset (goto-char (ensime-internalize-offset offset)))
+                   (line (ensime-goto-line line))))
 
 	      ;; Otherwise, open the inspector
 	      (let ((decl-as (ensime-search-sym-decl-as item)))
@@ -226,8 +213,7 @@
 		   ))
 
 		 (t (ensime-inspect-by-path
-		     (ensime-search-sym-name item)))))
-	      )))))))
+		     (ensime-search-sym-name item))))))))))))
 
 
 (defun ensime-search-next-match ()
@@ -367,30 +353,11 @@
     (mapcar
      (lambda (item)
        (make-ensime-search-result
-	:summary
-	(ensime-search-sym-name item)
-
-	:metadata
-	(let ((decl-as (ensime-search-sym-decl-as item)))
-	  (format "%s" decl-as))
-
-	:match-file-name
-	(when-let (pos (ensime-search-sym-pos item))
-	  (ensime-pos-file pos))
-
-	:match-start
-	(when-let (pos (ensime-search-sym-pos item))
-	  (+ (ensime-pos-offset pos) ensime-ch-fix))
-
-	:match-end nil
-
-	:match-line (when-let (pos (ensime-search-sym-pos item))
-		      (ensime-pos-line pos))
-
-	:data
-	item
-
-	)) items)))
+	:summary (ensime-search-sym-name item)
+	:match-file-name (when-let (pos (ensime-search-sym-pos item))
+                                   (ensime-pos-file pos))
+	:data item))
+     items)))
 
 
 (defun ensime-search-update-target-buffer ()
