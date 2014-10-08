@@ -36,24 +36,29 @@
 	  (ensime-inspect-package-by-path ,accum))
        (or face font-lock-type-face))
       (insert ".")
-      (setq accum (concat accum "."))
-      )))
+      (setq accum (concat accum ".")))))
 
 
-(defun ensime-inspector-insert-link-to-type-id (text type-id &optional is-obj)
+(defun ensime-make-inspect-type-action (type-id type-full-name)
+  (if (and type-full-name
+           (not (string-match "<refinement>\\|\\$\\$anon\\>" type-full-name)))
+      `(lambda (x)
+         (ensime-type-inspector-show
+          (ensime-rpc-inspect-type-by-name ,type-full-name)))
+    `(lambda (x)
+       (ensime-type-inspector-show
+        (ensime-rpc-inspect-type-by-id ,type-id)))))
+
+(defun ensime-inspector-insert-link-to-type (text type-id type-full-name is-obj)
   "A helper for type link insertion. See usage in
  ensime-inspector-insert-linked-type. If is-obj is
  non-nil, use an alternative color for the link."
   (ensime-insert-action-link
    text
-   `(lambda (x)
-      (ensime-type-inspector-show
-       (ensime-rpc-inspect-type-by-id ,type-id)
-       ))
+   (ensime-make-inspect-type-action type-id type-full-name)
    (if is-obj
        font-lock-constant-face
-     font-lock-type-face)
-   ))
+     font-lock-type-face)))
 
 (defun ensime-inspector-insert-linked-type
   (type &optional with-doc-link qualified)
@@ -63,31 +68,31 @@
       (ensime-inspector-insert-linked-arrow-type type with-doc-link qualified)
 
     (let* ((type-args (ensime-type-type-args type))
+           (type-full-name (ensime-type-full-name type))
 	   (last-type-arg (car (last type-args)))
 	   (is-obj (ensime-type-is-object-p type)))
 
       (insert (make-string ensime-indent-level ?\s))
 
       (if qualified
-	  (ensime-with-name-parts
-	   (ensime-type-full-name type)
-	   (path outer-type-name name)
+	  (ensime-with-name-parts type-full-name
+           (path outer-type-name name)
 	   (when path
 	     (ensime-inspector-insert-linked-package-path path))
 	   (if (and outer-type-name (integerp (ensime-outer-type-id type)))
 	       (progn
-		 (ensime-inspector-insert-link-to-type-id
-		  outer-type-name (ensime-outer-type-id type))
+		 (ensime-inspector-insert-link-to-type
+		  outer-type-name (ensime-outer-type-id type) (concat path "." outer-type-name) nil)
 		 (insert "$")
-		 (ensime-inspector-insert-link-to-type-id
-		  name (ensime-type-id type) is-obj))
+		 (ensime-inspector-insert-link-to-type
+		  name (ensime-type-id type) type-full-name is-obj))
 	     (progn
-	       (ensime-inspector-insert-link-to-type-id
-		name (ensime-type-id type) is-obj))))
+	       (ensime-inspector-insert-link-to-type
+		name (ensime-type-id type) type-full-name is-obj))))
 
 	;; Otherwise, insert short name..
-	(ensime-inspector-insert-link-to-type-id
-	 (ensime-type-name type) (ensime-type-id type) is-obj))
+	(ensime-inspector-insert-link-to-type
+	 (ensime-type-name type) (ensime-type-id type) type-full-name is-obj))
 
       (when type-args
 	(let ((ensime-indent-level 0))
@@ -102,11 +107,20 @@
         (insert " ")
         (ensime-insert-link "doc" (ensime-make-doc-url type))
 	(let ((pos (plist-get type :pos)))
-          (when (ensime-pos-valid-local-p pos)
+          (when (ensime-pos-available-p pos)
             (insert " ")
-            (ensime-insert-link "source" pos))))
+            (ensime-insert-action-link
+             "source"
+             `(lambda (x)
+                (if (ensime-pos-valid-local-p ,pos)
+                    (ensime-goto-source-location ,pos t)
+                  (let* ((info (ensime-rpc-get-type-by-name ,type-full-name))
+                         (pos (plist-get info :pos)))
+                    (if (ensime-pos-valid-local-p pos)
+                        (ensime-goto-source-location pos t)
+                      (message "Sorry, no definition found.")))))
+             font-lock-keyword-face)))))))
 
-      )))
 
 (defun ensime-inspector-insert-linked-arrow-type
   (type  &optional with-doc-link qualified)
@@ -132,21 +146,30 @@
   "Helper utility to output a link to a type member.
    Should only be invoked by ensime-inspect-type-at-point"
   (let* ((type (ensime-member-type m))
+         (owner-full-name (ensime-type-full-name owner-type))
 	 (pos (ensime-member-pos m))
-	 (member-name (ensime-member-name m))
-	 (url-or-pos
-          (if (ensime-pos-valid-local-p pos)
-              pos
-            (ensime-make-doc-url owner-type m))))
+	 (member-name (ensime-member-name m)))
 
     (if (or (equal 'method (ensime-declared-as m))
 	    (equal 'field (ensime-declared-as m)))
 	(progn
-	  (ensime-insert-link
-	   (format "%s" member-name)
-           url-or-pos
-           nil
-	   font-lock-function-name-face)
+          (if (ensime-pos-available-p pos)
+            (ensime-insert-action-link
+             member-name
+             `(lambda (x)
+                (if (ensime-pos-valid-local-p ,pos)
+                    (ensime-goto-source-location ,pos t)
+                  (let* ((info (ensime-rpc-get-member-by-name ,owner-full-name ,member-name nil))
+                         (pos (plist-get info :decl-pos)))
+                    (if (ensime-pos-valid-local-p pos)
+                        (ensime-goto-source-location pos t)
+                      (message "Sorry, no definition found.")))))
+             font-lock-function-name-face)
+
+            (ensime-insert-link
+             member-name
+             (ensime-make-doc-url owner-type m)
+             font-lock-function-name-face))
 	  (tab-to-tab-stop)
 	  (ensime-inspector-insert-linked-type type nil nil))
 
@@ -156,9 +179,9 @@
 	 (ensime-declared-as-str m)
 	 'font-lock-comment-face)
 	(tab-to-tab-stop)
-	(ensime-inspector-insert-linked-type type nil nil)
-	))
-    ))
+	(ensime-inspector-insert-linked-type
+         (append (when pos (list :pos pos)) type)
+         t nil)))))
 
 
 (defun ensime-inspect-type-at-point-other-frame ()
@@ -175,8 +198,8 @@
 			   imported-type-path))))
     (if imported-type
 	;; if imported type under point
-	(ensime-rpc-inspect-type-by-id
-	 (ensime-type-id imported-type))
+	(ensime-rpc-inspect-type-by-name
+	 (ensime-type-full-name imported-type))
       ;; otherwise do normal type inspection
       (ensime-rpc-inspect-type-at-range))))
 
@@ -218,6 +241,12 @@
 	     (let* ((inspect-info (ensime-type-inspect-info-at-point)))
 	       (ensime-type-inspector-show inspect-info)))))))
 
+(defun ensime-companion-type-name (type-name)
+  (if (string-match "\\(.*\\)\\$$" type-name)
+      (match-string 1 type-name)
+    (concat type-name "$")))
+
+
 (defun ensime-type-inspector-show (info &optional focus-on-member)
   "Display a list of all the members of the type under point, sorted by
    owner type."
@@ -237,7 +266,7 @@
 	 (setq wrap-prefix (make-string 21 ?\s))
 
 	 ;; Display main type
-	 (let* ((full-type-name (plist-get type :name)))
+	 (let* ((full-type-name (plist-get type :full-name)))
 	   (ensime-insert-with-face (format "%s\n"
 					    (ensime-declared-as-str type))
 				    font-lock-comment-face)
@@ -246,8 +275,9 @@
 
 	   ;; Insert a link to the companion object or class, if extant
 	   (when-let (id companion-id)
-                     (ensime-inspector-insert-link-to-type-id
+                     (ensime-inspector-insert-link-to-type
                       "(companion)" id
+                      (ensime-companion-type-name full-type-name)
                       (not (ensime-type-is-object-p type))))
 
 	   ;; Display each member, arranged by owner type
@@ -331,13 +361,10 @@ read a fully qualified path from the minibuffer."
        p (pack name)
        (if (and name (integerp (string-match "^[a-z_0-9]+$" name)))
 	   (ensime-inspect-package-by-path p)
-	 (let ((type (ensime-rpc-get-type-by-name p)))
-	   (if type
-	       (let ((info (ensime-rpc-inspect-type-by-id
-			    (ensime-type-id type))))
-		 (ensime-type-inspector-show info focus-on-member))
-	     (message "Could not locate type named '%s'." p))
-	   ))))))
+	 (let ((info (ensime-rpc-inspect-type-by-name p)))
+	   (if info
+               (ensime-type-inspector-show info focus-on-member)
+             (message "Could not locate type named '%s'." p))))))))
 
 
 (defun ensime-package-path-at-point ()

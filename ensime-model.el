@@ -152,12 +152,17 @@
 (defun ensime-pos-line (pos)
   (plist-get pos :line))
 
+(defun ensime-pos-available-p (pos)
+  (or (ensime-pos-valid-local-p pos)
+      (eq pos t)))
+
 (defun ensime-pos-valid-local-p (pos)
   (and (stringp (ensime-pos-file pos))
        (or (file-exists-p (ensime-pos-file pos))
            (and (stringp (ensime-pos-archive pos))
                 (file-exists-p (ensime-pos-archive pos))))
-       (integerp (ensime-pos-offset pos))))
+       (or (integerp (ensime-pos-line pos))
+           (integerp (ensime-pos-offset pos)))))
 
 (defun ensime-note-file (note)
   (plist-get note :file))
