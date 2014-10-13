@@ -169,7 +169,7 @@ corresponding values in the CDR of VALUE."
 
 
 (defvar ensime-qualified-type-regexp
-  "^\\(?:object \\)?\\(\\(?:[a-z0-9_]+\\.\\)*\\)\\(?:\\([^\\.]+\\)\\$\\)?\\([^\\.]+\\$?\\)$"
+  "^\\(?:object \\)?\\(\\(?:[a-z0-9_]+\\.\\)*\\)\\(?:\\([^\\.]+?\\)\\$\\)?\\(\\$\\$anon\\|[^\\.$]+\\$?\\)$"
   "Match strings of form pack.pack1.pack2.Types$Type or pack.pack1.pack2.Type")
 (defmacro* ensime-with-name-parts (str (path outer-type-name name) &rest body)
   "Evaluate BODY with path bound to the dot-separated path of
