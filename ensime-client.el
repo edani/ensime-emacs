@@ -1107,6 +1107,10 @@ with the current project's dependencies loaded. Returns a property list."
   (ensime-eval
    `(swank:type-by-name ,name)))
 
+(defun ensime-rpc-get-member-by-name (type-name member-name member-is-type-p)
+  (ensime-eval
+   `(swank:member-by-name ,type-name ,member-name ,member-is-type-p)))
+
 (defun ensime-rpc-get-type-by-name-at-point (name)
   (ensime-eval
    `(swank:type-by-name-at-point
@@ -1129,6 +1133,10 @@ with the current project's dependencies loaded. Returns a property list."
   (if (and (integerp id) (> id -1))
       (ensime-eval
        `(swank:inspect-type-by-id ,id))))
+
+(defun ensime-rpc-inspect-type-by-name (name)
+  (ensime-eval
+   `(swank:inspect-type-by-name ,name)))
 
 (defun ensime-rpc-inspect-package-by-path (path)
   (ensime-eval

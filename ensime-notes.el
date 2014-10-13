@@ -212,7 +212,7 @@ any buffer visiting the given file."
 	  (message (ensime-note-message next-note)))
       (message (concat
 		"No more compilation issues in this buffer. "
-		"Use ensime-typecheck-all [C-c C-v a] to find"
+		"Use ensime-typecheck-all [C-c C-c a] to find"
 		" all issues, project-wide.")))))
 
 (defun ensime-forward-note ()
