@@ -27,8 +27,10 @@
     (dolist (ch grouped-changed)
       (let* ((file (plist-get ch :file))
 	     (text (plist-get ch :text))
-	     (range-start (plist-get ch :from))
-	     (range-end (plist-get ch :to))
+	     (range-start (ensime-internalize-offset-for-file
+			   file (plist-get ch :from)))
+	     (range-end (ensime-internalize-offset-for-file
+			 file (plist-get ch :to)))
 	     (edits (plist-get ch :edits)))
 
 
@@ -39,6 +41,7 @@
 		 (result (ensime-extract-file-chunk
 			  file (- range-start 150) (+ range-end 150)))
 		 (chunk-text (plist-get result :text))
+		 (chunk-coding-system (plist-get result :chunk-coding-system))
 		 (chunk-start (plist-get result :chunk-start))
 		 (chunk-end (plist-get result :chunk-end))
 		 (chunk-start-line (plist-get result :chunk-start-line)))
@@ -72,11 +75,14 @@
 		       (len (- to from)))
 		  (goto-char (+ p (- from chunk-start)))
 		  (delete-char (min len (- (point-max) (point))))
-		  (ensime-insert-with-face text 'font-lock-keyword-face)))
+                  (let ((start (point)))
+                    (insert text)
+                    (recode-region start (point)
+                                   chunk-coding-system buffer-file-coding-system)
+                    (set-text-properties start (point) '(face font-lock-keyword-face)))))
 
 	      (goto-char (point-max))
-	      (insert "\n\n\n")
-	      )))))))
+	      (insert "\n\n\n"))))))))
 
 
 (defun ensime-changes-are-proximate-p (ch1 ch2)
@@ -145,21 +151,20 @@
 	(push (ensime-merge-changes (cons ch neighbors))
 	      update-merged)
 
-	(setq merged update-merged)
-	))
+	(setq merged update-merged)))
 
     ;; Sort in textual order
     (sort merged (lambda (a b)
 		   (< (plist-get a :from)
-		      (plist-get b :from))))
-    ))
+		      (plist-get b :from))))))
 
 
 (defun ensime-extract-file-chunk (file-name start end)
   "Return the text of the given file from start to end."
   (with-temp-buffer
     (insert-file-contents file-name)
-    (let* ((chunk-start
+    (let* ((coding-system last-coding-system-used)
+           (chunk-start
             (progn
               (goto-char start)
               (point-at-bol)))
@@ -169,10 +174,10 @@
               (point-at-eol)))
 	   (text (buffer-substring-no-properties chunk-start chunk-end)))
       (list :text text
+            :chunk-coding-system coding-system
 	    :chunk-start chunk-start
 	    :chunk-end chunk-end
-	    :chunk-start-line (line-number-at-pos chunk-start)
-	    ))))
+	    :chunk-start-line (line-number-at-pos chunk-start)))))
 
 
 
@@ -236,8 +241,7 @@
   (with-current-buffer (find-buffer-visiting file)
     (save-excursion
       (ensime-goto-line line)
-      (point)
-      )))
+      (point))))
 
 (defun ensime-goto-source-location (pos &optional where)
   "Move to the source location POS. Don't open
@@ -293,8 +297,7 @@
 (defvar ensime-compile-result-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "q") (lambda()(interactive)
-				(ensime-popup-buffer-quit-function)
-				))
+				(ensime-popup-buffer-quit-function)))
     (define-key map (kbd "g") 'ensime-show-all-errors-and-warnings)
     (define-key map (kbd "TAB") 'forward-button)
     (define-key map (kbd "<backtab>") 'backward-button)
@@ -337,8 +340,7 @@
 	 (maphash (lambda (file-heading notes-set)
 		    (let ((notes (sort (copy-list notes-set)
 				       (lambda (a b) (< (ensime-note-beg a)
-							(ensime-note-beg b)
-							)))))
+							(ensime-note-beg b))))))
 
 		      ;; Output file heading
 		      (ensime-insert-with-face
@@ -354,22 +356,19 @@
 					(error 'ensime-compile-errline)
 					(warn 'ensime-compile-warnline)
 					(info font-lock-string-face)
-					(otherwise font-lock-comment-face)
-					))
+					(otherwise font-lock-comment-face)))
 				(header (case severity
 					  (error "ERROR")
 					  (warn "WARNING")
 					  (info "INFO")
-					  (otherwise "MISC")
-					  ))
+					  (otherwise "MISC")))
 				(p (point)))
 			    (insert (format "%s: %s : line %s"
 					    header msg line))
 			    (ensime-make-code-link p (point) file beg face)))
 			(insert "\n"))))
 		  notes-by-file)))
-     (forward-button 1)
-     )))
+     (forward-button 1))))
 
 
 ;; Compilation on request
@@ -440,7 +439,7 @@ currently open in emacs."
       (if (null pos) (ensime-local-sym-at-point point)
         (let ((start (ensime-pos-offset pos))
               (name (plist-get info :local-name)))
-          (setq start (ensime-externalize-offset start))
+          (setq start (ensime-internalize-offset start))
           (list :start start
                 :end (+ start (string-width name))
                 :name name))))))
@@ -475,20 +474,16 @@ currently open in emacs."
       ;; No imports yet
       (when (looking-at "^\\s-*package\\s-")
         (goto-char (point-at-eol))
-        (newline)
-        )
+        (newline))
 
       (when (looking-at "^\\s-*import\\s-")
         (backward-char)
         (while (progn
                  (if (looking-at "[\n\t ]*import\\s-\\(.+\\)\n")
                      (let ((imported-name (match-string 1)))
-                       (string< imported-name qualified-name)
-                       )))
+                       (string< imported-name qualified-name))))
           (search-forward-regexp "^\\s-*import\\s-" starting-point t)
-          (goto-char (point-at-eol)))
-        )
-      )
+          (goto-char (point-at-eol)))))
 
     (newline)
     (insert (format (cond ((ensime-visiting-scala-file-p) "import %s")
@@ -530,10 +525,7 @@ currently open in emacs."
 		   (ensime-strip-dollar-signs
 		    (ensime-kill-txt-props selected-name))))
 	      (ensime-insert-import qual-name)
-	      (ensime-typecheck-current-file)
-	      ))
-	  )))
-    ))
+	      (ensime-typecheck-current-file))))))))
 
 ;; Source Formatting
 
@@ -547,8 +539,7 @@ currently open in emacs."
    (ensime-rpc-async-format-files
     (list file)
     `(lambda (result)
-       (ensime-revert-visited-files (list (list ,buffer-file-name ,file)) t)
-       ))))
+       (ensime-revert-visited-files (list (list ,buffer-file-name ,file)) t)))))
 
 (defun ensime-revert-visited-files (files &optional typecheck)
   "files is a list of buffer-file-names to revert or lists of the form
@@ -566,10 +557,8 @@ currently open in emacs."
                     (with-current-buffer buf
                       (insert-file-contents src do-visit nil nil t)
                       (when typecheck
-                        (ensime-typecheck-current-file)))
-                    ))))
-    (goto-char pt)
-    ))
+                        (ensime-typecheck-current-file)))))))
+    (goto-char pt)))
 
 ;; Expand selection
 
@@ -637,8 +626,7 @@ currently open in emacs."
 	  (start (plist-get range :start))
 	  (end (plist-get range :end)))
      (ensime-set-selection start end)
-     (push (list start end) ensime-selection-stack)
-     )))
+     (push (list start end) ensime-selection-stack))))
 
 (defun ensime-contract-selection ()
   "Contract to previous syntactic context."
@@ -656,8 +644,7 @@ currently open in emacs."
     (if (not bc)
 	(message "Could not find bytecode.")
       (progn
-	(ensime-ui-show-nav-buffer "*ensime-method-bytecode-buffer*" bc t)
-	))))
+	(ensime-ui-show-nav-buffer "*ensime-method-bytecode-buffer*" bc t)))))
 
 (defvar ensime-ui-method-bytecode-handler
   (list
@@ -666,8 +653,7 @@ currently open in emacs."
    :update (lambda (info))
    :help-text "Press q to quit."
    :writable nil
-   :keymap `()
-   ))
+   :keymap `()))
 
 (defun ensime-ui-insert-method-bytecode (val)
   (destructuring-bind
@@ -680,8 +666,7 @@ currently open in emacs."
       (ensime-insert-with-face (car op) 'font-lock-constant-face)
       (insert " ")
       (ensime-insert-with-face (cadr op) 'font-lock-variable-name-face)
-      (insert "\n")
-      )))
+      (insert "\n"))))
 
 ;; Uses UI
 
@@ -750,13 +735,10 @@ currently open in emacs."
 	     (ensime-make-code-link
 	      buffer-from buffer-to file external-from)))
 
-	 (insert "\n\n\n")
-	 ))
+	 (insert "\n\n\n")))
      (goto-char (point-min))
-     (when uses (forward-button 1))
-     )
-    (ensime-event-sig :references-buffer-shown)
-    ))
+     (when uses (forward-button 1)))
+    (ensime-event-sig :references-buffer-shown)))
 
 (provide 'ensime-editor)
 
