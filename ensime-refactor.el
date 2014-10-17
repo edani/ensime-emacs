@@ -85,9 +85,9 @@
 	  (ensime-refactor-prepare
 	   'rename
 	   `(file ,buffer-file-name
-		  start ,(- start ensime-ch-fix)
-		  end ,(- end ensime-ch-fix)
-		  newName ,name)))
+	     start ,(ensime-externalize-offset start)
+             end ,(ensime-externalize-offset end)
+             newName ,name)))
       (message "Please place cursor on a symbol."))))
 
 
@@ -101,33 +101,35 @@
 	  (ensime-refactor-prepare
 	   'inlineLocal
 	   `(file ,buffer-file-name
-		  start ,(- start ensime-ch-fix)
-		  end ,(- end ensime-ch-fix))))
+	     start ,(ensime-externalize-offset start)
+	     end ,(ensime-externalize-offset end))))
       (message "Please place cursor on a local value."))))
-
 
 (defun ensime-refactor-extract-method ()
   "Extract a range of code into a method."
   (interactive)
-  (let* ((name (read-string "Name of method: ")))
-    (ensime-refactor-prepare
-     'extractMethod
-     `(file ,buffer-file-name
-	    start ,(- (mark) ensime-ch-fix)
-	    end ,(- (point) ensime-ch-fix)
-	    methodName ,name))))
-
+  (let ((name (read-string "Name of method: ")))
+    (destructuring-bind (start end)
+        (ensime-computed-range)
+      (ensime-refactor-prepare
+       'extractMethod
+       `(file ,buffer-file-name
+         start ,start
+         end ,end
+         methodName ,name)))))
 
 (defun ensime-refactor-extract-local ()
   "Extract a range of code into a val."
   (interactive)
-  (let* ((name (read-string "Name of local value: ")))
-    (ensime-refactor-prepare
-     'extractLocal
-     `(file ,buffer-file-name
-	    start ,(- (mark) ensime-ch-fix)
-	    end ,(- (point) ensime-ch-fix)
-	    name ,name))))
+  (let ((name (read-string "Name of local value: ")))
+    (destructuring-bind (start end)
+        (ensime-computed-range)
+      (ensime-refactor-prepare
+       'extractLocal
+       `(file ,buffer-file-name
+         start ,start
+         end ,end
+         name ,name)))))
 
 (defun ensime-refactor-add-import (&optional qual-name)
   "Insert import statement."
@@ -138,12 +140,10 @@
     (let ((result (ensime-refactor-prepare
                    'addImport
                    `(file ,buffer-file-name
-                          qualifiedName ,qualified-name) t t
-                          )))
+                     qualifiedName ,qualified-name) t t)))
       (ensime-refactor-handle-result result))))
 
-(defun ensime-refactor-prepare
-  (refactor-type params &optional non-interactive blocking)
+(defun ensime-refactor-prepare (refactor-type params &optional non-interactive blocking)
   (if (buffer-modified-p) (ensime-write-buffer nil t))
   (incf ensime-refactor-id-counter)
   (if (not blocking) (message "Please wait..."))
@@ -155,8 +155,7 @@
    (if non-interactive
        'ensime-refactor-handle-result
      'ensime-refactor-prepare-handler)
-   blocking
-   ))
+   blocking))
 
 (defun ensime-refactor-prepare-handler (result)
   (let ((refactor-type (plist-get result :refactor-type))
@@ -180,15 +179,13 @@
 
 	  (ensime-event-sig :refactor-at-confirm-buffer))
 
-      (ensime-refactor-notify-failure result)
-      )))
+      (ensime-refactor-notify-failure result))))
 
 
 (defun ensime-refactor-handle-result (result)
   (let ((touched (plist-get result :touched-files)))
     (ensime-revert-visited-files touched t)
-    (ensime-event-sig :refactor-done touched)
-    ))
+    (ensime-event-sig :refactor-done touched)))
 
 (defun ensime-refactor-populate-confirmation-buffer (refactor-type changes)
   (let ((header
