@@ -550,6 +550,10 @@ scalaVersion := \"_scala_version_\"
 
 resolvers += Resolver.sonatypeRepo(\"snapshots\")
 
+resolvers += \"Typesafe repository\" at \"http://repo.typesafe.com/typesafe/releases/\"
+
+resolvers += \"Akka Repo\" at \"http://repo.akka.io/repository\"
+
 libraryDependencies += \"org.ensime\" %% \"ensime\" % \"0.9.10-SNAPSHOT\"
 
 // guaranteed to exist when started from emacs
