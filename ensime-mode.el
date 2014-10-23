@@ -146,7 +146,7 @@
     ("Typecheck"
      ["Typecheck file" ensime-typecheck-current-file]
      ["Typecheck project" ensime-typecheck-all]
-     ["Reload typecheker" ensime-reload-open-files]
+     ["Reload typechecker" ensime-reload-open-files]
      ["Show all errors and warnings" ensime-show-all-errors-and-warnings])
 
     ("Refactor"
