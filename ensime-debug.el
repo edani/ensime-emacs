@@ -20,6 +20,7 @@
 ;;     MA 02111-1307, USA.
 
 (eval-and-compile
+  (require 'gdb-mi)
   (require 'cl))
 
 (eval-and-compile (require 'ensime-macros))
@@ -30,23 +31,17 @@
   :prefix 'ensime-db)
 
 (defface ensime-breakpoint-face
-  '((((class color) (background dark)) (:background "DarkGreen"))
-    (((class color) (background light)) (:background "LightGreen"))
-    (t (:bold t)))
+  '((t ()))
   "Face used for marking lines with breakpoints."
   :group 'ensime-ui)
 
 (defface ensime-pending-breakpoint-face
-  '((((class color) (background dark)) (:background "DarkGreen"))
-    (((class color) (background light)) (:background "LightGreen"))
-    (t (:bold t)))
+  '((t ()))
   "Face used for marking lines with a pending breakpoints."
   :group 'ensime-ui)
 
 (defface ensime-marker-face
-  '((((class color) (background dark)) (:background "DarkGoldenrod4"))
-    (((class color) (background light)) (:background "DarkGoldenrod2"))
-    (t (:bold t)))
+  '((t (:inherit hl-line-face)))
   "Face used for marking the current point of execution."
   :group 'ensime-ui)
 
@@ -116,7 +111,12 @@
 (defun ensime-db-handle-output (evt)
   (with-current-buffer (get-buffer-create
                         ensime-db-output-buffer)
-    (insert (plist-get evt :body))))
+    (let ((text (plist-get evt :body)))
+      (when (eq 1 (coding-system-eol-type buffer-file-coding-system))
+        (setq text (replace-regexp-in-string "\r" "" text)))
+      (goto-char (point-max))
+      (insert text)))
+  (display-buffer ensime-db-output-buffer))
 
 (defun ensime-db-handle-exception (evt)
   (setq ensime-db-active-thread-id
@@ -141,7 +141,9 @@
   )
 
 (defun ensime-db-handle-start (evt)
-  (message "Debug VM started. Set breakpoints and then execute ensime-db-run."))
+  (message "Debug VM started. Set breakpoints and then execute ensime-db-run.")
+  (when (get-buffer ensime-db-output-buffer)
+    (kill-buffer ensime-db-output-buffer)))
 
 (defun ensime-db-handle-step (evt)
   (setq ensime-db-active-thread-id
@@ -193,16 +195,18 @@
   (when-let (ov (ensime-make-overlay-at
                  file line nil nil
                  "Debug Marker"
-                 'ensime-marker-face))
+                 (list :face 'ensime-marker-face
+                       :char ">"
+                       :bitmap 'right-triangle
+                       :fringe 'ensime-compile-errline)))
             (push ov ensime-db-marker-overlays))
 
   (ensime-goto-source-location
    (list :file file :line line)
-   'window)
-  )
+   'window))
 
 
-(defun ensime-db-create-breapoint-overlays (positions face)
+(defun ensime-db-create-breapoint-overlays (positions visuals)
   (dolist (pos positions)
     (let ((file (ensime-pos-file pos))
           (line (ensime-pos-line pos)))
@@ -210,7 +214,7 @@
         (when-let (ov (ensime-make-overlay-at
                        file line nil nil
                        "Breakpoint"
-                       face))
+                       visuals))
                   (push ov ensime-db-breakpoint-overlays))))))
 
 
@@ -221,9 +225,18 @@
          (active (plist-get bps :active))
          (pending (plist-get bps :pending)))
     (ensime-db-create-breapoint-overlays
-     active 'ensime-breakpoint-face)
+     active
+     (list :face 'ensime-breakpoint-face
+           :char "."
+           :bitmap 'breakpoint
+           :fringe 'breakpoint-enabled))
+
     (ensime-db-create-breapoint-overlays
-     pending 'ensime-pending-breakpoint-face)))
+     pending
+     (list :face 'ensime-pending-breakpoint-face
+           :char "o"
+           :bitmap 'breakpoint
+           :fringe 'breakpoint-disabled))))
 
 
 (defvar ensime-db-breakpoint-overlays '())
@@ -276,7 +289,7 @@
                                  font-lock-constant-face)
         (insert "\n")
         (ensime-insert-link heading
-                            file nil font-lock-constant-face line)
+                            (list :file file :line line) font-lock-constant-face)
         (insert "\n")
         (ensime-insert-with-face (make-string (length heading) ?\-)
                                  font-lock-constant-face)
@@ -286,9 +299,7 @@
       (insert "\n"))
 
     :local-var
-    'ensime-db-ui-insert-stack-var
-
-    )))
+    'ensime-db-ui-insert-stack-var)))
 
 
 (defun ensime-db-obj-to-ref (val)
@@ -502,6 +513,7 @@
    :update (lambda (info))
    :help-text "Press q to quit, use n,s,o,c to control debugger."
    :keymap `(
+             (,(kbd "<mouse-1>") ,'push-button)
              (,(kbd "n") ,'ensime-db-next)
              (,(kbd "s") ,'ensime-db-step)
              (,(kbd "o") ,'ensime-db-step-out)
@@ -519,6 +531,7 @@
    :help-text "Press q to quit, use n,s,o,c to control debugger."
    :writable t
    :keymap `(
+             (,(kbd "<mouse-1>") ,'push-button)
              (,(kbd "n") ,'ensime-db-next)
              (,(kbd "s") ,'ensime-db-step)
              (,(kbd "o") ,'ensime-db-step-out)
