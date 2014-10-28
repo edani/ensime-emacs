@@ -95,7 +95,11 @@
       (define-key prefix-map (kbd "C-b S") 'ensime-stacktrace-switch)
       (define-key prefix-map (kbd "C-b c") 'ensime-sbt-do-compile)
       (define-key prefix-map (kbd "C-b n") 'ensime-sbt-do-clean)
+      (define-key prefix-map (kbd "C-b o") 'ensime-sbt-do-test-only)      
       (define-key prefix-map (kbd "C-b p") 'ensime-sbt-do-package)
+      (define-key prefix-map (kbd "C-b r") 'ensime-sbt-do-run)
+      (define-key prefix-map (kbd "C-b T") 'ensime-sbt-do-test)
+      (define-key prefix-map (kbd "C-b t") 'ensime-sbt-do-test-quick)
 
       (define-key prefix-map (kbd "C-d u") 'ensime-db-clear-break)
       (define-key prefix-map (kbd "C-d s") 'ensime-db-step)
