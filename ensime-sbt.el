@@ -236,6 +236,29 @@
   (ensime-sbt-switch)
   (ensime-sbt-action "package"))
 
+(defun ensime-sbt-do-test ()
+  (interactive)
+  (when ensime-save-before-compile (save-some-buffers))
+  (ensime-sbt-switch)
+  (ensime-sbt-action "test"))
+
+(defun ensime-sbt-do-test-quick ()
+  (interactive)
+  (when ensime-save-before-compile (save-some-buffers))
+  (ensime-sbt-switch)
+  (ensime-sbt-action "test-quick"))
+
+(defun ensime-sbt-do-test-only ()
+  (interactive)
+  (let* ((impl-class
+            (or (ensime-top-level-class-closest-to-point)
+                (return (message "Could not find top-level class"))))
+	 (cleaned-class (replace-regexp-in-string "<empty>\\." "" impl-class))
+	 (command (concat "test-only" " " cleaned-class)))
+    (when ensime-save-before-compile (save-some-buffers))
+    (ensime-sbt-switch)
+    (message (concat "running" " " command))
+    (ensime-sbt-action command)))
 
 (defun ensime-sbt-project-dir-p (path)
   "Is path an sbt project?"
