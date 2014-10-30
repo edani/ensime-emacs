@@ -64,6 +64,7 @@
       (define-key prefix-map (kbd "C-v x") 'ensime-scalex)
       (define-key prefix-map (kbd "C-v d") 'ensime-show-doc-for-symbol-at-point)
       (define-key prefix-map (kbd "C-v t") 'ensime-print-type-at-point)
+      (define-key prefix-map (kbd "C-v e") 'ensime-print-errors-at-point)
       (define-key prefix-map (kbd "C-v .") 'ensime-expand-selection-command)
 
       (define-key prefix-map (kbd "C-v C-r") 'ensime-inf-eval-region)
