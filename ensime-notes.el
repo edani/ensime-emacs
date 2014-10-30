@@ -225,6 +225,15 @@ any buffer visiting the given file."
   (interactive)
   (ensime-goto-next-note nil))
 
+(defun ensime-errors-at (point)
+  (delq nil (mapcar (lambda (x) (overlay-get x 'help-echo)) (ensime-overlays-at point))))
+
+(defun ensime-print-errors-at-point ()
+  (interactive)
+  (let ((msgs (apply 'concat (ensime-errors-at (point)))))
+    (when msgs
+      (message msgs))))
+
 (provide 'ensime-notes)
 
 ;; Local Variables:
