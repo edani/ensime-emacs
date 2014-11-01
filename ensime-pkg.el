@@ -5,7 +5,7 @@
     (popup "0.5.0")
     (auto-complete "1.4.0")
     (scala-mode2 "0.21")
-    (sbt "0.03")))
+    (sbt-mode "0.03")))
 
 ;; Local Variables:
 ;; no-byte-compile: t
