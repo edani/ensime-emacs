@@ -69,7 +69,7 @@
 
       (define-key prefix-map (kbd "C-v C-r") 'ensime-inf-eval-region)
       (define-key prefix-map (kbd "C-v b") 'ensime-inf-eval-buffer)
-      (define-key prefix-map (kbd "C-v l") 'ensime-inf-load-file)      
+      (define-key prefix-map (kbd "C-v l") 'ensime-inf-load-file)
 
       (define-key prefix-map (kbd "C-c c") 'ensime-typecheck-current-file)
       (define-key prefix-map (kbd "C-c a") 'ensime-typecheck-all)
@@ -96,7 +96,7 @@
       (define-key prefix-map (kbd "C-b S") 'ensime-stacktrace-switch)
       (define-key prefix-map (kbd "C-b c") 'ensime-sbt-do-compile)
       (define-key prefix-map (kbd "C-b n") 'ensime-sbt-do-clean)
-      (define-key prefix-map (kbd "C-b o") 'ensime-sbt-do-test-only)      
+      (define-key prefix-map (kbd "C-b o") 'ensime-sbt-do-test-only)
       (define-key prefix-map (kbd "C-b p") 'ensime-sbt-do-package)
       (define-key prefix-map (kbd "C-b r") 'ensime-sbt-do-run)
       (define-key prefix-map (kbd "C-b T") 'ensime-sbt-do-test)
@@ -186,6 +186,10 @@
      ["Start or switch to" ensime-sbt-switch]
      ["Compile" ensime-sbt-do-compile]
      ["Clean" ensime-sbt-do-clean]
+     ["Test" ensime-sbt-do-test]
+     ["Test Quick" ensime-sbt-do-test-quick]
+     ["Test current class" ensime-sbt-do-test-only]
+     ["Run" ensime-sbt-do-run]
      ["Package" ensime-sbt-do-package])
 
     ("Debugger"
