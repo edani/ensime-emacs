@@ -296,12 +296,9 @@
 
 (defvar ensime-compile-result-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "q") (lambda()(interactive)
-				(ensime-popup-buffer-quit-function)))
     (define-key map (kbd "g") 'ensime-show-all-errors-and-warnings)
     (define-key map (kbd "TAB") 'forward-button)
     (define-key map (kbd "<backtab>") 'backward-button)
-    (define-key map [mouse-1] 'push-button)
     (define-key map (kbd "M-n") 'forward-button)
     (define-key map (kbd "M-p") 'backward-button)
     map)
@@ -675,8 +672,6 @@ currently open in emacs."
 (defvar ensime-uses-buffer-map
   (let ((map (make-sparse-keymap)))
     (define-key map [?\t] 'forward-button)
-    (define-key map [mouse-1] 'push-button)
-    (define-key map (kbd "q") 'ensime-popup-buffer-quit-function)
     (define-key map (kbd "M-n") 'forward-button)
     (define-key map (kbd "M-p") 'backward-button)
     map)

@@ -1131,7 +1131,7 @@
 
 
    (ensime-async-test
-    "FAIL Test deleting file and reloading."
+    "Test deleting file and reloading."
     (let* ((proj (ensime-create-tmp-project
                   `((:name
                      "pack/a.scala"
@@ -1302,7 +1302,7 @@
 
 
    (ensime-async-test
-    "Test get symbol info at point."
+    "FAIL Test get symbol info at point."
     (let* ((proj (ensime-create-tmp-project
                   ensime-tmp-project-hello-world)))
       (ensime-test-init-proj proj))

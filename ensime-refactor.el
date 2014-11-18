@@ -30,16 +30,15 @@
 (defvar ensime-refactor-info-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "c") (lambda()(interactive)
-				(funcall continue-refactor)
-				(ensime-popup-buffer-quit-function)
-				))
+                               (funcall continue-refactor)
+                               (ensime-popup-buffer-quit-function)
+                               ))
     (define-key map (kbd "q") (lambda()(interactive)
-				(funcall cancel-refactor)
-				(ensime-popup-buffer-quit-function)
-				))
-    map)
+                               (funcall cancel-refactor)
+                               (ensime-popup-buffer-quit-function)
+                               ))
+   map)
   "Key bindings for the refactor confirmation popup.")
-
 
 (defun ensime-refactor-notify-failure (result)
   (message "Refactoring failed: %s" (plist-get result :reason)))
@@ -164,20 +163,24 @@
 	(changes (plist-get result :changes)))
     (if (equal status 'success)
 	(let ((cont `(lambda () (ensime-rpc-refactor-exec
-				 ,id ',refactor-type
-				 'ensime-refactor-handle-result)))
-	      (cancel `(lambda () (ensime-rpc-refactor-cancel ,id))))
+                                 ,id ',refactor-type
+                                 'ensime-refactor-handle-result)))
+              (cancel `(lambda () (ensime-rpc-refactor-cancel ,id))))
 
-	  (ensime-with-popup-buffer
-	   (ensime-refactor-info-buffer-name t t)
-	   (use-local-map ensime-refactor-info-map)
-	   (set (make-local-variable 'cancel-refactor) cancel)
-	   (set (make-local-variable 'continue-refactor) cont)
-	   (ensime-refactor-populate-confirmation-buffer
-	    refactor-type changes)
-	   (goto-char (point-min)))
+          (ensime-with-popup-buffer
+           (ensime-refactor-info-buffer-name t t)
+           ;; Override ensime-popup-buffer-mode's normal keymap
+           ;; because of "q"
+           (add-to-list
+            'minor-mode-overriding-map-alist
+            (cons 'ensime-popup-buffer-mode ensime-refactor-info-map))
+           (set (make-local-variable 'cancel-refactor) cancel)
+           (set (make-local-variable 'continue-refactor) cont)
+           (ensime-refactor-populate-confirmation-buffer
+            refactor-type changes)
+           (goto-char (point-min)))
 
-	  (ensime-event-sig :refactor-at-confirm-buffer))
+          (ensime-event-sig :refactor-at-confirm-buffer))
 
       (ensime-refactor-notify-failure result))))
 

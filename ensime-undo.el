@@ -49,14 +49,16 @@
 
 	(ensime-with-popup-buffer
 	 (ensime-undo-info-buffer-name t t)
-	 (use-local-map ensime-undo-info-map)
+           ;; Override ensime-popup-buffer-mode's normal keymap
+           ;; because of "q"
+           (add-to-list
+            'minor-mode-overriding-map-alist
+            (cons 'ensime-popup-buffer-mode ensime-undo-info-map))
 	 (set (make-local-variable 'cancel-undo) cancel)
 	 (set (make-local-variable 'continue-undo) cont)
 	 (ensime-undo-populate-confirmation-buffer
 	  summary changes)
-	 (goto-char (point-min))
-	 )
-	))))
+	 (goto-char (point-min)))))))
 
 (defun ensime-undo-exec (id)
   (let* ((result (ensime-rpc-exec-undo id))
