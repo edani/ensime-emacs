@@ -13,7 +13,7 @@
   "Mode for displaying read only stuff"
   nil
   nil
-  (make-sparse-keymap))
+  ensime-popup-buffer-map)
 
 (add-to-list 'minor-mode-alist
 	     '(ensime-popup-buffer-mode (:eval (ensime-modeline-string))))
@@ -36,16 +36,20 @@ See `view-return-to-alist' for a similar idea.")
    "So we can query later whether this is a popup buffer."))
 
 ;; Interface
-(defun ensime-make-popup-buffer (name buffer-vars)
+(defun ensime-make-popup-buffer (name buffer-vars &optional major-mode-fn)
   "Return a temporary buffer called NAME.
 The buffer also uses the minor-mode `ensime-popup-buffer-mode'."
   (with-current-buffer (get-buffer-create name)
     (kill-all-local-variables)
     (setq buffer-read-only nil)
     (erase-buffer)
+
+    (when major-mode-fn
+      (funcall major-mode-fn))
+
     (set-syntax-table lisp-mode-syntax-table)
     (ensime-init-popup-buffer buffer-vars)
-    (use-local-map ensime-popup-buffer-map)
+
     (setq ensime-is-popup-buffer t)
     (current-buffer)))
 

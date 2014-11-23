@@ -366,7 +366,7 @@ This doesn't mean it will connect right after Ensime is loaded."
   "ENSIME Connection List Mode.
 
 \\{ensime-connection-list-mode-map}
-\\{ensime-popup-buffer-mode-map}"
+\\{ensime-popup-buffer-map}"
   (when ensime-truncate-lines
     (set (make-local-variable 'truncate-lines) t)))
 
@@ -405,9 +405,9 @@ This doesn't mean it will connect right after Ensime is loaded."
 (defun ensime-list-connections ()
   "Display a list of all connections."
   (interactive)
-  (ensime-with-popup-buffer (ensime-connections-buffer-name)
-			    (ensime-connection-list-mode)
-			    (ensime-draw-connection-list)))
+  (ensime-with-popup-buffer (ensime-connections-buffer-name
+                             nil nil 'ensime-connection-list-mode)
+    (ensime-draw-connection-list)))
 
 (defun ensime-update-connection-list ()
   "Display a list of all connections."

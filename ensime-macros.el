@@ -38,7 +38,7 @@ If not, message the user."
   `(let ((,var ,value))
      (when ,var ,@body)))
 
-(defmacro* ensime-with-popup-buffer ((name &optional connection select)
+(defmacro* ensime-with-popup-buffer ((name &optional connection select major-mode-fn)
 				     &body body)
   "Similar to `with-output-to-temp-buffer'.
 Bind standard-output and initialize some buffer-local variables.
@@ -48,9 +48,12 @@ NAME is the name of the buffer to be created.
 CONNECTION is the value for `ensime-buffer-connection'.
 If nil, no explicit connection is associated with
 the buffer.  If t, the current connection is taken.
+SELECT determines whether the new window is selected.
+MAJOR-MODE-FN, if non-nil, is executed immediately after the new
+buffer is created, for example to set the major mode.
 "
   `(let* ((vars% (list ,(if (eq connection t) '(ensime-connection) connection)))
-	  (standard-output (ensime-make-popup-buffer ,name vars%)))
+	  (standard-output (ensime-make-popup-buffer ,name vars% ,major-mode-fn)))
      (with-current-buffer standard-output
        (prog1
 	   (progn
@@ -92,8 +95,11 @@ If PROCESS is not specified, `ensime-connection' is used.
 					 &body body)
   "Extend the standard popup buffer with inspector-specific bindings."
   `(ensime-with-popup-buffer
-    (,name t ,select)
-    (use-local-map ensime-popup-inspector-map)
+    (,name t ,select 'ensime-inspector-mode)
+
+    (let ((conn ensime-buffer-connection))
+      (setq ensime-buffer-connection conn))
+
     (when (not ensime-inspector-paging-in-progress)
 
       ;; Clamp the history cursor
