@@ -503,18 +503,22 @@ inspect the package of the current source file."
 		      info))))
     ))
 
-
-(defvar ensime-popup-inspector-map
+(defvar ensime-inspector-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map [?\t] 'forward-button)
-    (define-key map [mouse-1] 'push-button)
-    (define-key map (kbd "q") 'ensime-popup-buffer-quit-function)
     (define-key map (kbd "M-n") 'forward-button)
     (define-key map (kbd "M-p") 'backward-button)
     (define-key map (kbd ".") 'ensime-inspector-forward-page)
     (define-key map (kbd ",") 'ensime-inspector-backward-page)
     map)
   "Type and package inspector key bindings.")
+
+(define-derived-mode ensime-inspector-mode fundamental-mode
+  "Ensime-Inspector"
+  "Ensime Inspector Mode.
+
+\\{ensime-inspector-mode-map}
+\\{ensime-popup-buffer-map}")
 
 (provide 'ensime-inspector)
 
