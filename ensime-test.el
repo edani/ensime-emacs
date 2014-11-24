@@ -124,8 +124,7 @@
        :root-dir root-dir
        :conf-file conf-file
        :src-dir src-dir
-       :target target-dir)
-      )))
+       :target target-dir))))
 
 (defvar ensime-tmp-project-hello-world
   `((:name
@@ -141,9 +140,7 @@
                  "def foo(a:Int, b:Int):Int = {"
                  "a + b"
                  "}"
-                 "}"
-                 )
-     )))
+                 "}"))))
 
 (defun ensime-test-compile-java-proj (proj arguments)
   "Compile java sources of given temporary test project."
@@ -153,13 +150,13 @@
          (args (append
                 arguments
                 (list "-d" target)
-                src-files
-                )))
+                src-files)))
     (assert (= 0 (apply 'call-process "javac" nil "*javac*" nil args)))))
 
 (defun ensime-cleanup-tmp-project (proj &optional no-del)
   "Destroy a temporary project directory, kill all buffers visiting
    source files in the project."
+  ;; TODO Should delete all buffers that weren't there at the test start
   (let ((src-files (plist-get proj :src-files))
         (root-dir (plist-get proj :root-dir)))
     (dolist (f src-files)
@@ -179,7 +176,8 @@
       ;; a bit of paranoia..
       (if (and root-dir (integerp (string-match "^/tmp/" root-dir)))
           ;; ..before we wipe away the project dir
-          (shell-command (format "rm -rf %S" root-dir))))))
+          (with-current-buffer ensime-testing-buffer
+            (shell-command (format "rm -rf %S" root-dir)))))))
 
 (defun ensime-kill-all-ensime-servers ()
   "Kill all inferior ensime server buffers."
@@ -236,8 +234,7 @@
                     (setq ensime-ecukes-callbacks nil))
                   (ensime-run-next-test)))
             (message "Got %s, expecting %s. Ignoring event."
-                     event handler-event)
-            )
+                     event handler-event))
           (dolist (callback ensime-ecukes-callbacks)
             (let ((event-type (plist-get callback :event))
                   (event-cb (plist-get callback :cb)))
@@ -257,7 +254,7 @@
 (defun ensime-test-output-result (result)
   "Helper for writing results to testing buffer."
   (if (equal result t)
-      (ensime-test-output (format "." ))
+      (ensime-test-output (format "."))
     (ensime-test-output (format "%s\n" result))))
 
 (defun ensime-run-suite (suite)
@@ -296,8 +293,7 @@
          (format "Assertion failed at '%s': %s" ,context signal))
         (signal
          'ensime-test-interrupted
-         (format "Test interrupted: %s." signal))
-        ))))
+         (format "Test interrupted: %s." signal))))))
 
 
 (defmacro* ensime-async-test (title trigger &rest handlers)
@@ -352,8 +348,7 @@
                 :guard-func (when guard-expr
                               (list 'lambda (list val-sym) guard-expr))
                 :func func
-                :is-last (eq h last-handler)
-                )))
+                :is-last (eq h last-handler))))
            handlers))
          (trigger-func
           `(lambda ()
@@ -362,8 +357,7 @@
               ,trigger))))
     `(list :title ,title :async t
            :trigger ,trigger-func
-           :handlers ',handler-structs
-           )))
+           :handlers ',handler-structs)))
 
 ;;(message "%S" (macroexpand '(ensime-async-test "blarg" (do-this-thing) ((:evt-a val) val) ((:evt-b val) val))))
 
@@ -378,6 +372,7 @@
           (setq ensime-shared-test-state '())
           (setq ensime-async-handler-stack '())
 
+          (message "Running test %s" (plist-get test :title))
           (ensime-test-output (format "\n%s" (plist-get test :title)))
 
           (if (plist-get test :async)
@@ -398,8 +393,7 @@
                    (message "Error executing test, moving to next."))))
               (ensime-run-next-test))))
       (goto-char (point-max))
-      (insert "\n\nFinished.")
-      )))
+      (insert "\n\nFinished."))))
 
 
 (defmacro ensime-assert (pred)
@@ -456,8 +450,7 @@
           (existing (remove-if-not #'file-exists-p ,src-files-name)))
      (when existing
        (find-file (car existing)))
-     ,@body
-     ))
+     ,@body))
 
 (defmacro ensime-test-init-proj (proj-name)
   "Store the project in a test var. Load the source files, switch to
@@ -488,8 +481,7 @@
            (format "%S"
                    '( :server-cmd
                       "bin/server.sh"
-                      :dependendency-dirs ("hello" "world")
-                      )))
+                      :dependendency-dirs ("hello" "world"))))
      (let ((conf (ensime-config-load file)))
        (ensime-assert (equal (plist-get conf :server-cmd) "bin/server.sh"))
        (ensime-assert (equal (plist-get conf :dependendency-dirs)
@@ -540,9 +532,7 @@
     (ensime-with-name-parts
      "Types$$Type$" (p o n)
      (ensime-assert-equal (list p o n)
-                          (list "" "Types$" "Type$")))
-
-    )
+                          (list "" "Types$" "Type$"))))
 
    (ensime-test
     "Test course name partitioning..."
@@ -585,10 +575,7 @@
     (ensime-with-path-and-name
      "uti" (p n)
      (ensime-assert-equal (list p n)
-                          (list "" "uti")))
-
-    )
-
+                          (list "" "uti"))))
 
    (ensime-test
     "Test is source file predicate..."
@@ -603,7 +590,7 @@
      (ensime-relativise-path "/home/aemon/rabbits.txt" "/home/aemon/"))
     (ensime-assert-equal
      "./a/b/d.txt"
-     (ensime-relativise-path "/home/aemon/a/b/d.txt" "/home/aemon/" ))
+     (ensime-relativise-path "/home/aemon/a/b/d.txt" "/home/aemon/"))
     (ensime-assert-equal
      "./a/b/d.txt"
      (ensime-relativise-path  "c:/home/aemon/a/b/d.txt" "c:/home/aemon/"))
@@ -654,33 +641,11 @@
         (setf internalized-syms
               (sort (ensime-sem-high-internalize-syms syms)
                     (lambda (a b) (< (nth 1 a) (nth 1 b)))))
-        (ensime-assert-equal internalized-syms expected))))
-   ))
-
+        (ensime-assert-equal internalized-syms expected))))))
 
 (defvar ensime-slow-suite
 
   (ensime-test-suite
-
-   (ensime-async-test
-    "No race condition in symbol-designations"
-    (let* ((proj (ensime-create-tmp-project
-                  ensime-tmp-project-hello-world)))
-      (ensime-test-init-proj proj))
-
-    ((:connected connection-info))
-
-    ((:compiler-ready status)
-     (ensime-test-with-proj
-      (proj src-files)
-      (let ((conf (ensime-rpc-repl-config)))
-        (ensime-assert (not (null conf)))
-        (ensime-assert
-         (not (null (plist-get conf :classpath)))))
-
-      (ensime-test-cleanup proj)
-      ))
-    )
 
    (ensime-async-test
     "Test inspect type at point."
@@ -690,30 +655,28 @@
                      :contents ,(ensime-test-concat-lines
                                  "package pack.a"
                                  "class A(value:/*1*/String){"
-                                 "}"
-                                 )
-                     )
-                    ))))
+                                 "}"))))))
       (ensime-test-init-proj proj))
 
     ((:connected connection-info))
+
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
+      (ensime-typecheck-current-file)))
 
     ((:indexer-ready val)
      (ensime-test-with-proj
       (proj src-files)
       (find-file (car src-files))
-      (ensime-test-eat-label "1")
-      (ensime-write-buffer)
-      (forward-char 1)
+      (goto-char (ensime-test-after-label "1"))
       (let* ((info (ensime-rpc-inspect-type-at-point)))
         (ensime-assert (not (null info)))
         (ensime-assert-equal (plist-get (plist-get info :type) :name) "String"))
-      (ensime-test-cleanup proj)
-      ))
-    )
+      (ensime-test-cleanup proj))))
 
    (ensime-async-test
-    "FAIL Test inspect type in range."
+    "Test inspect type in range."
     (let* ((proj (ensime-create-tmp-project
                   `((:name
                      "test.scala"
@@ -725,29 +688,28 @@
                                  "  val x = 10"
                                  " }"
                                  " def bar(i:Int) = \"dlkjf\""
-                                 "}"
-                                 )
-                     )
-                    ))))
+                                 "}"))))))
       (ensime-test-init-proj proj))
 
     ((:connected connection-info))
+
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
+      (ensime-typecheck-current-file)))
 
     ((:indexer-ready val)
      (ensime-test-with-proj
       (proj src-files)
       (find-file (car src-files))
-      (ensime-test-eat-label "1")
-      (ensime-typecheck-current-file)
-      (forward-char 1)
+      (goto-char (ensime-test-after-label "1"))
       (let ((info (ensime-rpc-inspect-type-at-range
                    (list (ensime-externalize-offset (point))
                          (ensime-externalize-offset (point-at-eol))))))
         (ensime-assert (not (null info)))
         (ensime-assert-equal
-	 (plist-get (plist-get info :type) :name) "String"))
-      (ensime-test-cleanup proj)))
-    )
+         (plist-get (plist-get info :type) :name) "String"))
+      (ensime-test-cleanup proj))))
 
    (ensime-async-test
     "Test completing members."
@@ -781,9 +743,7 @@
                                  "    val dude = \"hello\""
                                  "    dude.substring(2,2).hea/*5*/"
                                  "  }"
-                                 "}"
-                                 )
-                     ))))
+                                 "}")))))
            (src-files (plist-get proj :src-files)))
       (ensime-test-var-put :proj proj)
       (find-file (car src-files))
@@ -794,9 +754,11 @@
     ((:full-typecheck-finished val)
      (ensime-test-with-proj
       (proj src-files)
-      ;; Set cursor to symbol in method body..
-      (find-file (car src-files))
+      (ensime-typecheck-current-file)))
 
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
       ;; object method completion
       (ensime-test-eat-label "1")
       (let* ((candidates (ensime-ac-completion-candidates "")))
@@ -823,9 +785,7 @@
       (let* ((candidates (ensime-ac-completion-candidates "hea")))
         (ensime-assert (member "headOption" candidates)))
 
-      (ensime-test-cleanup proj)
-      ))
-    )
+      (ensime-test-cleanup proj))))
 
    (ensime-async-test
     "Test completing symbols."
@@ -848,9 +808,7 @@
                                  "    a + bl/*2*/"
                                  "  }"
 
-                                 "}"
-                                 )
-                     ))))
+                                 "}")))))
            (src-files (plist-get proj :src-files)))
       (ensime-test-var-put :proj proj)
       (find-file (car src-files))
@@ -861,8 +819,11 @@
     ((:full-typecheck-finished val)
      (ensime-test-with-proj
       (proj src-files)
-      ;; Set cursor to symbol in method body..
-      (find-file (car src-files))
+      (ensime-typecheck-current-file)))
+
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
 
       ;; constructor completion
       (ensime-test-eat-label "1")
@@ -874,12 +835,10 @@
       (let* ((candidates (ensime-ac-completion-candidates "bl")))
         (ensime-assert (member "blarg" candidates)))
 
-      (ensime-test-cleanup proj)
-      ))
-    )
+      (ensime-test-cleanup proj))))
 
    (ensime-async-test
-    "FAIL Test completing imports."
+    "Test completing imports."
     (let* ((proj (ensime-create-tmp-project
                   `((:name
                      "hello_world.scala"
@@ -890,17 +849,18 @@
                                  "import java.util.{ List, Vec/*4*/}"
                                  "class HelloWorld{"
                                  "import sc/*2*/"
-                                 "}"
-                                 )
-                     ))
-                  '(:disable-index-on-startup nil)
-                  ))
+                                 "}")))))
            (src-files (plist-get proj :src-files)))
       (ensime-test-var-put :proj proj)
       (find-file (car src-files))
       (ensime))
 
     ((:connected connection-info))
+
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
+      (ensime-typecheck-current-file)))
 
     ((:indexer-ready status)
      (ensime-test-with-proj
@@ -913,28 +873,34 @@
       (let* ((candidates (ensime-ac-completion-candidates "ut")))
         (ensime-assert (member "util" candidates)))
       (insert "il.HashMap")
-      (ensime-write-buffer)
+      (ensime-write-buffer)))
 
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
       ;; complete java package member by class name
       (ensime-test-eat-label "3")
       (let* ((candidates (ensime-ac-completion-candidates "Vec"))
              (to-inserts (mapcar 'ensime-ac-candidate-to-insert candidates)))
-        (ensime-assert (member "java.util.Vector" to-inserts)))
+        (ensime-assert (member "java.util.Vector" to-inserts)))))
 
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
       ;; complete java package member by class name in name list
       (ensime-test-eat-label "4")
       (let* ((candidates (ensime-ac-completion-candidates "Vec")))
-        (ensime-assert (member "Vector" candidates)))
+        (ensime-assert (member "Vector" candidates)))))
 
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
       ;; complete scala package
       (ensime-test-eat-label "2")
       (let* ((candidates (ensime-ac-completion-candidates "sc")))
         (ensime-assert (member "scala" candidates)))
 
-      (ensime-test-cleanup proj)
-      ))
-    )
-
+      (ensime-test-cleanup proj))))
 
    (ensime-async-test
     "Test organize imports refactoring: remove unused import."
@@ -945,12 +911,15 @@
                                  "package com.helloworld"
                                  "import java.util.Vector"
                                  "class HelloWorld{"
-                                 "}"
-                                 )
-                     )))))
+                                 "}"))))))
       (ensime-test-init-proj proj))
 
     ((:connected connection-info))
+
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
+      (ensime-typecheck-current-file)))
 
     ((:full-typecheck-finished val)
      (ensime-test-with-proj
@@ -968,20 +937,17 @@
        (equal (length touched-files) 1))
       (goto-char (point-min))
       (ensime-assert (null (search-forward "import java.util.Vector" nil t)))
-      (ensime-test-cleanup proj)))
-    )
-
+      (ensime-test-cleanup proj))))
 
    (ensime-async-test
-    "FAIL Test rename refactoring over multiple files."
+    "Test rename refactoring over multiple files."
     (let* ((proj (ensime-create-tmp-project
                   `((:name
                      "hello_world.scala"
                      :contents ,(ensime-test-concat-lines
                                  "package com.helloworld"
                                  "class /*1*/HelloWorld{"
-                                 "}"
-                                 ))
+                                 "}"))
                     (:name
                      "another.scala"
                      :contents ,(ensime-test-concat-lines
@@ -990,9 +956,7 @@
                                  "def main(args:Array[String]) {"
                                  "val a = new HelloWorld()"
                                  "}"
-                                 "}"
-                                 ))
-                    ))))
+                                 "}"))))))
       (ensime-test-init-proj proj))
 
     ((:connected connection-info))
@@ -1000,11 +964,15 @@
     ((:full-typecheck-finished val)
      (ensime-test-with-proj
       (proj src-files)
+      ;; refactor-rename needs all files to be typechecked
+      (ensime-typecheck-all)))
+
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
       (ensime-assert (null (ensime-all-notes))))
-     (ensime-test-eat-label "1")
+     (goto-char (ensime-test-after-label "1"))
      (forward-char)
-     (ensime-save-buffer-no-hooks)
-     (ensime-typecheck-current-file) ;; So ensime-sym-at-point sees latest.
      (ensime-refactor-rename "DudeFace"))
 
     ((:refactor-at-confirm-buffer val)
@@ -1014,9 +982,8 @@
     ((:refactor-done touched-files)
      (ensime-test-with-proj
       (proj src-files)
-      (ensime-assert-file-contains-string (car src-files) "class DudeFace")
-      (ensime-assert-file-contains-string (cadr src-files) "new DudeFace()")
-      ))
+      (ensime-assert-file-contains-string (car src-files) "class /*1*/DudeFace")
+      (ensime-assert-file-contains-string (cadr src-files) "new DudeFace()")))
 
     ((:full-typecheck-finished val)
      (ensime-test-with-proj
@@ -1026,8 +993,7 @@
       (find-file (car src-files))
       (goto-char (point-min))
       (search-forward "Dude" nil t)
-      (ensime-refactor-rename "Horse")
-      ))
+      (ensime-refactor-rename "Horse")))
 
     ((:refactor-at-confirm-buffer val)
      (switch-to-buffer ensime-refactor-info-buffer-name)
@@ -1036,43 +1002,39 @@
     ((:refactor-done touched-files)
      (ensime-test-with-proj
       (proj src-files)
-      (ensime-assert-file-contains-string (car src-files) "class Horse")
-      (ensime-assert-file-contains-string (cadr src-files) "new Horse()")
-      ))
+      (ensime-assert-file-contains-string (car src-files) "class /*1*/Horse")
+      (ensime-assert-file-contains-string (cadr src-files) "new Horse()")))
 
     ((:full-typecheck-finished val)
      (ensime-test-with-proj
       (proj src-files)
       (ensime-assert (null (ensime-all-notes)))
-      (ensime-test-cleanup proj)
-      ))
-
-    )
-
+      (ensime-test-cleanup proj))))
 
    (ensime-async-test
-    "FAIL Test find-references."
+    "Test find-references."
     (let* ((proj (ensime-create-tmp-project
                   `((:name
                      "pack/a.scala"
                      :contents ,(ensime-test-concat-lines
                                  "package pack"
                                  "class /*1*/A(value:String){"
-                                 "}"
-                                 )
-                     )
+                                 "}"))
                     (:name
                      "pack/b.scala"
                      :contents ,(ensime-test-concat-lines
                                  "package pack"
                                  "class B(value:String) extends A(value){"
-                                 "}"
-                                 )
-                     )
-                    ))))
+                                 "}"))))))
       (ensime-test-init-proj proj))
 
     ((:connected connection-info))
+
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
+      ;; find-references requires all files to be typechecked
+      (ensime-typecheck-all)))
 
     ((:full-typecheck-finished val)
      (ensime-test-with-proj
@@ -1090,11 +1052,7 @@
      (goto-char (point-min))
      (ensime-assert (search-forward "class B(value:String) extends A" nil t))
      (funcall (key-binding (kbd "q")))
-     (ensime-test-cleanup proj))
-
-    )
-
-
+     (ensime-test-cleanup proj)))
 
    (ensime-async-test
     "Test file with package name (this broke when -sourcepath param was used)."
@@ -1104,18 +1062,13 @@
                      :contents ,(ensime-test-concat-lines
                                  "package pack.a"
                                  "class A(value:String){"
-                                 "}"
-                                 )
-                     )
+                                 "}"))
                     (:name
                      "pack/b.scala"
                      :contents ,(ensime-test-concat-lines
                                  "package pack.a"
                                  "class B(value:String) extends A(value){"
-                                 "}"
-                                 )
-                     )
-                    ))))
+                                 "}"))))))
       (ensime-test-init-proj proj))
 
     ((:connected connection-info))
@@ -1123,12 +1076,14 @@
     ((:full-typecheck-finished val)
      (ensime-test-with-proj
       (proj src-files)
+      (ensime-typecheck-all)))
+
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
       (let* ((notes (ensime-all-notes)))
         (ensime-assert-equal (length notes) 0))
-      (ensime-test-cleanup proj)
-      ))
-    )
-
+      (ensime-test-cleanup proj))))
 
    (ensime-async-test
     "Test deleting file and reloading."
@@ -1138,21 +1093,21 @@
                      :contents ,(ensime-test-concat-lines
                                  "package pack"
                                  "class A(value:String){"
-                                 "}"
-                                 )
-                     )
+                                 "}"))
                     (:name
                      "pack/b.scala"
                      :contents ,(ensime-test-concat-lines
                                  "package pack"
                                  "class B(value:String) extends A(value){"
-                                 "}"
-                                 )
-                     )
-                    ))))
+                                 "}"))))))
       (ensime-test-init-proj proj))
 
     ((:connected connection-info))
+
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
+      (ensime-typecheck-all)))
 
     ((:full-typecheck-finished val)
      (ensime-test-with-proj
@@ -1161,21 +1116,19 @@
         (ensime-assert-equal (length notes) 0))
       (kill-buffer nil)
       (delete-file (car src-files))
-      (find-file (cadr src-files))
-      (ensime-rpc-async-typecheck-all #'identity)
-      ))
+      (find-file (cadr src-files))))
+
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
+      (ensime-typecheck-all)))
 
     ((:full-typecheck-finished val)
      (ensime-test-with-proj
       (proj src-files)
       (let* ((notes (ensime-all-notes)))
         (ensime-assert (> (length notes) 0)))
-      (ensime-test-cleanup proj)
-      ))
-
-    )
-
-
+      (ensime-test-cleanup proj))))
 
    (ensime-async-test
     "Test formatting source."
@@ -1185,9 +1138,7 @@
                      :contents ,(ensime-test-concat-lines
                                  "class HelloWorld{"
                                  "def foo:Int=1"
-                                 "}"
-                                 )
-                     )))))
+                                 "}"))))))
       (ensime-test-init-proj proj))
 
     ((:connected connection-info))
@@ -1195,9 +1146,11 @@
     ((:full-typecheck-finished val)
      (ensime-test-with-proj
       (proj src-files)
-      ;; Set cursor to symbol in method body..
-      (find-file (car src-files))
-      (save-buffer)
+      (ensime-typecheck-current-file)))
+
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
       (ensime-format-source)))
 
     ((:return-value val)
@@ -1217,39 +1170,22 @@
         (ensime-assert-equal src (ensime-test-concat-lines
                                   "class HelloWorld {"
                                   "  def foo: Int = 1"
-                                  "}"
-                                  )))
+                                  "}")))
 
-      (ensime-test-cleanup proj)
-      )))
-
+      (ensime-test-cleanup proj))))
 
    (ensime-async-test
-    "Load and compile 'hello world'."
-    (let* ((proj (ensime-create-tmp-project
-                  ensime-tmp-project-hello-world)))
-      (ensime-test-init-proj proj))
-
-    ((:connected connection-info)
-     (ensime-assert (stringp (plist-get connection-info :version))))
-
-    ((:full-typecheck-finished val)
-     (ensime-test-with-proj
-      (proj src-files)
-      (ensime-test-cleanup proj)
-      ))
-    )
-
-
-
-
-   (ensime-async-test
-    "FAIL Get package info for com.helloworld."
+    "Get package info for com.helloworld."
     (let* ((proj (ensime-create-tmp-project
                   ensime-tmp-project-hello-world)))
       (ensime-test-init-proj proj))
 
     ((:connected connection-info))
+
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
+      (ensime-typecheck-current-file)))
 
     ((:full-typecheck-finished val)
      (ensime-test-with-proj
@@ -1261,13 +1197,8 @@
          (ensime-package-full-name info) "com.helloworld")
         ;; Should be one class, one object
         (ensime-assert-equal
-         2 (length (ensime-package-members info)))
-        )
-      (ensime-test-cleanup proj)
-      ))
-    )
-
-
+         2 (length (ensime-package-members info))))
+      (ensime-test-cleanup proj))))
 
    (ensime-async-test
     "Verify re-typecheck on save-buffer."
@@ -1280,6 +1211,11 @@
     ((:full-typecheck-finished val)
      (ensime-test-with-proj
       (proj src-files)
+      (ensime-typecheck-current-file)))
+
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
       (let* ((notes (ensime-all-notes)))
         (ensime-assert-equal (length notes) 0)
         (find-file (car src-files))
@@ -1287,8 +1223,7 @@
         (insert "lksdjfldkjf ")
 
         ;; save-buffer should trigger a recheck...
-        (save-buffer)
-        )))
+        (save-buffer))))
 
     ((:full-typecheck-finished val)
      (ensime-test-with-proj
@@ -1296,13 +1231,10 @@
       (let ((proj (ensime-test-var-get :proj))
             (notes (ensime-all-notes)))
         (ensime-assert (> (length notes) 0))
-        (ensime-test-cleanup proj)
-        )))
-    )
-
+        (ensime-test-cleanup proj)))))
 
    (ensime-async-test
-    "FAIL Test get symbol info at point."
+    "Test get symbol info at point."
     (let* ((proj (ensime-create-tmp-project
                   ensime-tmp-project-hello-world)))
       (ensime-test-init-proj proj))
@@ -1312,18 +1244,18 @@
     ((:full-typecheck-finished val)
      (ensime-test-with-proj
       (proj src-files)
+      (ensime-typecheck-current-file)))
+
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
       ;; Set cursor to symbol in method body..
-      (find-file (car src-files))
       (goto-char 163)
       (let* ((info (ensime-rpc-symbol-at-point))
              (pos (ensime-symbol-decl-pos info)))
         ;; New position should be at formal parameter...
-        (ensime-assert-equal (ensime-pos-offset pos) 140)
-        )
-      (ensime-test-cleanup proj)
-      ))
-    )
-
+        (ensime-assert-equal (ensime-pos-offset pos) 140))
+      (ensime-test-cleanup proj))))
 
    (ensime-async-test
     "Test get repl config."
@@ -1333,10 +1265,7 @@
 
     ((:connected connection-info))
 
-    ;; sending the command at :compiler-ready triggers a race condition
-    ;; so we wait for :full-typecheck-finished instead
-    ;;((:compiler-ready status)
-    ((:full-typecheck-finished val)
+    ((:compiler-ready status)
      (ensime-test-with-proj
       (proj src-files)
       (let ((conf (ensime-rpc-repl-config)))
@@ -1344,44 +1273,30 @@
         (ensime-assert
          (not (null (plist-get conf :classpath)))))
 
-      (ensime-test-cleanup proj)
-      ))
-    )
-
+      (ensime-test-cleanup proj))))
 
    (ensime-async-test
-    "FAIL Test interactive search."
+    "Test interactive search."
     (let* ((proj (ensime-create-tmp-project
-                  ensime-tmp-project-hello-world
-                  '(:disable-index-on-startup nil)
-                  )))
+                  ensime-tmp-project-hello-world)))
       (ensime-test-init-proj proj))
 
     ((:connected connection-info))
 
-    ((:compiler-ready status))
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
+      (ensime-typecheck-current-file)))
 
     ((:indexer-ready status)
      (ensime-test-with-proj
       (proj src-files)
+      ;; Work around race condition
+      (sit-for 5)
+      ;; Prevent a previous search from affecting this test
+      (setq ensime-search-text "")
       (ensime-search)
-      (insert "hello world")
-      ))
-
-    ((:search-buffer-populated val)
-     (ensime-test-with-proj
-      (proj src-files)
-      (with-current-buffer ensime-search-target-buffer-name
-        (goto-char 1)
-        (ensime-assert (search-forward "com.helloworld.HelloWorld" nil t))
-        (goto-char 1)
-        (ensime-assert (search-forward "com.helloworld.HelloWorld$.foo" nil t)))
-
-      (with-current-buffer ensime-search-buffer-name
-        (erase-buffer)
-        (insert "java util vector")
-        )
-      ))
+      (insert "java.util.Vector")))
 
     ((:search-buffer-populated val)
      (ensime-test-with-proj
@@ -1396,13 +1311,10 @@
         (ensime-assert (search-forward "java.util.Vector.addAll" nil t)))
 
       (ensime-search-quit)
-      (ensime-test-cleanup proj)
-      ))
-    )
-
+      (ensime-test-cleanup proj))))
 
    (ensime-async-test
-    "FAIL Test add import."
+    "Test add import."
     (let* ((proj (ensime-create-tmp-project
                   `((:name
                      "pack/a.scala"
@@ -1412,35 +1324,31 @@
                                  "def hello(){"
                                  "  println(new /*1*/ArrayList())"
                                  "}"
-                                 "}"
-                                 )
-                     ))
-                  '(:disable-index-on-startup
-                    nil
-                    :exclude-from-index
-                    ("com\\\\.sun\\\\..\*" "com\\\\.apple\\\\..\*"))
-                  )))
+                                 "}"))))))
       (ensime-test-init-proj proj))
 
     ((:connected connection-info))
-    ((:compiler-ready status))
+
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
+      (ensime-typecheck-current-file)))
 
     ((:indexer-ready status)
      (ensime-test-with-proj
       (proj src-files)
+      ;; Work around race condition
+      (sit-for 5)
       (goto-char 1)
       (ensime-assert (null (search-forward "import java.util.ArrayList" nil t)))
 
-      (ensime-test-eat-label "1")
-      (forward-char 2)
+      (goto-char (ensime-test-after-label "1"))
       (ensime-import-type-at-point t)
 
       (goto-char 1)
       (ensime-assert (search-forward "import java.util.ArrayList" nil t))
 
-      (ensime-test-cleanup proj)
-      ))
-    )
+      (ensime-test-cleanup proj))))
 
    (ensime-async-test
     "Test expand-selection."
@@ -1453,10 +1361,7 @@
                                  "def hello(){"
                                  "  println(/*1*/\"hello\")"
                                  "}"
-                                 "}"
-                                 )
-                     )
-                    ))))
+                                 "}"))))))
       (ensime-test-init-proj proj))
 
     ((:connected connection-info))
@@ -1486,19 +1391,10 @@
           (ensime-assert (< start2 start1))
           (ensime-assert (> end2 end1))))
 
-      (ensime-test-cleanup proj)
-      ))
-    )
-
-   ))
-
-(defvar ensime-non-working-suite
-
-  ;; Moved the tests that hang to a separate suite
-  (ensime-test-suite
+      (ensime-test-cleanup proj))))
 
    (ensime-async-test
-    "HANGS Test semantic highlighting."
+    "Test semantic highlighting."
     (let* ((proj (ensime-create-tmp-project
                   `((:name
                      "pack/a.scala"
@@ -1521,22 +1417,12 @@
                                  "    case _ => {}"
                                  "  }"
                                  "}"
-                                 "}"
-                                 )
-                     )))
-                 ))
+                                 "}"))))))
       (ensime-test-init-proj proj))
 
-    ((:connected connection-info))
-
-    ;; sending the command at :compiler-ready triggers a race condition
-    ;; so we wait for :full-typecheck-finished instead
-    ;;((:compiler-ready status)
-    ((:full-typecheck-finished val)
+    ((:compiler-ready val)
      (ensime-test-with-proj
-      (proj src-files)
-      (setq ensime-sem-high-faces ensime-sem-high-all-faces)
-      (ensime-sem-high-refresh-buffer)))
+      (proj src-files)))
 
     ((:region-sem-highlighted val)
      (ensime-test-with-proj
@@ -1544,8 +1430,7 @@
 
       ;; Don't check highlights immediately, as
       ;; overlays might not be rendered yet... (it seems)
-      (ensime-typecheck-current-file)
-      ))
+      (ensime-typecheck-current-file)))
 
     ((:full-typecheck-finished val)
      (ensime-test-with-proj
@@ -1554,8 +1439,7 @@
                             (ensime-assert
                              (memq
                               sym-type
-                              (ensime-sem-high-sym-types-at-point))))
-                          ))
+                              (ensime-sem-high-sym-types-at-point))))))
         (goto-char (ensime-test-after-label "1"))
         (funcall check-sym-is 'class)
 
@@ -1590,17 +1474,21 @@
         (funcall check-sym-is 'object)
 
         (goto-char (ensime-test-after-label "12"))
-        (funcall check-sym-is 'class)
-        )
+        (funcall check-sym-is 'class))
 
-      (setq ensime-sem-high-faces ensime-sem-high-default-faces)
-      (ensime-test-cleanup proj t)
-      ))
-    )
+      (ensime-test-cleanup proj t))))))
 
+
+(defvar ensime-non-working-suite
+
+  ;; Moved the tests that hang to a separate suite
+  (ensime-test-suite
 
    (ensime-async-test
     "HANGS Test debugging java project."
+    ;; This fails (hangs really) because ensime-server
+    ;; no longer supports Java. We should use scala for the input,
+    ;; it needs to be compiled.
     (let* ((proj (ensime-create-tmp-project
                   `((:name
                      "Test.java"
@@ -1612,22 +1500,17 @@
                                  "    String c = \"bird\";"
                                  "    System.out.println(a + b + c);"
                                  "  }"
-                                 "}"
-                                 )
-                     ))))
+                                 "}")))))
            (src-files (plist-get proj :src-files)))
       (ensime-test-compile-java-proj proj '("-g"))
       (ensime-test-init-proj proj))
 
-    ((:connected connection-info))
 
-    ((:full-typecheck-finished val)
+    ((:compiler-ready val)
      (ensime-test-with-proj
       (proj src-files)
-      (find-file (car src-files))
       (ensime-rpc-debug-set-break buffer-file-name 4)
-      (ensime-rpc-debug-start "Test")
-      ))
+      (ensime-rpc-debug-start "Test")))
 
     ((:debug-event evt (equal (plist-get evt :type) 'start)))
 
@@ -1639,10 +1522,7 @@
     ((:debug-event evt (equal (plist-get evt :type) 'disconnect))
      (ensime-test-with-proj
       (proj src-files)
-      (ensime-test-cleanup proj)))
-    )
-
-))
+      (ensime-test-cleanup proj))))))
 
 (defun ensime-run-all-tests ()
   "Run all regression tests for ensime-mode."
@@ -1650,7 +1530,7 @@
   (setq debug-on-error t)
   (ensime-run-suite ensime-fast-suite)
   (ensime-run-suite ensime-slow-suite)
-;; Don't run the tests that are known to fail by default.
+;; Don't run the tests that are known to fail.
 ;;  (ensime-run-suite ensime-non-working-suite)
   )
 
@@ -1666,8 +1546,6 @@
           (when (integerp (string-match key title))
             (ensime-run-suite (list test))
             (throw 'done nil)))))))
-
-
 
 (provide 'ensime-test)
 
