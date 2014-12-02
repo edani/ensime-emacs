@@ -46,7 +46,7 @@
   :group 'ensime
   :prefix "ensime-sbt-")
 
-(defcustom ensime-sbt-perform-on-save "compile"
+(defcustom ensime-sbt-perform-on-save nil
   "Which (if any) sbt action to perform when a file is saved."
   :type '(choice (const nil) string)
   :group 'ensime-sbt)
