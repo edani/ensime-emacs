@@ -75,10 +75,12 @@
 		       (len (- to from)))
 		  (goto-char (+ p (- from chunk-start)))
 		  (delete-char (min len (- (point-max) (point))))
+
+                  (when (eq 1 (coding-system-eol-type chunk-coding-system))
+                    (setq text (replace-regexp-in-string "\r$" "" text)))
+
                   (let ((start (point)))
                     (insert text)
-                    (recode-region start (point)
-                                   chunk-coding-system buffer-file-coding-system)
                     (set-text-properties start (point) '(face font-lock-keyword-face)))))
 
 	      (goto-char (point-max))
