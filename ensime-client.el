@@ -159,16 +159,14 @@ overrides `ensime-buffer-connection'.")
  Return nil if there's no connection. Note, there is some loss of
  precision here, as ensime-connections-for-source-file might return
  more than one connection. "
-  (or (ensime-validated-connection ensime-dispatching-connection)
-      (ensime-validated-connection ensime-buffer-connection)
-      (ensime-validated-connection
+  (or (ensime-proc-if-alive ensime-dispatching-connection)
+      (ensime-proc-if-alive ensime-buffer-connection)
+      (ensime-proc-if-alive
        (ensime-owning-connection-for-source-file buffer-file-name))))
 
-(defun ensime-validated-connection (conn)
-  "Return conn if connection is non-nil and has a living
- process buffer. nil otherwise."
-  (when (and conn (buffer-live-p (process-buffer conn)))
-    conn))
+(defun ensime-proc-if-alive (proc)
+  "Returns proc if proc's buffer is alive, otherwise returns nil."
+  (when (and proc (buffer-live-p (process-buffer proc))) proc))
 
 (defun ensime-connected-p (&optional conn)
   "Return t if ensime-current-connection would return non-nil.
@@ -196,72 +194,52 @@ overrides `ensime-buffer-connection'.")
   (let ((result '()))
     (dolist (buf (buffer-list))
       (let ((f (buffer-file-name buf)))
-        (when (and f (ensime-file-belongs-to-connection-p f conn))
+        (when (and f (ensime-source-file-belongs-to-connection-p f conn))
           (setq result (cons buf result)))))
     result))
 
+(defun ensime-source-file-belongs-to-connection-p (file-in conn)
+  "Does the given source file belong to the given connection(project)?"
+  (ensime-config-includes-source-file (ensime-config conn) file-in))
 
-(defun ensime-file-belongs-to-connection-p (file-in conn)
-  "Does the given file belong to the given connection(project)?"
-  (let* ((file (file-truename file-in))
-         (config (ensime-config conn))
-         (source-roots (list* (plist-get config :source-jars-dir)
-                              (plist-get config :source-roots))))
-    (catch 'return
-      (dolist (dir source-roots)
-        (when (and dir (ensime-file-in-directory-p file dir))
-          (throw 'return t))))))
-
-
-(defun ensime-connections-for-source-file (file-in &optional no-source-jars)
+(defun ensime-connections-for-source-file (file-in &optional no-ref-sources)
   "Return the connections corresponding to projects that contain
-   the given file in their source trees."
-  (let ((file (file-truename file-in)))
-    (when file
-      (let ((result '()))
-        (dolist (conn ensime-net-processes)
-          (when-let (conn (ensime-validated-connection conn))
-                    (let* ((config (ensime-config conn))
-                           (source-roots
-                            (list* (unless no-source-jars
-                                     (plist-get config :source-jars-dir))
-                                     (plist-get config :source-roots))))
-                      (dolist (dir source-roots)
-                        (when (and dir (ensime-file-in-directory-p file dir))
-                          (setq result (cons conn result)))))))
-        result))))
+ the given file in their source trees."
+  (let ((result '()))
+    (dolist (conn ensime-net-processes)
+      (when-let (conn (ensime-proc-if-alive conn))
+		(when (ensime-config-includes-source-file
+		       (ensime-config conn) file-in no-ref-sources)
+		  (setq result (cons conn result)))))
+        result))
 
-(defun ensime-probable-owning-connection-for-source-file
-  (file-in)
-  (ensime-owning-connection-for-source-file file-in t))
+(defun ensime-owning-server-process-for-source-file
+    (source-file &optional loose)
+  "Returns the first server process with a source-root that contains
+  file-in. If loose is non-nil, also return true if project-root contains
+  file-in."
+  (-first
+   (lambda (proc)
+     (when-let (good-proc (ensime-proc-if-alive proc))
+	       (ensime-config-includes-source-file
+		(process-get good-proc :ensime-config) source-file)))
+   ensime-server-processes))
 
-(defun ensime-owning-connection-for-source-file (file-in &optional loose)
-  "Return the connection corresponding to the single that
- owns the given file. "
-  (when file-in
-    (let ((file (file-truename file-in)))
-      (when file
-        (catch 'return
-          ;; First check individual source-roots
-          (dolist (conn ensime-net-processes)
-            (when-let (conn (ensime-validated-connection conn))
-                      (let* ((config (ensime-config conn))
-                             (project-root (plist-get config :root-dir))
-                             (source-roots (list*
-                                            (plist-get config :source-jars-dir)
-                                            (plist-get config :source-roots))))
-                        (if (and loose (ensime-file-in-directory-p file project-root))
-                            (throw 'return conn)
-                          (dolist (dir source-roots)
-                            (when (and dir (ensime-file-in-directory-p file dir))
-                              (throw 'return conn)))))))
-          )))))
-
-
+(defun ensime-owning-connection-for-source-file
+    (source-file &optional loose)
+  "Returns the first connection process with a source-root that contains
+  source-file. If loose is non-nil, also return true if project-root contains
+  source-file."
+  (-find
+   (lambda (proc)
+     (when-let (good-proc (ensime-proc-if-alive proc))
+	       (ensime-config-includes-source-file
+		(ensime-config good-proc) source-file)))
+   ensime-net-processes))
 
 (defun ensime-prompt-for-connection ()
   "Prompt the user to select a server connection. Used in situations where
-the active connection is ambiguous."
+ the active connection is ambiguous."
   (let* ((options
       (mapcar
        (lambda (p)
@@ -477,6 +455,9 @@ This doesn't mean it will connect right after Ensime is loaded."
 
 (defvar ensime-net-processes nil
   "List of processes (sockets) connected to Lisps.")
+
+(defvar ensime-server-processes nil
+  "List of (active) ensime server processes spawned by emacs.")
 
 (defvar ensime-net-process-close-hooks '()
   "List of functions called when a ensime network connection closes.

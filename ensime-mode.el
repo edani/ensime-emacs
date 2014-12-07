@@ -387,25 +387,24 @@
 	(let ((conn (ensime-current-connection)))
 	  (cond ((and ensime-mode (not conn))
 		 (cond
-		  ((ensime-probable-owning-connection-for-source-file
-		    buffer-file-name)
-		   " [ENSIME: Connected...]")
-		  (t " [ENSIME: No Connection]")))
+		  ((ensime-owning-server-process-for-source-file buffer-file-name)
+		   " [ENSIME: (Starting)]")
+		  (t " [ENSIME: (Disconnected)]")))
 
 		((and ensime-mode (ensime-connected-p conn))
 		 (concat " ["
 			 (or (plist-get (ensime-config conn) :project-name)
-			     "ENSIME: Connected...")
+			     "ENSIME: (Connected)")
 			 (let ((status (ensime-modeline-state-string conn))
 			       (unready (not (ensime-analyzer-ready conn))))
 			   (cond (status (concat " (" status ")"))
-				 (unready " (analyzing...)")
+				 (unready " (Analyzing)")
 				 (t "")))
 			 (concat (format " : %s/%s"
 					 (ensime-num-errors conn)
 					 (ensime-num-warnings conn)))
 			 "]"))
-		(ensime-mode " [ENSIME: Dead Connection]")
+		(ensime-mode " [ENSIME: (Dead Connection)]")
 		))
       (error (progn
 	       " [ENSIME: wtf]"
@@ -441,21 +440,33 @@
          (server-java (or (plist-get config :java-home) ensime-default-java-home))
          (server-flags (or (plist-get config :java-flags) ensime-default-java-flags)))
     (make-directory cache-dir 't)
-    (let* ((server-details (if (and host port)
-                               (list nil host (lambda () port))
-                             (list (ensime--maybe-start-server
-                                    (generate-new-buffer-name (concat "*" buffer "*"))
-                                    scala-version server-flags
-                                    (list* (concat "JDK_HOME=" server-java)
-                                           (concat "JAVA_HOME=" server-java)
-                                           server-env)
-                                    config-file cache-dir)
-                                   "127.0.0.1"
-                                   (lambda () (ensime-read-swank-port (concat cache-dir "/port")))))))
-      (ensime--retry-connect (car server-details)
-                             (cadr server-details)
-                             (caddr server-details)
-                             config cache-dir 10))))
+
+    (if (and host port)
+	;; When both host and port are provided, we assume we're connecting to
+	;; an existing, listening server.
+	(ensime--retry-connect nil host (lambda () port) config cache-dir)
+
+      ;; Otherwise, spin up a new server process.
+      (let* ((server-proc
+	      (ensime--maybe-start-server
+	       (generate-new-buffer-name (concat "*" buffer "*"))
+	       scala-version server-flags
+	       (list* (concat "JDK_HOME=" server-java)
+		      (concat "JAVA_HOME=" server-java)
+		      server-env)
+	       config-file
+	       cache-dir))
+	     (host "127.0.0.1")
+	     (port (lambda () (ensime-read-swank-port
+			       (concat cache-dir "/port")))))
+
+	;; Surface the server buffer so user can observe the startup progress.
+	(display-buffer-at-bottom (process-buffer server-proc) nil)
+
+	;; Store the config on the server process so we can identify it later.
+	(process-put server-proc :ensime-config config)
+	(push server-proc ensime-server-processes)
+	(ensime--retry-connect server-proc host port config cache-dir)))))
 
 
 ;; typecheck continually when idle
@@ -612,40 +623,32 @@ defined."
 	  (assert (integerp port))
 	  port)))))
 
-(defun ensime--retry-connect (server-proc host port-fn config cache-dir attempts)
+(defun ensime--retry-connect (server-proc host port-fn config cache-dir)
+  "When application of port-fn yields a valid port, connect to the port at the
+ given host. Otherwise, schedule ensime--retry-connect for re-execution after 6
+ seconds."
   (cond (ensime--abort-connection
 	 (setq ensime--abort-connection nil)
 	 (message "Aborted"))
-	((>= 0 attempts)
-	 (message "Ran out of connection attempts."))
-	;; should we test for remote process exiting - how ?
 	((and server-proc (eq (process-status server-proc) 'exit))
 	 (message "Failed to connect: server process exited."))
 	(t
 	 (let ((port (funcall port-fn)))
 	   (if port
-	       (ensime--connect host port config)
-	     (run-at-time "6 sec" nil
-			  'ensime-timer-call 'ensime--retry-connect
-			  server-proc host port-fn config cache-dir (1- attempts)))))))
+	       (progn
+		 (ensime--connect host port config)
+		 ;; Kill the window displaying the server buffer if it's still
+		 ;; visible.
+		 (when-let
+		  (win (get-buffer-window (process-buffer server-proc)))
+		  (delete-window win)))
+	     (run-at-time
+	      "6 sec" nil 'ensime-timer-call 'ensime--retry-connect
+	      server-proc host port-fn config cache-dir))))))
 
 (defun ensime--connect (host port config)
-  ;; non-nil if a connection was made, nil otherwise
   (let ((c (ensime-connect host port)))
-    ;; It may take a few secs to get the source roots back from the
-    ;; server, so we won't know immediately if currently visited
-    ;; source is part of the new project. Make an educated guess for
-    ;; the sake of UI snappiness (fast mode-line update).
-    (when (and (ensime-source-file-p)
-	       (plist-get config :root-dir)
-	       (ensime-file-in-directory-p
-		buffer-file-name
-		(plist-get config :root-dir))
-	       (not (ensime-connected-p)))
-      (setq ensime-buffer-connection c))
-
     (ensime-set-config c config)
-
     (let ((ensime-dispatching-connection c))
       (ensime-eval-async
        '(swank:connection-info)
