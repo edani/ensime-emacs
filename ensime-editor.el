@@ -288,7 +288,7 @@
         (find-file-other-window effective-file)
       (find-file effective-file))
 
-    (when (ensime-file-in-directory-p effective-file (ensime-source-jars-dir))
+    (when (ensime-path-prefix-p effective-file (ensime-source-jars-dir))
       (with-current-buffer (get-file-buffer effective-file)
         (setq buffer-read-only t)))))
 

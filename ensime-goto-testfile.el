@@ -60,7 +60,7 @@ ensime configuration."
                  (plist-get (ensime-config (ensime-connection)) :source-roots))))
     (let ((dir
            (find-if
-            #'(lambda (dir) (ensime-file-in-directory-p file-name dir))
+            #'(lambda (dir) (ensime-path-prefix-p file-name dir))
             all-sources)))
       (when dir (file-name-as-directory (expand-file-name dir))))))
 

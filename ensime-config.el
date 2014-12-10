@@ -27,6 +27,26 @@
 
 (add-to-list 'auto-mode-alist '("\\.ensime$" . emacs-lisp-mode))
 
+(defun ensime-config-source-roots (conf)
+  "Returns a list of all directories mentioned in :source-roots directives."
+  (let ((subs (plist-get conf :subprojects)))
+    (-mapcat (lambda (sub) (plist-get sub :source-roots)) subs)))
+
+(defun ensime-config-includes-source-file
+    (conf file &optional no-ref-sources)
+  "Returns t if the given file is contained in the :source-roots or (if "
+  "no-ref-sources is nil) :source-jars-dir of the given project."
+  (when file
+    (let ((source-roots
+	   (-filter
+	    'file-directory-p
+	    (append (ensime-config-source-roots conf)
+		    (unless no-ref-sources
+		      (when-let (dir (plist-get conf :source-jars-dir))
+				(list dir)))))))
+      (-first (lambda (dir) (ensime-path-prefix-p file dir))
+	      source-roots))))
+
 (defmacro ensime-set-key (conf key val)
   `(setq ,conf (plist-put ,conf ,key ,val)))
 
