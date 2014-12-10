@@ -102,22 +102,12 @@ argument is supplied) is a .scala or .java file."
 (defun ensime-visiting-scala-file-p ()
   (ensime-scala-file-p buffer-file-name))
 
-(defun ensime-file-in-directory-p (file-name dir-name)
-  "Determine if file named by file-name is contained in the
-   directory named by dir-name."
+(defun ensime-path-prefix-p (file-name dir-name)
+  "Expands both file-name and dir-name and returns t if dir-name is a
+ prefix of file-name. Does not touch the file system."
   (let* ((dir (file-name-as-directory (expand-file-name dir-name)))
-	 (file (expand-file-name file-name))
-	 (d file))
-    (catch 'return
-      (while d
-	(let ((d-original d))
-	  (setq d (file-name-directory
-		   (directory-file-name d)))
-	  (when (equal dir d)
-	    (throw 'return t))
-	  (when (equal d d-original)
-	    (throw 'return nil))
-	  )))))
+	 (file (expand-file-name file-name)))
+    (string-prefix-p dir file)))
 
 (defun ensime-temp-file-name (name)
   "Return the path of a temp file with filename 'name'."
