@@ -161,8 +161,12 @@ overrides `ensime-buffer-connection'.")
  more than one connection. "
   (or (ensime-proc-if-alive ensime-dispatching-connection)
       (ensime-proc-if-alive ensime-buffer-connection)
-      (ensime-proc-if-alive
-       (ensime-owning-connection-for-source-file buffer-file-name))))
+      (when-let (conn (ensime-proc-if-alive
+		       (ensime-owning-connection-for-source-file
+			buffer-file-name)))
+		;; Cache the connection so lookup is fast next time.
+		(setq ensime-buffer-connection conn)
+		conn)))
 
 (defun ensime-proc-if-alive (proc)
   "Returns proc if proc's buffer is alive, otherwise returns nil."
