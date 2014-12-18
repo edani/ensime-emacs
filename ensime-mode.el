@@ -222,7 +222,19 @@
 
   (if ensime-mode
       (progn
-        (ensime-ac-enable)
+
+	(pcase ensime-completion-style
+	  (`company
+	   (ensime-company-enable))
+	  (`auto-complete
+	   (ensime-ac-enable))
+	  (_ t))
+
+	;; Always add the cap function. Some users may prefer it,
+	;; and it may be useful in other completion modes (helm?).
+	(add-hook 'completion-at-point-functions
+		  'ensime-completion-at-point-function nil t)
+
         (easy-menu-add ensime-mode-menu ensime-mode-map)
 
         (add-hook 'after-save-hook 'ensime-run-after-save-hooks nil t)
