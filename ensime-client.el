@@ -542,7 +542,8 @@ The functions are called with the process as their argument.")
 	    (ensime-net-have-input-p))
       (let ((event (ensime-net-read-or-lose process))
 	    (ok nil))
-	(ensime-log-event event)
+	(when ensime-log-events
+	  (ensime-log-event event))
 	(unwind-protect
 	    (save-current-buffer
 	      (ensime-dispatch-event event process)
@@ -1173,6 +1174,16 @@ with the current project's dependencies loaded. Returns a property list."
      ,case-sens
      t ;; reload
      )))
+
+(defun ensime-rpc-async-completions-at-point (max-results case-sens continue)
+  (ensime-eval-async
+   `(swank:completions
+     ,buffer-file-name
+     ,(ensime-computed-point)
+     ,(or max-results 0)
+     ,case-sens
+     t ;; reload
+     ) continue))
 
 
 (provide 'ensime-client)
