@@ -34,6 +34,7 @@
   "Asynchronous event handlers waiting for signals. See 'ensime-test-sig'.")
 (make-variable-buffer-local 'ensime-async-handler-stack)
 
+
 (defvar ensime-shared-test-state '()
   "A state dump for anyone who wants to use it. Useful for async tests.")
 (make-variable-buffer-local 'ensime-shared-test-state)
@@ -48,6 +49,10 @@
 (defvar ensime-ecukes-callbacks '()
   "Asynchronous callback function indicating end of suite.")
 (make-variable-buffer-local 'ensime-ecukes-callbacks)
+
+(defvar ensime--test-had-failures nil)
+
+(defvar ensime--test-exit-on-finish nil)
 
 (put 'ensime-test-assert-failed
      'error-conditions '(error ensime-test-assert-failed))
@@ -203,7 +208,7 @@
   "Driver for asynchonous tests. This function is invoked from ensime core,
    signaling events to events handlers installed by asynchronous tests."
   (when (buffer-live-p (get-buffer ensime-testing-buffer))
-    (message "Processing test event: %s with value %s" event value)
+    (message "Received test event: %s with value %s" event value)
     (with-current-buffer ensime-testing-buffer
       (when (not (null ensime-async-handler-stack))
         (let* ((ensime-prefer-noninteractive t)
@@ -214,7 +219,7 @@
                    (or (null guard-func) (funcall guard-func value)))
               (let ((handler-func (plist-get handler :func))
                     (is-last (plist-get handler :is-last)))
-                (ensime-test-output (format "   ...handling %s" event))
+                (message "Handling test event: %s" event)
                 (pop ensime-async-handler-stack)
                 (save-excursion
                   (condition-case signal
@@ -245,25 +250,12 @@
                     (setq ensime-ecukes-callbacks (delete callback ensime-ecukes-callbacks)))))))))))
 
 
-(defun ensime-test-output (txt)
-  "Helper for writing text to testing buffer."
-  (with-current-buffer ensime-testing-buffer
-    (goto-char (point-max))
-    (insert (format "\n%s" txt))))
-
-(defun ensime-test-output-result (result)
-  "Helper for writing results to testing buffer."
-  (if (equal result t)
-      (ensime-test-output (format "."))
-    (ensime-test-output (format "%s\n" result))))
-
 (defun ensime-run-suite (suite)
   "Run a sequence of tests."
   (switch-to-buffer ensime-testing-buffer)
   (erase-buffer)
   (setq ensime-test-queue suite)
   (ensime-run-next-test))
-
 
 (defmacro ensime-test-suite (&rest tests)
   "Define a sequence of tests to execute.
@@ -285,12 +277,10 @@
    writing to the testing output buffer."
   `(save-excursion
      (condition-case signal
-         (progn
-           ,@body
-           (ensime-test-output-result t))
+         (progn ,@body)
        (ensime-test-assert-failed
-        (ensime-test-output-result
-         (format "Assertion failed at '%s': %s" ,context signal))
+	(setq ensime--test-had-failures t)
+        (message "Assertion failed at '%s': %s" ,context signal)
         (signal
          'ensime-test-interrupted
          (format "Test interrupted: %s." signal))))))
@@ -372,8 +362,8 @@
           (setq ensime-shared-test-state '())
           (setq ensime-async-handler-stack '())
 
-          (message "Running test %s" (plist-get test :title))
-          (ensime-test-output (format "\n%s" (plist-get test :title)))
+	  (message "\n")
+          (message "Starting test: '%s'" (plist-get test :title))
 
           (if (plist-get test :async)
 
@@ -393,7 +383,12 @@
                    (message "Error executing test, moving to next."))))
               (ensime-run-next-test))))
       (goto-char (point-max))
-      (insert "\n\nFinished."))))
+      (let* ((status (if ensime--test-had-failures 1 0))
+	     (msg (format "Finished suite with status %s." status)))
+	(message msg)
+	(when ensime--test-exit-on-finish
+	  (kill-emacs status)))
+	)))
 
 
 (defmacro ensime-assert (pred)
@@ -486,9 +481,7 @@
        (ensime-assert (equal (plist-get conf :server-cmd) "bin/server.sh"))
        (ensime-assert (equal (plist-get conf :dependendency-dirs)
                              '("hello" "world")))
-       (ensime-assert (equal (plist-get conf :root-dir)
-                             (expand-file-name (file-name-directory file)))))))
-
+       )))
 
    (ensime-test
     "Test loading a broken(syntactically) config file."
@@ -1529,6 +1522,8 @@
   (interactive)
   (setq debug-on-error t)
   (ensime-run-suite ensime-fast-suite)
+  (setq ensime--test-had-failures nil)
+  (setq ensime--test-exit-on-finish (getenv "ENSIME_RUN_AND_EXIT"))
   (ensime-run-suite ensime-slow-suite)
 ;; Don't run the tests that are known to fail.
 ;;  (ensime-run-suite ensime-non-working-suite)

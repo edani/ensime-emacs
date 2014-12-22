@@ -1,3 +1,11 @@
+(defadvice message (before ensime-log-to-file (format-string &rest args))
+  (let ((text (when format-string
+		(format "%s\n" (apply 'format format-string args)))))
+    (princ text 'external-debugging-output)
+    text))
+
+(ad-activate 'message)
+
 (setq user-emacs-directory (expand-file-name "./emacs.d"))
 (require 'package)
 (add-to-list 'package-archives
@@ -6,7 +14,8 @@
   (add-to-list 'package-archives '("gnu" . "http://elpa.gnu.org/packages/")))
 (package-initialize)
 (require 'cl)
-(let ((needed-packages '(s dash popup auto-complete scala-mode2 sbt-mode)))
+(let ((needed-packages '(s dash popup auto-complete
+			   scala-mode2 sbt-mode yasnippet company)))
   (unless (every #'package-installed-p needed-packages)
     (package-refresh-contents)
     (dolist (p needed-packages)
@@ -19,6 +28,7 @@
 (require 'ensime-test)
 (setq ensime-test-dev-home (expand-file-name "../"))
 (message "Using ensime-test-dev-home of %s" ensime-test-dev-home)
+(add-hook 'scala-mode-hook 'ensime-scala-mode-hook)
 
 (setq inhibit-startup-message t)
 (setq debug-on-error nil)
