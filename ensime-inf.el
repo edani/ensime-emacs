@@ -317,12 +317,13 @@ Used for determining the default in the next one.")
       (setq scala-type (replace-regexp-in-string "\\$" "" scala-type ))
       (setq info (ensime-rpc-get-type-by-name scala-type)))
     (when (and info (plist-get info :pos))
-      (let ((pos (list* :line line (plist-get info :pos))))
+      (let* ((symbol-pos (plist-get info :pos))
+             (button-pos (list :line line :file (plist-get symbol-pos :file))))
         (make-text-button link-start link-end
                           'help-echo "mouse-1, RET: go to source"
                           'follow-link t
                           'action `(lambda (ignore)
-                                     (ensime-goto-source-location ',pos t)))))))
+                                     (ensime-goto-source-location ',button-pos t)))))))
 
 (provide 'ensime-inf)
 
