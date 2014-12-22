@@ -170,15 +170,14 @@ overrides `ensime-buffer-connection'.")
 
 (defun ensime-proc-if-alive (proc)
   "Returns proc if proc's buffer is alive, otherwise returns nil."
-  (when (and proc (buffer-live-p (process-buffer proc))) proc))
+  (when (and proc (ensime-connected-p proc)) proc))
 
 (defun ensime-connected-p (&optional conn)
-  "Return t if ensime-current-connection would return non-nil.
- Return nil otherwise."
+  "Return t if there is a valid, active connection."
   (let ((conn (or conn (ensime-current-connection))))
     (and conn
-     (buffer-live-p (process-buffer conn)))))
-
+	 (buffer-live-p (process-buffer conn))
+	 (eq (process-status conn) 'open))))
 
 (defun ensime-connection ()
   "Return the connection to use for Lisp interaction.

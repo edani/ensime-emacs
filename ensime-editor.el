@@ -550,11 +550,17 @@ currently open in emacs."
 	(let* ((dest (cond ((stringp f) f)
 			   ((listp f) (car f))))
 	       (src (cond ((stringp f) f)
-			  ((listp f) (cadr f))))
-	       (do-visit (equal dest src)))
+			  ((listp f) (cadr f)))))
 	  (when-let (buf (find-buffer-visiting dest))
                     (with-current-buffer buf
-                      (insert-file-contents src do-visit nil nil t)
+		      (insert-file-contents src nil nil nil t)
+		      ;; Rather than pass t to 'visit' the file by way of
+		      ;; insert-file-contents, we manually clear the
+		      ;; modification flags. This way the buffer-file-name
+		      ;; is untouched.
+		      (when (equal dest src)
+			(clear-visited-file-modtime)
+			(set-buffer-modified-p nil))
                       (when typecheck
                         (ensime-typecheck-current-file)))))))
     (goto-char pt)))
