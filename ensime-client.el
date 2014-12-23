@@ -6,15 +6,11 @@
 ;;;
 ;;; Emacs has a connection to each ENSIME server process that it's interacting
 ;;; with. Typically there would only be one, but a user can choose to
-;;; connect to many Servers simultaneously.
+;;; connect to many servers simultaneously.
 ;;;
-;;; A connection consists of a control socket and a
-;;; set of connection-local state variables.
-;;;
-;;; The state variables are stored as buffer-local variables in the
-;;; control socket's process-buffer and are used via accessor
-;;; functions. These variables include things like the *FEATURES* list
-;;; and Unix Pid of the Server process.
+;;; A connection corresponds to an elisp process object. Each connection has an
+;;; corresponding buffer, and 'connection vars' are implemented as
+;;; buffer-local vars of that buffer.
 ;;;
 ;;; One connection is "current" at any given time. This is:
 ;;;   `ensime-dispatching-connection' if dynamically bound, or
@@ -22,8 +18,8 @@
 ;;;   or the value of `(ensime-owning-connection-for-source-file buffer-file-name)'
 ;;;   otherwise.
 ;;;
-;;; When you're invoking commands in your source files you'll be using
-;;; `(ensime-owning-connection-for-source-file)'.
+;;; Generally one accesses the active connection with (ensime-connection), which
+;;; will try each of the above in turn.
 ;;;
 ;;; When a command creates a new buffer it will set
 ;;; `ensime-buffer-connection' so that commands in the new buffer will
@@ -154,14 +150,16 @@ overrides `ensime-buffer-connection'.")
 (defvar ensime-connection-counter 0
   "The number of ENSIME connections made. For generating serial numbers.")
 
-(defun ensime-current-connection ()
-  "Return the connection to use for Lisp interaction.
- Return nil if there's no connection. Note, there is some loss of
- precision here, as ensime-connections-for-source-file might return
- more than one connection. "
-  (or (ensime-proc-if-alive ensime-dispatching-connection)
-      (ensime-proc-if-alive ensime-buffer-connection)
-      (when-let (conn (ensime-proc-if-alive
+(defun ensime-connection-or-nil ()
+  "Return the connection to use for ENSIME interaction in the current buffer.
+ Return nil if there's no connection.
+   * In most code we prefer (ensime-connection),
+     which raises an error if the connection is not present.
+   * This function is ambiguous if there's more than one ensime connection for
+     the current source file (shouldn't really happen in practice)."
+  (or (ensime-conn-if-alive ensime-dispatching-connection)
+      (ensime-conn-if-alive ensime-buffer-connection)
+      (when-let (conn (ensime-conn-if-alive
 		       (ensime-owning-connection-for-source-file
 			buffer-file-name)))
 		;; Cache the connection so lookup is fast next time.
@@ -169,12 +167,23 @@ overrides `ensime-buffer-connection'.")
 		conn)))
 
 (defun ensime-proc-if-alive (proc)
-  "Returns proc if proc's buffer is alive, otherwise returns nil."
-  (when (and proc (ensime-connected-p proc)) proc))
+  "Returns proc if proc's buffer is alive and proc has not exited,
+ otherwise nil."
+  (when (and proc
+	     (buffer-live-p (process-buffer proc))
+	     (let ((status (process-status proc)))
+	       (and (not (eq status 'exit))
+		    (not (null status)))))
+    proc))
+
+(defun ensime-conn-if-alive (conn)
+  "Returns connection if connection is open."
+  (when (and conn (eq 'open (process-status conn)))
+    (ensime-proc-if-alive conn)))
 
 (defun ensime-connected-p (&optional conn)
   "Return t if there is a valid, active connection."
-  (let ((conn (or conn (ensime-current-connection))))
+  (let ((conn (or conn (ensime-connection-or-nil))))
     (and conn
 	 (buffer-live-p (process-buffer conn))
 	 (eq (process-status conn) 'open))))
@@ -182,7 +191,7 @@ overrides `ensime-buffer-connection'.")
 (defun ensime-connection ()
   "Return the connection to use for Lisp interaction.
  Signal an error if there's no connection."
-  (let ((conn (ensime-current-connection)))
+  (let ((conn (ensime-connection-or-nil)))
     (cond ((not conn)
            (or (ensime-auto-connect)
                (error "Not connected. M-x ensime to connect")))
@@ -210,7 +219,7 @@ overrides `ensime-buffer-connection'.")
  the given file in their source trees."
   (let ((result '()))
     (dolist (conn ensime-net-processes)
-      (when-let (conn (ensime-proc-if-alive conn))
+      (when-let (conn (ensime-conn-if-alive conn))
 		(when (ensime-config-includes-source-file
 		       (ensime-config conn) file-in no-ref-sources)
 		  (setq result (cons conn result)))))
@@ -234,10 +243,10 @@ overrides `ensime-buffer-connection'.")
   source-file. If loose is non-nil, also return true if project-root contains
   source-file."
   (-find
-   (lambda (proc)
-     (when-let (good-proc (ensime-proc-if-alive proc))
+   (lambda (conn)
+     (when-let (good-conn (ensime-conn-if-alive conn))
 	       (ensime-config-includes-source-file
-		(ensime-config good-proc) source-file)))
+		(ensime-config good-conn) source-file)))
    ensime-net-processes))
 
 (defun ensime-prompt-for-connection ()
@@ -276,7 +285,7 @@ This doesn't mean it will connect right after Ensime is loaded."
           (y-or-n-p "No connection.  Start Ensime? ")))
      (save-window-excursion
        (ensime)
-       (while (not (ensime-current-connection))
+       (while (not (ensime-connection-or-nil))
          (sleep-for 1))
        (ensime-connection)))
     (t nil)))
@@ -787,11 +796,9 @@ copies. All other objects are used unchanged. List must not contain cycles."
 (defun ensime-handle-compiler-ready ()
   "Do any work that should be done the first time the analyzer becomes
  ready for requests."
-  (let ((conn (ensime-current-connection)))
-    (message "ENSIME ready. %s" (ensime-random-words-of-encouragement))
-    (setf (ensime-analyzer-ready conn) t)
-    (ensime-sem-high-refresh-all-buffers)
-    ))
+  (message "ENSIME ready. %s" (ensime-random-words-of-encouragement))
+  (setf (ensime-analyzer-ready (ensime-connection)) t)
+  (ensime-sem-high-refresh-all-buffers))
 
 ;;; Words of encouragement
 

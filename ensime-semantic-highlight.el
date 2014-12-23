@@ -95,10 +95,9 @@
 
 (defun ensime-sem-high-refresh-all-buffers ()
   (interactive)
-  (let ((conn (ensime-current-connection)))
-    (let ((bufs (ensime-connection-visiting-buffers conn)))
-      (dolist (buf bufs)
-	(ensime-sem-high-refresh-buffer buf)))))
+  (let ((bufs (ensime-connection-visiting-buffers (ensime-connection))))
+    (dolist (buf bufs)
+      (ensime-sem-high-refresh-buffer buf))))
 
 (defun ensime-sem-high-refresh-region (beg end)
   "Refresh semantic highlighting for the given region."

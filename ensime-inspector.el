@@ -338,10 +338,8 @@ interface we are implementing."
       ))))
 
 (defun ensime-completing-read-path (prompt &optional initial)
-  ;; Note: First thing we do is bind buffer connection so
-  ;; completion function will have access.
-  (let ((ensime-dispatching-connection
-	 (ensime-current-connection)))
+  ;; Bind buffer connection so completion function will have access.
+  (let ((ensime-dispatching-connection (ensime-connection)))
     (completing-read prompt #'ensime-path-completions
 		     nil nil (or initial (ensime-package-containing-point)))))
 
