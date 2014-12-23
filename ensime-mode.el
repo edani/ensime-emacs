@@ -343,7 +343,7 @@
    type of the expression under the cursor."
   (when (and (eventp event)
              ensime-mode
-             (ensime-current-connection)
+             (ensime-connected-p)
              (posn-point (event-end event)))
 
     (let* ((point (posn-point (event-end event)))
@@ -396,7 +396,7 @@
   information."
   (when ensime-mode
     (condition-case err
-	(let ((conn (ensime-current-connection)))
+	(let ((conn (ensime-connection-or-nil)))
 	  (cond ((and ensime-mode (not conn))
 		 (cond
 		  ((ensime-owning-server-process-for-source-file buffer-file-name)
@@ -515,15 +515,13 @@
   "Re-initialize the project with the current state of the config file.
 Analyzer will be restarted. All source will be recompiled."
   (interactive)
-  (ensime-assert-connected
-   (let* ((conn (ensime-current-connection))
-	  (current-conf (ensime-config conn))
-	  (force-dir (plist-get current-conf :root-dir))
-	  (config (ensime-config-load (ensime-config-find force-dir) force-dir)))
-
-     (when (not (null config))
-       (ensime-set-config conn config)
-       (ensime-init-project conn config)))))
+  (let* ((conn (ensime-connection))
+	 (current-conf (ensime-config conn))
+	 (force-dir (plist-get current-conf :root-dir))
+	 (config (ensime-config-load (ensime-config-find force-dir) force-dir)))
+    (when (not (null config))
+      (ensime-set-config conn config)
+      (ensime-init-project conn config))))
 
 (defun ensime--maybe-start-server (buffer scala-version flags env config-file cache-dir)
   "Return a new or existing server process."
@@ -612,7 +610,8 @@ javaOptions ++= Seq (
 (defun ensime-shutdown()
   "Request that the current ENSIME server kill itself."
   (interactive)
-  (ensime-quit-connection (ensime-current-connection)))
+  (when (ensime-connected-p)
+    (ensime-quit-connection (ensime-connection))))
 
 (defun ensime-configured-project-root ()
   "Return root path of the current project as defined in the
@@ -620,7 +619,7 @@ config file and stored in the current connection. Nil is returned
 if there is no active connection, or if the project root was not
 defined."
   (when (ensime-connected-p)
-    (let ((config (ensime-config (ensime-current-connection))))
+    (let ((config (ensime-config (ensime-connection))))
       (plist-get config :root-dir))))
 
 (defun ensime-read-swank-port (portfile)

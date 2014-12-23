@@ -24,7 +24,7 @@
 (defmacro ensime-with-conn-interactive (conn-sym &rest body)
   "Surround body forms with a check to see if we're connected.
 If not, message the user."
-  `(let* ((,conn-sym (or (ensime-current-connection)
+  `(let* ((,conn-sym (or (ensime-connection-or-nil)
 			 (ensime-prompt-for-connection))))
      (if conn
 	 (progn ,@body)
@@ -62,13 +62,6 @@ buffer is created, for example to set the major mode.
 	 (setq buffer-read-only t)
 	 (set-window-point (ensime-display-popup-buffer ,(or select 'nil))
 			   (point))))))
-
-(defmacro ensime-assert-connected (&rest body)
-  "Surround body forms with a check to see if we're connected.
-If not, message the user."
-  `(if (ensime-connected-p)
-       (progn ,@body)
-     (message "This command requires a connection to an ENSIME server.")))
 
 (defmacro ensime-assert-buffer-saved-interactive (&rest body)
   "Offer to save buffer if buffer is modified. Execute body only if
