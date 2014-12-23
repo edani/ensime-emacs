@@ -117,10 +117,10 @@ any buffer visiting the given file."
 
 
 (defun ensime-refresh-all-note-overlays ()
-  (let ((notes (if (ensime-connected-p)
+  (let ((notes (when (ensime-connected-p)
 		   (append
-		    (ensime-java-compiler-notes (ensime-current-connection))
-		    (ensime-scala-compiler-notes (ensime-current-connection)))
+		    (ensime-java-compiler-notes (ensime-connection))
+		    (ensime-scala-compiler-notes (ensime-connection)))
 		 )))
     (ensime-clear-note-overlays)
     (ensime-make-note-overlays notes)
@@ -202,7 +202,7 @@ any buffer visiting the given file."
 
 (defun ensime-goto-next-note (forward)
   "Helper to move point to next note. Go forward if forward is non-nil."
-  (let* ((conn (ensime-current-connection))
+  (let* ((conn (ensime-connection))
 	 (notes (append (ensime-java-compiler-notes conn)
 			(ensime-scala-compiler-notes conn)))
 	 (next-note (ensime-next-note-in-current-buffer notes forward)))
