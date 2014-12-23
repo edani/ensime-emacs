@@ -75,31 +75,6 @@
     ))
 
 
-(defmacro* ensime-ac-with-buffer-copy (&rest body)
-  "Create a duplicate of the current buffer, copying all contents.
-Bind ensime-buffer-connection and buffer-file-name to the given values.
-Execute forms in body in the context of this new buffer. The idea is that
-we can abuse this buffer, even saving its contents to disk, and all the
-changes will be forgotten."
-  `(let ((buf (current-buffer))
-	 (file-name buffer-file-name)
-	 (p (point))
-	 (conn (ensime-current-connection)))
-
-     (unwind-protect
-	 (with-temp-buffer
-	   (let ((ensime-buffer-connection conn)
-		 (buffer-file-name file-name))
-	     (insert-buffer-substring buf)
-	     (goto-char p)
-	     ,@body
-	     ))
-       ;; Make sure we overwrite any changes
-       ;; written from temp buffer.
-       (ensime-write-buffer nil t)
-       )))
-
-
 (defun ensime-ac-trunc-summary (str)
   (let ((len (length str)))
     (if (> len 40)
