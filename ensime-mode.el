@@ -405,7 +405,7 @@
 
 		((and ensime-mode (ensime-connected-p conn))
 		 (concat " ["
-			 (or (plist-get (ensime-config conn) :project-name)
+			 (or (plist-get (ensime-config conn) :name)
 			     "ENSIME: (Connected)")
 			 (let ((status (ensime-modeline-state-string conn))
 			       (unready (not (ensime-analyzer-ready conn))))
@@ -521,7 +521,7 @@ Analyzer will be restarted. All source will be recompiled."
 	 (config (ensime-config-load (ensime-config-find force-dir) force-dir)))
     (when (not (null config))
       (ensime-set-config conn config)
-      (ensime-init-project conn config))))
+      (ensime-init-project conn))))
 
 (defun ensime--maybe-start-server (buffer scala-version flags env config-file cache-dir)
   "Return a new or existing server process."
@@ -565,11 +565,15 @@ CACHE-DIR is the server's persistent output directory."
       (run-hooks 'ensime-server-process-start-hook)
       proc)))
 
+(defun ensime--select-server-version(scala-version) "0.9.10-SNAPSHOT")
+
 ;; TODO: we shouldn't need the cache-dir on the server side
 (defun ensime--create-server-start-script (scala-version cache-dir config-file)
   ;; emacs has some weird case-preservation rules in regexp replace
   ;; see http://github.com/magnars/s.el/issues/62
   (s-replace-all (list (cons "_scala_version_" scala-version)
+		       (cons "_server_version_" (ensime--select-server-version
+						 scala-version))
                        (cons "_cache_dir_" cache-dir)
                        (cons "_config_file_" (expand-file-name config-file)))
                  ensime--server-start-template))
@@ -588,7 +592,7 @@ resolvers += \"Typesafe repository\" at \"http://repo.typesafe.com/typesafe/rele
 
 resolvers += \"Akka Repo\" at \"http://repo.akka.io/repository\"
 
-libraryDependencies += \"org.ensime\" %% \"ensime\" % \"0.9.10-SNAPSHOT\"
+libraryDependencies += \"org.ensime\" %% \"ensime\" % \"_server_version_\"
 
 // guaranteed to exist when started from emacs
 val JavaTools = new File(sys.env(\"JAVA_HOME\"), \"/lib/tools.jar\")
@@ -680,27 +684,14 @@ defined."
   (interactive)
   (setq ensime-abort-connection 't))
 
-(defun ensime-init-project (conn config)
-  "Send configuration to the server process. Setup handler for
- project info that the server will return."
-  (ensime-eval-async `(swank:init-project ,config)
-		     (ensime-curry #'ensime-handle-project-info
-				   conn)))
+(defun ensime-init-project (conn)
+  "Notify the server that we are ready for project events."
+  (cond
+   ;; TODO(back_compat)
+   ((version<= (ensime-protocol-version conn) "0.8.9")
+    (ensime-eval-async `(swank:init-project (:name "NA")) 'identity))
 
-
-(defun ensime-handle-project-info (conn info)
-  "Handle result of init-project rpc call. Install project information
-computed on server into the local config structure."
-  (let* ((config (ensime-config conn)))
-    (setf config (plist-put config :project-name
-			    (or
-			     (plist-get config :project-name)
-			     (plist-get info :project-name)
-			     )))
-    (setf config (plist-put config :source-roots
-			    (plist-get info :source-roots)))
-    (ensime-set-config conn config)
-    (force-mode-line-update t)))
+   (t (ensime-eval-async `(swank:init-project) 'identity))))
 
 (provide 'ensime-mode)
 
