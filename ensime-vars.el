@@ -68,11 +68,6 @@
   :type '(repeat string)
   :group 'ensime-server)
 
-(defcustom ensime-log-events nil
-  "If non-nil, all incoming rpc's will be logged to the events buffer."
-  :type 'boolean
-  :group 'ensime-server)
-
 (defcustom ensime-default-java-home
   (cond ((getenv "JDK_HOME"))
 	((getenv "JAVA_HOME"))

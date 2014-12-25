@@ -42,7 +42,7 @@ implementation class. With an argument, open the test file in another window."
         (ensime-goto-source-location (ensime-get-impl-class-info test-class)))))))
 
 (defun ensime-get-goto-test-config (key)
-  (let* ((module-name (plist-get (ensime-config (ensime-connection)) :project-name))
+  (let* ((module-name (plist-get (ensime-config (ensime-connection)) :name))
          (case-fold-search nil)
          (module-params
           (cdr

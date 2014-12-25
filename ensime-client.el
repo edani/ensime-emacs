@@ -81,6 +81,9 @@ This is automatically synchronized from Lisp.")
 (ensime-def-connection-var ensime-pid nil
   "The process id of the Lisp process.")
 
+(ensime-def-connection-var ensime-protocol-version nil
+  "The protocol version used on the connection.")
+
 (ensime-def-connection-var ensime-server-implementation-type nil
   "The implementation type of the Lisp process.")
 
@@ -325,8 +328,6 @@ This doesn't mean it will connect right after Ensime is loaded."
       (ensime-setup-connection process))))
 
 
-
-
 (defun ensime-handle-connection-info (connection info)
   "Initialize CONNECTION with INFO received from Lisp."
   (ensime-event-sig :connected info)
@@ -334,20 +335,16 @@ This doesn't mean it will connect right after Ensime is loaded."
     (destructuring-bind (&key pid server-implementation version
                               &allow-other-keys) info
       (setf (ensime-pid) pid)
+      (setf (ensime-protocol-version) version)
       (destructuring-bind (&key name) server-implementation
         (setf (ensime-server-implementation-name) name
               (ensime-connection-name) (ensime-generate-connection-name name)))
       ))
 
   (run-hooks 'ensime-connected-hook)
-  (message "Connected to ENSIME, please wait while the project is loaded.")
-
-  ;; Send the project initialization..
-  (let ((config (ensime-config connection)))
-    (ensime-init-project connection config))
-
-  )
-
+  (message "Connected to ENSIME speaking protocol %s, please wait while the project is loaded."
+	   (ensime-protocol-version))
+  (ensime-init-project connection))
 
 ;;;;; Connection listing
 
@@ -625,7 +622,7 @@ This is more compatible with the CL reader."
 ;;; purposes. Optionally you can enable outline-mode in that buffer,
 ;;; which is convenient but slows things down significantly.
 
-(defvar ensime-log-events t
+(defvar ensime-log-events nil
   "*Log protocol events to the *ensime-events* buffer.")
 
 (defvar ensime-outline-mode-in-events-buffer nil
