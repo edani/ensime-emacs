@@ -55,14 +55,13 @@ implementation class. With an argument, open the test file in another window."
 (defun ensime-source-base-dir-for-file (file-name)
   "Return the source base directory for the current buffer, as defined in the
 ensime configuration."
-  (let ((all-sources
-         (mapcar #'expand-file-name
-                 (plist-get (ensime-config (ensime-connection)) :source-roots))))
-    (let ((dir
-           (find-if
-            #'(lambda (dir) (ensime-path-prefix-p file-name dir))
-            all-sources)))
-      (when dir (file-name-as-directory (expand-file-name dir))))))
+  (let* ((all-sources
+          (mapcar #'expand-file-name (ensime-source-roots-from-config)))
+         (dir
+          (find-if
+           (lambda (dir) (ensime-path-prefix-p file-name dir))
+           all-sources)))
+      (when dir (file-name-as-directory (expand-file-name dir)))))
 
 (defun ensime-is-test-file (file-name)
   "Return true if the given file name is part of the project's test sources"
@@ -225,8 +224,7 @@ implementation class."
 (defun ensime-goto-test--impl-to-test-dir (impl-dir)
   (let ((conf (ensime-config (ensime-connection)))
         (is-test-dir-fn (ensime-get-goto-test-config :is-test-dir-fn)))
-    (dolist (module (append (plist-get conf :submodules)
-                            (list conf)))
+    (dolist (module (plist-get conf :subprojects))
       (let ((module-sources
              (mapcar (lambda (s)
                        (file-name-as-directory (expand-file-name s)))
