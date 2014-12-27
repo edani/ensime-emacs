@@ -547,13 +547,22 @@ currently open in emacs."
   "Format the source in the current buffer using the Scalariform
  formatting library."
   (interactive)
-  (ensime-with-buffer-written-to-tmp
-   (file)
-   (message "Formatting...")
-   (ensime-rpc-async-format-files
-    (list file)
-    `(lambda (result)
-       (ensime-revert-visited-files (list (list ,buffer-file-name ,file)) t)))))
+  (if (version< (ensime-protocol-version) "0.8.11")
+      (ensime-with-buffer-written-to-tmp
+       (file)
+       (message "Formatting...")
+       (ensime-rpc-async-format-files
+        (list file)
+        `(lambda (result)
+           (ensime-revert-visited-files (list (list ,buffer-file-name ,file)) t))))
+    (let ((formatted (ensime-rpc-format-buffer)))
+      (when formatted
+        (when (eq 1 (coding-system-eol-type buffer-file-coding-system))
+          (setq formatted (replace-regexp-in-string "\r$" "" formatted)))
+        (let ((pt (point)))
+          (erase-buffer)
+          (insert formatted)
+          (goto-char pt))))))
 
 (defun ensime-revert-visited-files (files &optional typecheck)
   "files is a list of buffer-file-names to revert or lists of the form

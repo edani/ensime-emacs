@@ -117,9 +117,6 @@ This is automatically synchronized from Lisp.")
 (ensime-def-connection-var ensime-java-compiler-notes nil
   "Warnings, Errors, and other notes produced by the analyzer.")
 
-(ensime-def-connection-var ensime-builder-changed-files nil
-  "Files that have changed since the last rebuild.")
-
 (ensime-def-connection-var ensime-awaiting-full-typecheck nil
   "Should we show the errors and warnings report on next full-typecheck event?")
 
@@ -1027,26 +1024,28 @@ with the current project's dependencies loaded. Returns a property list."
   (ensime-eval `(swank:unload-all)))
 
 (defun ensime-rpc-async-typecheck-file (file-name continue)
-  (ensime-eval-async `(swank:typecheck-file ,file-name) continue))
+  (if (version< (ensime-protocol-version) "0.8.11")
+      (ensime-eval-async `(swank:typecheck-file ,file-name) continue)
+    (ensime-eval-async `(swank:typecheck-file (:file ,file-name)) continue)))
 
 (defun ensime-rpc-async-typecheck-files (file-names continue)
   (ensime-eval-async `(swank:typecheck-files ,file-names) continue))
 
 (defun ensime-rpc-async-typecheck-file-with-contents (file-name contents continue)
-  (ensime-eval-async `(swank:typecheck-file ,file-name ,contents)
-                     continue))
+  (if (version< (ensime-protocol-version) "0.8.11")
+      (ensime-eval-async `(swank:typecheck-file ,file-name ,contents) continue)
+    (ensime-eval-async `(swank:typecheck-file (:file ,file-name :contents ,contents)) continue)))
 
 (defun ensime-rpc-async-typecheck-all (continue)
   (ensime-eval-async `(swank:typecheck-all) continue))
 
-(defun ensime-rpc-async-builder-init (continue)
-  (ensime-eval-async `(swank:builder-init) continue))
-
-(defun ensime-rpc-async-builder-update (file-names continue)
-  (ensime-eval-async `(swank:builder-update-files ,file-names) continue))
-
 (defun ensime-rpc-async-format-files (file-names continue)
   (ensime-eval-async `(swank:format-source ,file-names) continue))
+
+(defun ensime-rpc-format-buffer ()
+  (assert (version<= "0.8.11" (ensime-protocol-version)))
+  (ensime-eval `(swank:format-one-source (:file ,buffer-file-name
+                                          :contents ,(ensime-get-buffer-as-string)))))
 
 (defun ensime-rpc-expand-selection (file-name start end)
   (ensime-internalize-offset-fields
@@ -1169,24 +1168,36 @@ with the current project's dependencies loaded. Returns a property list."
        `(swank:call-completion ,id))))
 
 (defun ensime-rpc-completions-at-point (&optional max-results case-sens)
-  (ensime-eval
-   `(swank:completions
-     ,buffer-file-name
-     ,(ensime-computed-point)
-     ,(or max-results 0)
-     ,case-sens
-     t ;; reload
-     )))
+  (let* ((should-write-buffer (version< (ensime-protocol-version) "0.8.11"))
+         (file-info
+          (if should-write-buffer
+              buffer-file-name
+            `(:file ,buffer-file-name :contents ,(ensime-get-buffer-as-string)))))
+    (when should-write-buffer (ensime-write-buffer nil t))
+    (ensime-eval
+     `(swank:completions
+       ,file-info
+       ,(ensime-computed-point)
+       ,(or max-results 0)
+       ,case-sens
+       t ;; reload
+       ))))
 
 (defun ensime-rpc-async-completions-at-point (max-results case-sens continue)
+  (let* ((should-write-buffer (version< (ensime-protocol-version) "0.8.11"))
+         (file-info
+          (if should-write-buffer
+              buffer-file-name
+            `(:file ,buffer-file-name :contents ,(ensime-get-buffer-as-string)))))
+    (when should-write-buffer (ensime-write-buffer nil t))
   (ensime-eval-async
    `(swank:completions
-     ,buffer-file-name
+     ,file-info
      ,(ensime-computed-point)
      ,(or max-results 0)
      ,case-sens
      t ;; reload
-     ) continue))
+     ) continue)))
 
 
 (provide 'ensime-client)

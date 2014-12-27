@@ -43,7 +43,7 @@
 (defun ensime-ac-completion-candidates (&optional prefix)
   "Return candidate list of propertized strings."
   (let* ((completions
-	  (plist-get (ensime-sync-buffer-and-get-completions
+	  (plist-get (ensime-get-completions
 		      ensime-ac-max-results
 		      ensime-ac-case-sensitive) :candidates)))
     (mapcar (lambda (m) (propertize m 'summary (ensime-ac-get-doc m)))
