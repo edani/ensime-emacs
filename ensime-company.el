@@ -193,7 +193,7 @@
        (let ((max-results 1000000)  ;; We want *all* candidates.
 	     (case-sense nil))
 	 `(:async . (lambda (callback)
-		      (ensime-sync-buffer-and-get-completions-async
+		      (ensime-get-completions-async
 		       ,max-results ,case-sense callback))))))
 
     ;; Don't do client-side sorting (preserve server-side rankings).
