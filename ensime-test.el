@@ -427,8 +427,8 @@
     (kill-backward-chars (+ 4 (length mark)))))
 
 (defun ensime-test-after-label (mark)
-  (goto-char (point-min))
   (save-excursion
+    (goto-char (point-min))
     (when (search-forward-regexp (concat "/\\*" mark "\\*/") nil t)
       (point))))
 
@@ -1229,7 +1229,15 @@
    (ensime-async-test
     "Test get symbol info at point."
     (let* ((proj (ensime-create-tmp-project
-                  ensime-tmp-project-hello-world)))
+                  `((:name
+                     "hello.scala"
+                     :contents ,(ensime-test-concat-lines
+                                 "package pack"
+                                 "class A {"
+                                 "  def foo(/*2*/a:Int, b:Int):Int = {"
+                                 "    a/*1*/ + b"
+                                 "  }"
+                                 "}"))))))
       (ensime-test-init-proj proj))
 
     ((:connected connection-info))
@@ -1242,12 +1250,12 @@
     ((:full-typecheck-finished val)
      (ensime-test-with-proj
       (proj src-files)
-      ;; Set cursor to symbol in method body..
-      (goto-char 163)
+      (goto-char (ensime-test-before-label "1"))
       (let* ((info (ensime-rpc-symbol-at-point))
              (pos (ensime-symbol-decl-pos info)))
-        ;; New position should be at formal parameter...
-        (ensime-assert-equal (ensime-pos-offset pos) 140))
+        (ensime-assert-equal
+         (ensime-pos-offset pos)
+         (ensime-externalize-offset (ensime-test-after-label "2"))))
       (ensime-test-cleanup proj))))
 
    (ensime-async-test
@@ -1533,6 +1541,7 @@
   "Run a single test selected by title."
   (interactive "sEnter a regex matching a test's title: ")
   (catch 'done
+    (setq ensime--test-had-failures nil)
     (let ((tests (append ensime-fast-suite
                          ensime-slow-suite
                          ensime-non-working-suite)))
