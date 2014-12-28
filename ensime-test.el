@@ -634,7 +634,110 @@
         (setf internalized-syms
               (sort (ensime-sem-high-internalize-syms syms)
                     (lambda (a b) (< (nth 1 a) (nth 1 b)))))
-        (ensime-assert-equal internalized-syms expected))))))
+        (ensime-assert-equal internalized-syms expected))))
+
+   (ensime-test
+    "Test ensime-insert-import with no package or import statement"
+    (with-temp-buffer
+      (set-visited-file-name "/tmp/fake/dir/abc.scala" t)
+      (insert (ensime-test-concat-lines
+               "class C {"
+               "  def f = 1 /*1*/"
+               "}"))
+      (goto-char (ensime-test-after-label "1"))
+
+      (ensime-insert-import "org.example")
+      (set-buffer-modified-p nil)
+
+      (ensime-assert-equal
+       (buffer-substring-no-properties (point-min) (point-max))
+       (ensime-test-concat-lines
+        "import org.example"
+        ""
+        "class C {"
+        "  def f = 1 /*1*/"
+        "}"))))
+
+   (ensime-test
+    "Test ensime-insert-import with package statement"
+    (with-temp-buffer
+      (set-visited-file-name "/tmp/fake/dir/abc.scala" t)
+      (insert (ensime-test-concat-lines
+               "package com.example"
+               "class C {"
+               "  def f = 1 /*1*/"
+               "}"))
+      (goto-char (ensime-test-after-label "1"))
+
+      (ensime-insert-import "org.example")
+      (set-buffer-modified-p nil)
+
+      (ensime-assert-equal
+       (buffer-substring-no-properties (point-min) (point-max))
+       (ensime-test-concat-lines
+        "package com.example"
+        ""
+        "import org.example"
+        ""
+        "class C {"
+        "  def f = 1 /*1*/"
+        "}"))))
+
+   (ensime-test
+    "Test ensime-insert-import with import statement"
+    (with-temp-buffer
+      (set-visited-file-name "/tmp/fake/dir/abc.scala" t)
+      (insert (ensime-test-concat-lines
+               "import m"
+               ""
+               ""
+               "import n"
+               ""
+               "import p"
+               "class C {"
+               "  def f = 1 /*1*/"
+               "}"))
+      (goto-char (ensime-test-after-label "1"))
+
+      (ensime-insert-import "org.example")
+      (set-buffer-modified-p nil)
+
+      (ensime-assert-equal
+       (buffer-substring-no-properties (point-min) (point-max))
+       (ensime-test-concat-lines
+        "import m"
+        ""
+        ""
+        "import n"
+        "import org.example"
+        ""
+        "import p"
+        "class C {"
+        "  def f = 1 /*1*/"
+        "}"))))
+
+   (ensime-test
+    "Test ensime-insert-import stays above point"
+    (with-temp-buffer
+      (set-visited-file-name "/tmp/fake/dir/abc.scala" t)
+      (insert (ensime-test-concat-lines
+               "class C {"
+               "  import example._ /*1*/"
+               "  def f = 1"
+               "}"))
+      (goto-char (ensime-test-after-label "1"))
+
+      (ensime-insert-import "org.example")
+      (set-buffer-modified-p nil)
+
+      (ensime-assert-equal
+       (buffer-substring-no-properties (point-min) (point-max))
+       (ensime-test-concat-lines
+        "class C {"
+        "  import org.example"
+        "  import example._ /*1*/"
+        "  def f = 1"
+        "}"))))))
 
 (defvar ensime-slow-suite
 

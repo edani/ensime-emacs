@@ -465,32 +465,46 @@ currently open in emacs."
   "A simple, hacky import insertion."
   (save-excursion
 
-    (let ((starting-point (point)))
-      (search-backward-regexp "^\\s-*package\\s-" nil t)
-      (search-forward-regexp "^\\s-*import\\s-" starting-point t)
+    (let ((insertion-range (point))
+          (starting-point (point)))
+      (unless
+          (search-backward-regexp "^\\s-*package\\s-" nil t)
+        (goto-char (point-min)))
+      (search-forward-regexp "^\\s-*import\\s-" insertion-range t)
       (goto-char (point-at-bol))
 
-      ;; No imports yet
-      (when (looking-at "^\\s-*package\\s-")
+      (cond
+       ;; No imports yet
+       ((looking-at "^\\s-*package\\s-")
         (goto-char (point-at-eol))
+        (newline)
         (newline))
 
-      (when (looking-at "^\\s-*import\\s-")
-        (backward-char)
+       ;; Found import block, insert alphabetically
+       ((looking-at "^\\s-*import\\s-")
+        (unless (equal (point) (point-min)) (backward-char))
         (while (progn
                  (if (looking-at "[\n\t ]*import\\s-\\(.+\\)\n")
                      (let ((imported-name (match-string 1)))
                        (string< imported-name qualified-name))))
-          (search-forward-regexp "^\\s-*import\\s-" starting-point t)
-          (goto-char (point-at-eol)))))
+          (search-forward-regexp "^\\s-*import\\s-" insertion-range t)
+          (goto-char (point-at-eol)))
+        (if (equal (point) (point-max)) (newline) (forward-char 1)))
 
-    (newline)
-    (insert (format (cond ((ensime-visiting-scala-file-p) "import %s")
-                          ((ensime-visiting-java-file-p) "import %s;"))
-                    qualified-name))
-    (indent-region (point-at-bol) (point-at-eol))))
+       ;; Neither import nor package: stay at beginning of buffer
+       (t
+        (unless (looking-at "^\s*$")
+          (newline)
+          (backward-char 1))))
 
-
+      (when (>= (point) starting-point)
+        (goto-char starting-point)
+        (goto-char (point-at-bol)))
+      (save-excursion
+        (insert (format (cond ((ensime-visiting-scala-file-p) "import %s\n")
+                              ((ensime-visiting-java-file-p) "import %s;\n"))
+                        qualified-name)))
+      (indent-region (point-at-bol) (point-at-eol)))))
 
 (defun ensime-import-type-at-point (&optional non-interactive)
   "Suggest possible imports of the qualified name at point.
@@ -524,7 +538,7 @@ currently open in emacs."
 		   (ensime-strip-dollar-signs
 		    (ensime-kill-txt-props selected-name))))
 	      (ensime-insert-import qual-name)
-	      (ensime-typecheck-current-file))))))))
+	      (ensime-typecheck-current-file t))))))))
 
 ;; Source Formatting
 
