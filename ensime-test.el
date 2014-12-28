@@ -737,7 +737,20 @@
         "  import org.example"
         "  import example._ /*1*/"
         "  def f = 1"
-        "}"))))))
+        "}"))))
+
+   (ensime-test
+    "Test ensime-short-local-name"
+    (ensime-assert-equal (ensime-short-local-name "Junk") "Junk")
+    (ensime-assert-equal (ensime-short-local-name "Foo$$Junk") "Junk")
+    (ensime-assert-equal (ensime-short-local-name "Foo$$Junk$") "Junk"))
+
+   (ensime-test
+    "Test ensime-strip-dollar-signs"
+    (ensime-assert-equal (ensime-strip-dollar-signs "com.example.Foo$")
+                         "com.example.Foo")
+    (ensime-assert-equal (ensime-strip-dollar-signs "com.example.Foo$$Junk")
+                         "com.example.Foo.Junk"))))
 
 (defvar ensime-slow-suite
 
