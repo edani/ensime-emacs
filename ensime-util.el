@@ -217,12 +217,19 @@ This idiom is preferred over `lexical-let'."
     (reverse result)))
 
 (defun ensime-last-name-component (str)
-  (if (integerp (string-match "^.*?\\.\\([^\\.]+\\)$"str))
+  (if (integerp (string-match "^.*?\\.\\([^\\.]+\\)$" str))
       (match-string 1 str)
     str))
 
+(defun ensime-short-local-name (local-name)
+  (if (integerp (string-match "^\\(.*\\$\\)?\\([^$]+\\)\\$?$" local-name))
+      (match-string 2 local-name)
+    str))
+
 (defun ensime-strip-dollar-signs (str)
-  (replace-regexp-in-string "\\$" "" str))
+  (replace-regexp-in-string
+   "\\$+" "."
+   (replace-regexp-in-string "\\$$" "" str)))
 
 ;; Portability
 

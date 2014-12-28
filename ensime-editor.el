@@ -532,8 +532,9 @@ currently open in emacs."
                        name-start name-end)
 	      (goto-char name-start)
 	      (delete-char (- name-end name-start))
-	      (insert (get-text-property
-		       0 'local-name selected-name)))
+	      (insert (ensime-short-local-name
+                       (get-text-property
+                        0 'local-name selected-name))))
 	    (let ((qual-name
 		   (ensime-strip-dollar-signs
 		    (ensime-kill-txt-props selected-name))))
