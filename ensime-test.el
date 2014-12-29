@@ -427,8 +427,8 @@
     (kill-backward-chars (+ 4 (length mark)))))
 
 (defun ensime-test-after-label (mark)
-  (goto-char (point-min))
   (save-excursion
+    (goto-char (point-min))
     (when (search-forward-regexp (concat "/\\*" mark "\\*/") nil t)
       (point))))
 
@@ -634,7 +634,123 @@
         (setf internalized-syms
               (sort (ensime-sem-high-internalize-syms syms)
                     (lambda (a b) (< (nth 1 a) (nth 1 b)))))
-        (ensime-assert-equal internalized-syms expected))))))
+        (ensime-assert-equal internalized-syms expected))))
+
+   (ensime-test
+    "Test ensime-insert-import with no package or import statement"
+    (with-temp-buffer
+      (set-visited-file-name "/tmp/fake/dir/abc.scala" t)
+      (insert (ensime-test-concat-lines
+               "class C {"
+               "  def f = 1 /*1*/"
+               "}"))
+      (goto-char (ensime-test-after-label "1"))
+
+      (ensime-insert-import "org.example")
+      (set-buffer-modified-p nil)
+
+      (ensime-assert-equal
+       (buffer-substring-no-properties (point-min) (point-max))
+       (ensime-test-concat-lines
+        "import org.example"
+        ""
+        "class C {"
+        "  def f = 1 /*1*/"
+        "}"))))
+
+   (ensime-test
+    "Test ensime-insert-import with package statement"
+    (with-temp-buffer
+      (set-visited-file-name "/tmp/fake/dir/abc.scala" t)
+      (insert (ensime-test-concat-lines
+               "package com.example"
+               "class C {"
+               "  def f = 1 /*1*/"
+               "}"))
+      (goto-char (ensime-test-after-label "1"))
+
+      (ensime-insert-import "org.example")
+      (set-buffer-modified-p nil)
+
+      (ensime-assert-equal
+       (buffer-substring-no-properties (point-min) (point-max))
+       (ensime-test-concat-lines
+        "package com.example"
+        ""
+        "import org.example"
+        ""
+        "class C {"
+        "  def f = 1 /*1*/"
+        "}"))))
+
+   (ensime-test
+    "Test ensime-insert-import with import statement"
+    (with-temp-buffer
+      (set-visited-file-name "/tmp/fake/dir/abc.scala" t)
+      (insert (ensime-test-concat-lines
+               "import m"
+               ""
+               ""
+               "import n"
+               ""
+               "import p"
+               "class C {"
+               "  def f = 1 /*1*/"
+               "}"))
+      (goto-char (ensime-test-after-label "1"))
+
+      (ensime-insert-import "org.example")
+      (set-buffer-modified-p nil)
+
+      (ensime-assert-equal
+       (buffer-substring-no-properties (point-min) (point-max))
+       (ensime-test-concat-lines
+        "import m"
+        ""
+        ""
+        "import n"
+        "import org.example"
+        ""
+        "import p"
+        "class C {"
+        "  def f = 1 /*1*/"
+        "}"))))
+
+   (ensime-test
+    "Test ensime-insert-import stays above point"
+    (with-temp-buffer
+      (set-visited-file-name "/tmp/fake/dir/abc.scala" t)
+      (insert (ensime-test-concat-lines
+               "class C {"
+               "  import example._ /*1*/"
+               "  def f = 1"
+               "}"))
+      (goto-char (ensime-test-after-label "1"))
+
+      (ensime-insert-import "org.example")
+      (set-buffer-modified-p nil)
+
+      (ensime-assert-equal
+       (buffer-substring-no-properties (point-min) (point-max))
+       (ensime-test-concat-lines
+        "class C {"
+        "  import org.example"
+        "  import example._ /*1*/"
+        "  def f = 1"
+        "}"))))
+
+   (ensime-test
+    "Test ensime-short-local-name"
+    (ensime-assert-equal (ensime-short-local-name "Junk") "Junk")
+    (ensime-assert-equal (ensime-short-local-name "Foo$$Junk") "Junk")
+    (ensime-assert-equal (ensime-short-local-name "Foo$$Junk$") "Junk"))
+
+   (ensime-test
+    "Test ensime-strip-dollar-signs"
+    (ensime-assert-equal (ensime-strip-dollar-signs "com.example.Foo$")
+                         "com.example.Foo")
+    (ensime-assert-equal (ensime-strip-dollar-signs "com.example.Foo$$Junk")
+                         "com.example.Foo.Junk"))))
 
 (defvar ensime-slow-suite
 
@@ -1229,7 +1345,15 @@
    (ensime-async-test
     "Test get symbol info at point."
     (let* ((proj (ensime-create-tmp-project
-                  ensime-tmp-project-hello-world)))
+                  `((:name
+                     "hello.scala"
+                     :contents ,(ensime-test-concat-lines
+                                 "package pack"
+                                 "class A {"
+                                 "  def foo(/*2*/a:Int, b:Int):Int = {"
+                                 "    a/*1*/ + b"
+                                 "  }"
+                                 "}"))))))
       (ensime-test-init-proj proj))
 
     ((:connected connection-info))
@@ -1242,12 +1366,12 @@
     ((:full-typecheck-finished val)
      (ensime-test-with-proj
       (proj src-files)
-      ;; Set cursor to symbol in method body..
-      (goto-char 163)
+      (goto-char (ensime-test-before-label "1"))
       (let* ((info (ensime-rpc-symbol-at-point))
              (pos (ensime-symbol-decl-pos info)))
-        ;; New position should be at formal parameter...
-        (ensime-assert-equal (ensime-pos-offset pos) 140))
+        (ensime-assert-equal
+         (ensime-pos-offset pos)
+         (ensime-externalize-offset (ensime-test-after-label "2"))))
       (ensime-test-cleanup proj))))
 
    (ensime-async-test
@@ -1533,6 +1657,7 @@
   "Run a single test selected by title."
   (interactive "sEnter a regex matching a test's title: ")
   (catch 'done
+    (setq ensime--test-had-failures nil)
     (let ((tests (append ensime-fast-suite
                          ensime-slow-suite
                          ensime-non-working-suite)))
