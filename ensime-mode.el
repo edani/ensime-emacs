@@ -436,6 +436,24 @@
 		  (nth 5 (or (file-attributes (file-truename file))
 			     (file-attributes file))))))
 
+(defun ensime--get-cache-dir (config)
+  (let ((cache-dir (plist-get config :cache-dir)))
+    (unless cache-dir
+      (error "Cache dir in ensime configuration file appears to be unset"))
+    cache-dir))
+
+(defun ensime--get-root-dir (config)
+  (let ((root-dir (plist-get config :root-dir)))
+    (unless root-dir
+      (error "Root dir in ensime configuration file appears to be unset"))
+    root-dir))
+
+(defun ensime--get-name (config)
+  (let ((name (plist-get config :name)))
+    (unless name
+      (error "Name in ensime configuration file appears to be unset"))
+    name))
+
 ;; Startup
 
 (defun* ensime--1 (&optional host port)
@@ -443,9 +461,9 @@
     (ensime-mode 1))
   (let* ((config-file (ensime-config-find))
          (config (ensime-config-load config-file))
-         (root-dir (plist-get config :root-dir))
-         (cache-dir (file-name-as-directory (plist-get config :cache-dir)))
-         (name (plist-get config :name))
+         (root-dir (ensime--get-root-dir config) )
+         (cache-dir (file-name-as-directory (ensime--get-cache-dir config)))
+         (name (ensime--get-cache-dir config))
          (scala-version (or (plist-get config :scala-version) ensime-default-scala-version))
          (server-env (or (plist-get config :server-env) ensime-default-server-env))
          (buffer (or (plist-get config :buffer) (concat ensime-default-buffer-prefix name)))
