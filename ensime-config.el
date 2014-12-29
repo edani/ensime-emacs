@@ -115,6 +115,14 @@
                                  (file-name-as-directory "source-jars"))))
         config))))
 
+
+(defun ensime-source-roots-from-config ()
+  "Return all source directories from all subprojects"
+  (-flatten
+   (mapcar
+    (lambda (m) (plist-get m :source-roots))
+    (plist-get (ensime-config (ensime-connection)) :subprojects))))
+
 (provide 'ensime-config)
 
 ;; Local Variables:
