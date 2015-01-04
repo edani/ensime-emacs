@@ -21,6 +21,7 @@
 
 (require 'auto-complete)
 (require 'yasnippet)
+(require 'scala-mode2-syntax)
 
 (defcustom ensime-completion-style 'company
   "Should be either 'company or 'auto-complete."
@@ -45,41 +46,12 @@
 (defvar ensime-ac-max-results 30
   "Maximum number of completions to request in one call to server.")
 
-
-(defun ensime-ac-completion-candidates (prefix)
+(defun ensime-ac-completion-candidates (&optional prefix)
   "Return candidate list."
-  (let* ((info
-	  (progn
-	    (ensime-write-buffer nil t)
-	    (ensime-rpc-completions-at-point ensime-ac-max-results
-					     ensime-ac-case-sensitive)))
-	 (completions (plist-get info :completions)))
-
-    (mapcar (lambda (m)
-	      (let* ((type-sig (plist-get m :type-sig))
-		     (type-id (plist-get m :type-id))
-		     (is-callable (plist-get m :is-callable))
-		     (to-insert (plist-get m :to-insert))
-		     (name (plist-get m :name))
-		     (candidate name))
-		(propertize candidate
-			    'symbol-name name
-			    'type-sig type-sig
-			    'type-id type-id
-			    'is-callable is-callable
-			    'to-insert to-insert
-			    'summary (ensime-ac-trunc-summary
-				      (ensime-ac-brief-type-sig type-sig))
-			    )))
-	    completions)
-    ))
-
-
-(defun ensime-ac-trunc-summary (str)
-  (let ((len (length str)))
-    (if (> len 40)
-	(concat (substring str 0 40) "...")
-      str)))
+  (let* ((completions
+	  (plist-get (ensime--ask-server-for-completions) :candidates)))
+    (mapcar (lambda (m) (propertize m 'summary (ensime-ac-get-doc m)))
+	    completions)))
 
 (defun ensime-ac-brief-type-sig (type-sig)
   "Return doc for given item."
@@ -232,38 +204,59 @@ be used later to give contextual help when entering arguments."
 	  (message signature))
       (remove-hook 'post-command-hook 'ensime-ac-update-param-help t))))
 
-(defun ensime--build-yasnippet-for-call (param-sections &optional is-operator)
+(defun ensime--yasnippet-escape (s) (s-replace "$" "\\$" s))
+
+(defun ensime--build-yasnippet-for-call
+    (param-sections &optional infix pass-function-block)
   "Returns a yasnippet template for a method call, where each argument is a
  tab-stop."
-  (concat
-    (mapconcat
-     (lambda (sect)
-       (let* ((params (plist-get sect :params))
-	      (is-implicit (plist-get sect :is-implicit))
-	      (i 0)
-	      (result
-	       (concat (if is-operator "" "(")
-		       (mapconcat
-			(lambda (nm-and-tp)
-			  (let ((param-name (car nm-and-tp))
-				(type-name
-				 (ensime-type-name-with-args
-				  (cadr nm-and-tp))))
-			  (format
-			   "${%s:%s: %s}"
-			   (incf i)
-			   ;; Escape yasnippet special chars
-			   (s-replace "$" "\\$" param-name)
-			   (s-replace "$" "\\$" type-name)
-			   )))
-			params ", ") (if is-operator "" ")"))))
-	 (if is-implicit
-	     (propertize result 'face font-lock-comment-face)
-	   result)
-	 ))
-     param-sections "=>" )
-    "$0"))
+  (let ((tab-stop 0)
+	(section-count 0))
+     (mapconcat
+      (lambda (sect)
+	(incf section-count)
+	(let* ((params (plist-get sect :params)))
 
+	  (if (and pass-function-block
+		   (= section-count (length param-sections)))
+
+	      ;; If requested, expand the last section as an inline block.
+	      (let* ((param-type (cadr (car params)))
+		     (type-args (plist-get param-type :type-args))
+		     (arg-types (-take (- (length type-args) 1) type-args))
+		     (result-type (car (last type-args))))
+		(if (ensime-type-is-by-name-p param-type) " { $0 }"
+		  (concat
+		   " { "
+		   (let ((param-list
+			  (mapconcat
+			   (lambda (tpe)
+			     (let ((type-name (ensime--yasnippet-escape
+					       (ensime-type-name-with-args tpe))))
+			       (format "${%s:%s}" (incf tab-stop) type-name)))
+			   arg-types ", ")))
+		     (if (> (length arg-types) 1)
+			 (format "(%s)" param-list) param-list))
+		   (let ((result-type-name (ensime--yasnippet-escape
+					    (ensime-type-name-with-args result-type))))
+		     (format " => ${%s:%s} }$0" (incf tab-stop) result-type-name)))))
+
+	    ;; Otherwise build template for a standard parameter list.
+	    (concat (if infix " " "(")
+		    (mapconcat
+		     (lambda (nm-and-tp)
+		       (let ((param-name (ensime--yasnippet-escape (car nm-and-tp)))
+			     (type-name (ensime--yasnippet-escape
+						   (ensime-type-name-with-args
+						    (cadr nm-and-tp)))))
+			 (format "${%s:%s: %s}"
+				 (incf tab-stop)
+				 param-name type-name)))
+		     params ", ")
+		    (if infix "" ")")))))
+      param-sections
+      "")
+     ))
 
 (defun ensime-ac-call-info-argument-list (call-info &optional is-operator)
   "Return a pretty string representation of argument list."
@@ -360,30 +353,58 @@ be used later to give contextual help when entering arguments."
 (defun ensime-ac-disable ()
   (auto-complete-mode 0))
 
-(defvar-local ensime--completion-cache nil
-  "An optimizing cache for auto-completion. Stores a plist of the form
- '(:prefix 'myPrefi' :candidates ('myPrefix' 'myPreficture' ...))")
+(defun ensime--company-unique-candidate-at-point ()
+  "If the identifier preceding point is already complete, returns it as a fully
+ annotated candidate. Otherwise returns nil."
+  (let ((prefix (ensime-company 'prefix)))
+    (when (> (length prefix) 0)
+      (ensime-write-buffer nil t)
+      (let* ((info (ensime-rpc-completions-at-point
+		    2 ensime-ac-case-sensitive))
+	     (candidates (ensime--annotate-completions (plist-get info :completions))))
+	(when (and (= (length candidates) 1)
+		   (string= prefix (car candidates)))
+	  (car candidates))))))
+
+(defun ensime-company-try-completion ()
+  "Attempts a company-mode completion at point. Returns nil if
+ completion is not available at point."
+  (when company-mode
+    (let ((unique-candidate (ensime--company-unique-candidate-at-point)))
+      (cond
+       ;; If the identifier is already complete, we must invoke parameter
+       ;; expansion manually.
+       (unique-candidate
+	(ensime--yasnippet-complete-action unique-candidate)
+	t)
+
+       ((company-manual-begin)
+	(company-complete-common)
+	t)
+
+       (t nil)))))
+
+(defun ensime--at-bol ()
+  (not (string-match "[^\s-]" (buffer-substring-no-properties
+			       (point-at-bol)
+			       (point)))))
 
 (defun ensime-company-complete-or-indent ()
-  "A hack to allow use of TAB for completion."
+  "Try to complete, falling back to indentation."
   (interactive)
-  (if (and company-mode
-	   ;; Always fall back to indentation if we're at b.o.l.
-	   (string-match "[^\s-]" (buffer-substring-no-properties
-				   (point-at-bol)
-				   (point)))
-	   (company-manual-begin))
-      (company-complete-common)
+  (when (or (ensime--at-bol)
+	    (not (ensime-company-try-completion)))
     (indent-according-to-mode)))
 
 (defun ensime-company-enable ()
   (set (make-local-variable 'company-backends) '(ensime-company))
   (company-mode)
   (yas-minor-mode-on)
-  (setq company-idle-delay 0)
+  (set (make-local-variable 'company-idle-delay) 0)
+  (set (make-local-variable 'company-minimum-prefix-length) 2)
   (local-set-key [tab] 'ensime-company-complete-or-indent))
 
-(defun ensime--yasnippet-complete-action (&optional candidate-in)
+(defun ensime--yasnippet-complete-action (&optional candidate-in force-block)
   "If the candidate is a callable symbol, expand a yasnippet template for the
  argument list."
   (let* (;; When called by auto-complete-mode, grab from dynamic environment.
@@ -392,27 +413,57 @@ be used later to give contextual help when entering arguments."
 	 (type-id (get-text-property 0 'type-id candidate))
 	 (is-callable (get-text-property 0 'is-callable candidate))
 	 (to-insert (ensime-ac-candidate-to-insert candidate))
-	 (name-start-point (- (point) (length name))))
+	 (name-start-point (- (point) (length name)))
+	 (call-info
+	  (when is-callable (ensime-rpc-get-call-completion type-id)))
+	 (param-sections
+	  (when is-callable
+	    (-filter
+	     (lambda (sect)
+	       (not (plist-get sect :is-implicit)))
+	     (ensime-type-param-sections call-info))))
+	 (is-operator
+	  (and is-callable
+	       (= 1 (length param-sections))
+	       (= 1 (length (plist-get
+			     (car param-sections) :params)))
+	       (null (string-match "[A-z]" name))))
+	 (is-field-assigner (s-ends-with? "_=" name)))
 
-    ;; If an alternate to-insert string is available, delete the
-    ;; candidate inserted into buffer and replace with to-insert
+
+    (when is-field-assigner
+      (delete-char (- 2))
+      (insert " ="))
+
+    ;; If we've completed an operator, get rid of superfluous '.'
+    (when is-operator
+      (delete-char (- (+ 1 (length name))))
+      (insert " ")
+      (insert name))
+
+    ;; If an to-insert is available, delete the candidate inserted
+    ;; into buffer and replace with to-insert
     (when to-insert
       (delete-char (- (length name)))
       (insert to-insert))
 
     (when is-callable
-      (let* ((call-info (ensime-rpc-get-call-completion type-id))
-	     (param-sections (ensime-type-param-sections call-info))
-	     (is-operator
-	      (and (= 1 (length param-sections))
-		   (= 1 (length (plist-get
-				 (car param-sections) :params)))
-		   (null (string-match "[A-z]" name)))))
 	(when (and call-info param-sections)
-	  (yas-expand-snippet
-	   (ensime--build-yasnippet-for-call param-sections is-operator)
-	   (point) (point))
-	  )))))
+	  (let* ((maybe-braces (ensime-param-section-accepts-block-p
+				(car (last param-sections))))
+		 (pass-function-block
+		  (and maybe-braces
+		       (eq
+			(or force-block
+			    (read-char-choice
+			     "Choose '{' or '(' " '( ?\{ ?\( ))) ?\{)))
+		 (snippet
+		  (ensime--build-yasnippet-for-call
+		   param-sections
+		   (or is-operator is-field-assigner)
+		   pass-function-block)))
+	      (yas-expand-snippet snippet (point) (point))
+	    )))))
 
 (defun ensime--annotate-completions (completions)
   "Maps plist structures to propertized elisp strings."
@@ -434,16 +485,11 @@ be used later to give contextual help when entering arguments."
 
 (defun ensime--ask-server-for-completions-async (callback)
   (ensime-write-buffer nil t)
-  (ensime-rpc-async-completions-at-point
-   ensime-ac-max-results
-   ensime-ac-case-sensitive
+  (ensime-rpc-async-completions-at-point 1000000 ensime-ac-case-sensitive
    (lexical-let ((continuation callback))
      (lambda (info)
-       (let* ((prefix (plist-get info :prefix))
-	      (candidates (ensime--annotate-completions
+       (let* ((candidates (ensime--annotate-completions
 			   (plist-get info :completions))))
-	 ;; Refresh the cache with latest from server.
-	 (setq ensime--completion-cache (list :prefix prefix :candidates candidates))
 	 (funcall continuation candidates))))))
 
 (defun ensime--ask-server-for-completions ()
@@ -455,27 +501,21 @@ be used later to give contextual help when entering arguments."
 	 (result (list :prefix (plist-get info :prefix)
 		       :candidates (ensime--annotate-completions
 				    (plist-get info :completions)))))
-    ;; Refresh the cache with latest from server.
-    (setq ensime--completion-cache result)
     result))
 
-(defun ensime--candidate-cache-is-valid (prefix)
-  "Returns t if all completions for the given prefix have already been
- received from server."
-  (and ensime--completion-cache
-       (let ((cache-prefix (plist-get ensime--completion-cache :prefix))
-	     (cache-count (length (plist-get ensime--completion-cache :candidates))))
-	 (and (string-prefix-p cache-prefix prefix)
-	      (< cache-count ensime-ac-max-results)))))
 
+(defconst ensime--prefix-char-class "[a-zA-Z\\$0-9_#:<=>@!%&*+/?\\\\^|~-]")
 (defun ensime--get-completion-prefix-at-point ()
-  "Returns the prefix to complete. TODO - must respect scala identifier syntax."
-  (let ((text (buffer-substring-no-properties
-	       (max 1 (- (point) 100)) (point)))
-	(case-fold-search t))
-    (if (string-match "\\([a-z0-9_-]+\\)\\'" text)
-	(match-string 1 text)
-      "")))
+  "Returns the prefix to complete."
+  ;; As an optimization, first get an upper bound on the length of prefix using
+  ;; ensime--prefix-char-class. Emacs's looking-back function is sloooooww.
+  (let ((i (point)))
+    (while (string-match ensime--prefix-char-class (char-to-string (char-before i)))
+      (decf i))
+    (let ((s (buffer-substring-no-properties i (point))))
+      ;; Then use a proper scala identifier regex to verify.
+      (if (string-match (concat scala-syntax:plainid-re "$") s)
+	  (match-string 1 s) ""))))
 
 (defun ensime-company (command &optional arg &rest _args)
   "Ensime backend for company-mode."
@@ -486,20 +526,23 @@ be used later to give contextual help when entering arguments."
     (`prefix (ensime--get-completion-prefix-at-point))
 
     (`candidates
-     `(:async . ensime--ask-server-for-completions-async))
+     ;; Just ignore if there's no connection.
+     (when (ensime-connected-p)
+       `(:async . ensime--ask-server-for-completions-async)))
 
     ;; Don't do client-side sorting (preserve server-side rankings).
     (`sorted t)
 
-    (`no-cache (not (ensime--candidate-cache-is-valid arg)))
-
     ;; We handle dup removal on the server.
     (`duplicates nil)
 
+    ;; We request *all* completions, so it's ok to let company manage caching.
+    (`no-cache nil)
+
     ;; Show an inline signature for callable completions.
     (`annotation
-     (when (get-text-property 0 'is-callable arg)
-       (ensime-ac-brief-type-sig (get-text-property 0 'type-sig arg))))
+     (concat (if (get-text-property 0 'is-callable arg) "" ": ")
+	     (ensime-ac-brief-type-sig (get-text-property 0 'type-sig arg))))
 
     ;; Expand function formal parameters if we've completed a call.
     (`post-completion (ensime--yasnippet-complete-action arg))
