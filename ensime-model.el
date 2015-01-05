@@ -86,6 +86,12 @@
   (concat (plist-get type :name)
       (ensime-type-type-args-postfix type)))
 
+(defun ensime-type-is-function-p (type)
+  (string-match "^scala.Function[0-9]*" (plist-get type :full-name)))
+
+(defun ensime-type-is-by-name-p (type)
+  (string-match "^scala.<byname>" (plist-get type :full-name)))
+
 (defun ensime-declared-as (obj)
   (plist-get obj :decl-as))
 
@@ -110,6 +116,14 @@
        (cadr p))
      (plist-get section :params)
      )))
+
+(defun ensime-param-section-accepts-block-p (section)
+  "Returns t if the section has a single functional parameter."
+  (let* ((params (plist-get section :params))
+	 (arg-type (cadr (car params))))
+    (and (= 1 (length params))
+	 (or (ensime-type-is-function-p arg-type)
+	     (ensime-type-is-by-name-p arg-type)))))
 
 (defun ensime-type-result-type (type)
   (plist-get type :result-type))

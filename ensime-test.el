@@ -947,6 +947,193 @@
       (ensime-test-cleanup proj))))
 
    (ensime-async-test
+    "Test expanding parameter lists."
+    (let* ((proj (ensime-create-tmp-project
+                  `((:name
+                     "hello_world.scala"
+                     :contents ,(ensime-test-concat-lines
+                                 "package com.helloworld"
+
+                                 "object HelloWorld {"
+				 "  private var _field:Int = 1"
+				 "  def field = _field"
+				 "  def field_=(i:Int) { _field = i}"
+                                 "  def add(a:Int, b:Int) = {"
+                                 "    a + b"
+                                 "  }"
+                                 "  def str(i:Int) = {"
+                                 "    i.toString"
+                                 "  }"
+                                 "  def doBlock(block:(Int => String)) = {"
+                                 "    block()"
+                                 "  }"
+                                 "  def doByName(block: => String) = {"
+                                 "    block"
+                                 "  }"
+                                 "  def test() {"
+                                 "    val c = ad/*1*/"
+				 "    val d = c /*2*/"
+				 "    val e = d./*3*/"
+				 "    val f = doBlo/*4*/"
+				 "    val g = doBlo/*5*/"
+				 "    val h = doByNa/*6*/"
+				 "    this.fie/*7*/"
+				 "    \"kjsdf\".hashCo/*8*/"
+				 "    5.toLo/*9*/"
+                                 "  }"
+                                 "}")))))
+           (src-files (plist-get proj :src-files)))
+      (ensime-test-var-put :proj proj)
+      (find-file (car src-files))
+      (ensime))
+
+    ((:connected connection-info))
+
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
+      (ensime-typecheck-current-file)))
+
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
+      ;; Expand simple, two argument list.
+      (ensime-test-eat-label "1")
+      (let* ((candidates (ensime-ac-completion-candidates))
+	     (pt (point)))
+        (ensime-assert (member "add" candidates))
+	(insert "d")
+	(ensime--yasnippet-complete-action (car (member "add" candidates)))
+	(insert "2") (yas-next-field) (insert "3") (yas-next-field)
+	(ensime-assert-equal
+	 (buffer-substring-no-properties pt (point)) "d(2, 3)"))
+      (ensime-typecheck-current-file)))
+
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
+      ;; Expand operator.
+      (ensime-test-eat-label "2")
+      (let* ((candidates (ensime-ac-completion-candidates))
+	     (pt (point)))
+        (ensime-assert (member "+" candidates))
+	(insert "+")
+	(ensime--yasnippet-complete-action (car (member "+" candidates)))
+	(insert "5") (yas-next-field)
+	(ensime-assert-equal
+	 (buffer-substring-no-properties pt (point)) "+ 5"))
+      (ensime-typecheck-current-file)))
+
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
+      ;; Expand operator after typing '.'
+      (ensime-test-eat-label "3")
+      (let* ((candidates (ensime-ac-completion-candidates))
+	     (pt (point)))
+        (ensime-assert (member "+" candidates))
+	(insert "+")
+	(ensime--yasnippet-complete-action (car (member "+" candidates)))
+	(insert "8") (yas-next-field)
+	(ensime-assert-equal
+	 (buffer-substring-no-properties (- pt 1) (point)) " + 8"))
+      (ensime-typecheck-current-file)))
+
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
+      ;; Expand a function taking a named function as argument.
+      (ensime-test-eat-label "4")
+      (let* ((candidates (ensime-ac-completion-candidates))
+	     (pt (point)))
+        (ensime-assert (member "doBlock" candidates))
+	(insert "ck")
+	(ensime--yasnippet-complete-action (car (member "doBlock" candidates)) ?\()
+	(insert "str") (yas-next-field)
+	(ensime-assert-equal
+	 (buffer-substring-no-properties pt (point)) "ck(str)"))
+      (ensime-typecheck-current-file)))
+
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
+      ;; Expand a function taking a function block as argument.
+      (ensime-test-eat-label "5")
+      (let* ((candidates (ensime-ac-completion-candidates))
+	     (pt (point)))
+        (ensime-assert (member "doBlock" candidates))
+	(insert "ck")
+	(ensime--yasnippet-complete-action (car (member "doBlock" candidates)) ?\{)
+	(insert "i") (yas-next-field) (insert "str") (yas-next-field)
+	(ensime-assert-equal
+	 (buffer-substring-no-properties pt (point)) "ck { i => str }"))
+      (ensime-typecheck-current-file)))
+
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
+      ;; Expand a function taking a by name block.
+      (ensime-test-eat-label "6")
+      (let* ((candidates (ensime-ac-completion-candidates))
+	     (pt (point)))
+        (ensime-assert (member "doByName" candidates))
+	(insert "me")
+	(ensime--yasnippet-complete-action (car (member "doByName" candidates)) ?\{)
+	(ensime-assert-equal
+	 (buffer-substring-no-properties pt (point)) "me { ")
+	(insert "\"bla\""))
+      (ensime-typecheck-current-file)))
+
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
+      ;; Expand a field assignment
+      (ensime-test-eat-label "7")
+      (let* ((candidates (ensime-ac-completion-candidates))
+	     (pt (point)))
+        (ensime-assert (member "field_=" candidates))
+	(insert "ld_=")
+	(ensime--yasnippet-complete-action (car (member "field_=" candidates)) ?\{)
+	(insert "2") (yas-next-field)
+	(ensime-assert-equal
+	 (buffer-substring-no-properties pt (point)) "ld = 2"))
+      (ensime-typecheck-current-file)))
+
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
+      ;; Expand an empty argument list for java method.
+      (ensime-test-eat-label "8")
+      (let* ((candidates (ensime-ac-completion-candidates))
+	     (pt (point)))
+        (ensime-assert (member "hashCode" candidates))
+	(insert "de")
+	(ensime--yasnippet-complete-action (car (member "hashCode" candidates)))
+	(ensime-assert-equal
+	 (buffer-substring-no-properties pt (point)) "de()"))
+      (ensime-typecheck-current-file)))
+
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
+      ;; Expand an no argument list for nullary scala method
+      (ensime-test-eat-label "9")
+      (let* ((candidates (ensime-ac-completion-candidates))
+	     (pt (point)))
+        (ensime-assert (member "toLong" candidates))
+	(insert "ng")
+	(ensime--yasnippet-complete-action (car (member "toLong" candidates)))
+	(ensime-assert-equal
+	 (buffer-substring-no-properties pt (point)) "ng"))
+      (ensime-typecheck-current-file)))
+
+    ((:full-typecheck-finished val)
+     (ensime-test-with-proj
+      (proj src-files)
+      (ensime-test-cleanup proj))))
+
+
+   (ensime-async-test
     "Test completing imports."
     (let* ((proj (ensime-create-tmp-project
                   `((:name
