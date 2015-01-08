@@ -358,9 +358,6 @@
            :trigger ,trigger-func
            :handlers ',handler-structs)))
 
-;;(message "%S" (macroexpand '(ensime-async-test "blarg" (do-this-thing) ((:evt-a val) val) ((:evt-b val) val))))
-
-
 (defun ensime-run-next-test ()
   "Run the next test from the test queue."
   (ensime-kill-all-ensime-servers)
@@ -802,39 +799,38 @@
 
    (ensime-test
     "Test ensime-path-includes-dir-p"
-    (let ((d (make-temp-file "foo" t)))
-      (make-directory (concat d "/proj/src/main") t)
-      (make-directory (concat d "/proj/src/main/java") t)
-      (ensime-create-file (concat d "/proj/src/main/java/Test.java") "import java.util.bla")
-      (make-directory (concat d "/tmp/scala_misc") t)
-      (ensime-create-file (concat d "/tmp/scala_misc/Test.scala") "import java.util.bla")
-      (ensime-create-file (concat d "/tmp/other_misc/Things.scala") "import bla bla")
-      (make-symbolic-link (concat d "/tmp/scala_misc") (concat d "/proj/src/main/scala"))
-      (make-symbolic-link (concat d "/tmp/other_misc/Things.scala") (concat d "/proj/src/main/scala/Things.scala"))
-      (assert (file-exists-p (concat d "/proj/src/main/java/Test.java")))
-      (assert (file-exists-p (concat d "/proj/")))
-      (assert (ensime-path-includes-dir-p (concat d "/proj/src/main/java/Test.java")
-					  (concat d "/proj")))
-      (assert (ensime-path-includes-dir-p (concat d "/proj/src/main/scala/Test.scala")
-					  (concat d "/proj")))
-      (assert (ensime-path-includes-dir-p (concat d "/proj/src/main/scala/Test.scala")
-					  (concat d "/proj/src")))
-      (assert (ensime-path-includes-dir-p (concat d "/proj/src/main/scala/Test.scala")
-					  (concat d "/proj/src/main")))
-      (assert (ensime-path-includes-dir-p (concat d "/proj/src/main/scala/Test.scala")
-					  (concat d "/")))
-      (assert (ensime-path-includes-dir-p (concat d "/proj/src/main/scala/Things.scala")
-					  (concat d "/proj/src/main/scala")))
-      (assert (ensime-path-includes-dir-p (concat d "/proj/src/main/scala/Things.scala")
-					  (concat d "/proj/src/")))
-      (assert (ensime-path-includes-dir-p (concat d "/proj/src/main/scala/Things.scala")
-					  (concat d "/proj/src")))
-      (assert (ensime-path-includes-dir-p (concat d "/proj/src/main/scala/Things.scala")
-					  (concat d "/tmp/scala_misc")))
-      (assert (not (ensime-path-includes-dir-p (concat d "/proj/src/main/scala/Things.scala")
-					       (concat d "/proj/x"))))
-      ))
-   ))
+    (unless (find system-type '(windows-nt cygwin))
+      (let ((d (make-temp-file "foo" t)))
+        (make-directory (concat d "/proj/src/main") t)
+        (make-directory (concat d "/proj/src/main/java") t)
+        (ensime-create-file (concat d "/proj/src/main/java/Test.java") "import java.util.bla")
+        (make-directory (concat d "/tmp/scala_misc") t)
+        (ensime-create-file (concat d "/tmp/scala_misc/Test.scala") "import java.util.bla")
+        (ensime-create-file (concat d "/tmp/other_misc/Things.scala") "import bla bla")
+        (make-symbolic-link (concat d "/tmp/scala_misc") (concat d "/proj/src/main/scala"))
+        (make-symbolic-link (concat d "/tmp/other_misc/Things.scala") (concat d "/proj/src/main/scala/Things.scala"))
+        (assert (file-exists-p (concat d "/proj/src/main/java/Test.java")))
+        (assert (file-exists-p (concat d "/proj/")))
+        (assert (ensime-path-includes-dir-p (concat d "/proj/src/main/java/Test.java")
+                                            (concat d "/proj")))
+        (assert (ensime-path-includes-dir-p (concat d "/proj/src/main/scala/Test.scala")
+                                            (concat d "/proj")))
+        (assert (ensime-path-includes-dir-p (concat d "/proj/src/main/scala/Test.scala")
+                                            (concat d "/proj/src")))
+        (assert (ensime-path-includes-dir-p (concat d "/proj/src/main/scala/Test.scala")
+                                            (concat d "/proj/src/main")))
+        (assert (ensime-path-includes-dir-p (concat d "/proj/src/main/scala/Test.scala")
+                                            (concat d "/")))
+        (assert (ensime-path-includes-dir-p (concat d "/proj/src/main/scala/Things.scala")
+                                            (concat d "/proj/src/main/scala")))
+        (assert (ensime-path-includes-dir-p (concat d "/proj/src/main/scala/Things.scala")
+                                            (concat d "/proj/src/")))
+        (assert (ensime-path-includes-dir-p (concat d "/proj/src/main/scala/Things.scala")
+                                            (concat d "/proj/src")))
+        (assert (ensime-path-includes-dir-p (concat d "/proj/src/main/scala/Things.scala")
+                                            (concat d "/tmp/scala_misc")))
+        (assert (not (ensime-path-includes-dir-p (concat d "/proj/src/main/scala/Things.scala")
+                                                 (concat d "/proj/x")))))))))
 
 (defvar ensime-slow-suite
 
@@ -1909,7 +1905,11 @@
      (ensime-test-with-proj
       (proj src-files)
       (let* ((thread-id (plist-get evt :thread-id))
-	     (trace (ensime-rpc-debug-backtrace thread-id 0 -1)))
+	     (trace (ensime-rpc-debug-backtrace thread-id 0 -1))
+             (pc-file (file-truename (car src-files))))
+        (when (eql system-type 'windows-nt)
+          (aset pc-file 0 (upcase (aref pc-file 0)))
+          (setq pc-file (replace-regexp-in-string "/" "\\\\" pc-file)))
 	(ensime-assert trace)
 	(let* ((frame-zero (nth 0 (plist-get trace :frames)))
 	       ;; Remove incidentals...
@@ -1924,7 +1924,7 @@
 		   :num-args 1
 		   :class-name "test.Test$"
 		   :method-name "main"
-		   :pc-location (:file ,(file-truename (car src-files)) :line 7)
+		   :pc-location (:file ,pc-file :line 7)
 		   :this-object-id "NA"))))
       (ensime-rpc-debug-stop)))
 

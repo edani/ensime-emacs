@@ -453,11 +453,30 @@
 
 ;; Startup
 
-(defun* ensime--1 (&optional host port)
+(defun ensime-update ()
+  "Install the most recent version of ENSIME server."
+  (interactive)
+    (let* ((config-file (ensime-config-find))
+           (config (ensime-config-load config-file))
+           (scala-version (or (plist-get config :scala-version) ensime-default-scala-version)))
+      (ensime--update-server scala-version `(lambda () (message "ENSIME server updated.")))))
+
+(defun ensime--maybe-update-and-start (&optional host port)
+  (if (and host port)
+      ;; When both host and port are provided, we assume we're connecting to
+      ;; an existing, listening server.
+      (ensime--retry-connect nil host (lambda () port) config cache-dir)
+    (let* ((config-file (ensime-config-find))
+           (config (ensime-config-load config-file))
+           (scala-version (or (plist-get config :scala-version) ensime-default-scala-version)))
+      (if (file-exists-p (ensime--classpath-file scala-version))
+          (ensime--1 config-file)
+        (ensime--update-server scala-version `(lambda () (ensime--1 ,config-file)))))))
+
+(defun* ensime--1 (config-file)
   (when (and (ensime-source-file-p) (not ensime-mode))
     (ensime-mode 1))
-  (let* ((config-file (ensime-config-find))
-         (config (ensime-config-load config-file))
+  (let* ((config (ensime-config-load config-file))
          (root-dir (ensime--get-root-dir config) )
          (cache-dir (file-name-as-directory (ensime--get-cache-dir config)))
          (name (ensime--get-name config))
@@ -468,32 +487,26 @@
          (server-flags (or (plist-get config :java-flags) ensime-default-java-flags)))
     (make-directory cache-dir 't)
 
-    (if (and host port)
-	;; When both host and port are provided, we assume we're connecting to
-	;; an existing, listening server.
-	(ensime--retry-connect nil host (lambda () port) config cache-dir)
+    (let* ((server-proc
+            (ensime--maybe-start-server
+             (generate-new-buffer-name (concat "*" buffer "*"))
+             scala-version server-flags
+             (list* (concat "JDK_HOME=" server-java)
+                    (concat "JAVA_HOME=" server-java)
+                    server-env)
+             config-file
+             cache-dir))
+           (host "127.0.0.1")
+           (port (lambda () (ensime-read-swank-port
+                             (concat cache-dir "/port")))))
 
-      ;; Otherwise, spin up a new server process.
-      (let* ((server-proc
-	      (ensime--maybe-start-server
-	       (generate-new-buffer-name (concat "*" buffer "*"))
-	       scala-version server-flags
-	       (list* (concat "JDK_HOME=" server-java)
-		      (concat "JAVA_HOME=" server-java)
-		      server-env)
-	       config-file
-	       cache-dir))
-	     (host "127.0.0.1")
-	     (port (lambda () (ensime-read-swank-port
-			       (concat cache-dir "/port")))))
+      ;; Surface the server buffer so user can observe the startup progress.
+      (display-buffer-at-bottom (process-buffer server-proc) nil)
 
-	;; Surface the server buffer so user can observe the startup progress.
-	(display-buffer-at-bottom (process-buffer server-proc) nil)
-
-	;; Store the config on the server process so we can identify it later.
-	(process-put server-proc :ensime-config config)
-	(push server-proc ensime-server-processes)
-	(ensime--retry-connect server-proc host port config cache-dir)))))
+      ;; Store the config on the server process so we can identify it later.
+      (process-put server-proc :ensime-config config)
+      (push server-proc ensime-server-processes)
+      (ensime--retry-connect server-proc host port config cache-dir))))
 
 
 ;; typecheck continually when idle
@@ -542,9 +555,62 @@ Analyzer will be restarted. All source will be recompiled."
 
 (defun ensime--maybe-start-server (buffer scala-version flags env config-file cache-dir)
   "Return a new or existing server process."
-  (let (existing (comint-check-proc buffer))
+  (let ((existing (comint-check-proc buffer)))
     (if existing existing
       (ensime--start-server buffer scala-version flags env config-file cache-dir))))
+
+(defun ensime--user-directory ()
+  (file-name-as-directory
+   (expand-file-name "ensime" user-emacs-directory)))
+
+(defun ensime--classpath-file (scala-version)
+  (expand-file-name
+   (format "classpath_%s_%s"
+           scala-version
+           (ensime--select-server-version scala-version))
+   (ensime--user-directory)))
+
+(defun ensime--update-sentinel (process event scala-version on-success-fn)
+  (cond
+   ((equal event "finished\n")
+    (let ((classpath-file (ensime--classpath-file scala-version)))
+      (if (file-exists-p classpath-file)
+          (progn
+            (when-let
+             (win (get-buffer-window (process-buffer process)))
+             (delete-window win))
+            (kill-buffer (process-buffer process))
+            (funcall on-success-fn))
+        (message "Could not create classpath file %s" classpath-file))))
+   (t
+    (message "Process %s exited: %s" process event))))
+
+(defun ensime--update-server (scala-version on-success-fn)
+  (with-current-buffer (get-buffer-create (generate-new-buffer-name "*ensime-update*"))
+    (let* ((default-directory (file-name-as-directory
+                               (make-temp-file "ensime_update_" t)))
+           (classpath-file (ensime--classpath-file scala-version))
+           (buildfile (concat default-directory "build.sbt"))
+           (buildcontents (ensime--create-sbt-start-script scala-version))
+           (buildpropsfile (concat default-directory "project/build.properties")))
+
+      (when (file-exists-p classpath-file) (delete-file classpath-file))
+      (make-directory (file-name-directory classpath-file) t)
+      (ensime-write-to-file buildfile buildcontents)
+      (ensime-write-to-file buildpropsfile "sbt.version=0.13.7\n")
+
+      (if (executable-find ensime-sbt-command)
+          (let ((process (start-process "*ensime-update*" (current-buffer)
+                                        ensime-sbt-command "saveClasspath" "clean")))
+            (display-buffer-at-bottom (current-buffer) nil)
+            (set-process-sentinel process
+                                  `(lambda (process event)
+                                     (ensime--update-sentinel process
+                                                              event
+                                                              ,scala-version
+                                                              ',on-success-fn)))
+            (message "Updating ENSIME server..."))
+        (error "sbt command not found")))))
 
 (defvar ensime-server-process-start-hook nil
   "Hook called whenever a new process gets started.")
@@ -555,54 +621,55 @@ BUFFER is the buffer to receive the server output.
 FLAGS is a list of JVM flags.
 USER-ENV is a list of environment variables.
 CACHE-DIR is the server's persistent output directory."
+  (message "ENSIME server starting...")
   (with-current-buffer (get-buffer-create buffer)
     (comint-mode)
     (let* ((default-directory cache-dir)
-           (buildfile (concat cache-dir "build.sbt"))
-           (buildcontents (ensime--create-server-start-script
-                          scala-version cache-dir config-file))
-           (buildpropsfile (concat cache-dir "project/build.properties")))
-      (set (make-local-variable 'process-environment)
-           (append user-env process-environment))
+           (classpath-file (ensime--classpath-file scala-version))
+           (classpath (ensime-read-from-file classpath-file))
+           (process-environment (append user-env process-environment))
+           (java-command (concat (getenv "JAVA_HOME") "/bin/java"))
+           (args (-flatten (list
+                            "-classpath" classpath
+                            "-Dscala.usejavacp=true"
+                            flags
+                            (concat "-Densime.config=" (expand-file-name config-file))
+                            "org.ensime.server.Server"))))
+
       (set (make-local-variable 'comint-process-echoes) nil)
       (set (make-local-variable 'comint-use-prompt-regexp) nil)
-      (when (file-exists-p buildfile) (delete-file buildfile))
-      (append-to-file buildcontents nil buildfile)
-      (make-directory "project" cache-dir)
-      (when (file-exists-p buildpropsfile) (delete-file buildpropsfile))
-      (append-to-file "sbt.version=0.13.7\n" nil buildpropsfile)
-      (dolist (flag flags)
-        (append-to-file (concat "\njavaOptions += \"" flag "\"\n") nil buildfile))
-      (message "Starting an ENSIME server in %s" buffer)
-      (if (executable-find ensime-sbt-command)
-          (comint-exec (current-buffer) buffer ensime-sbt-command nil (list "run"))
-        (error "sbt command not found")))
-    ;; Make sure we clean up nicely (required on Windows, or port files won't
-    ;; be removed).
-    (add-hook 'kill-emacs-hook 'ensime-interrupt-all-servers)
-    (add-hook 'kill-buffer-hook 'ensime-interrupt-buffer-process nil t)
-    (let ((proc (get-buffer-process (current-buffer))))
-      (ensime-set-query-on-exit-flag proc)
-      (run-hooks 'ensime-server-process-start-hook)
-      proc)))
+
+      (insert (format "Starting ENSIME server: %s %s\n"
+                      java-command
+                      (mapconcat 'identity args " ")))
+      (if (executable-find java-command)
+          (comint-exec (current-buffer) buffer java-command nil args)
+        (error "java command %s not found" java-command))
+      ;; Make sure we clean up nicely (required on Windows, or port files won't
+      ;; be removed).
+      (add-hook 'kill-emacs-hook 'ensime-interrupt-all-servers)
+      (add-hook 'kill-buffer-hook 'ensime-interrupt-buffer-process nil t)
+      (let ((proc (get-buffer-process (current-buffer))))
+        (ensime-set-query-on-exit-flag proc)
+        (run-hooks 'ensime-server-process-start-hook)
+        proc))))
 
 (defun ensime--select-server-version(scala-version) "0.9.10-SNAPSHOT")
 
-;; TODO: we shouldn't need the cache-dir on the server side
-(defun ensime--create-server-start-script (scala-version cache-dir config-file)
+(defun ensime--create-sbt-start-script (scala-version)
   ;; emacs has some weird case-preservation rules in regexp replace
   ;; see http://github.com/magnars/s.el/issues/62
   (s-replace-all (list (cons "_scala_version_" scala-version)
-		       (cons "_server_version_" (ensime--select-server-version
-						 scala-version))
-                       (cons "_cache_dir_" cache-dir)
-                       (cons "_config_file_" (expand-file-name config-file)))
-                 ensime--server-start-template))
+                       (cons "_server_version_" (ensime--select-server-version
+                                                 scala-version))
+                       (cons "_classpath_file_" (ensime--classpath-file scala-version)))
+                 ensime--sbt-start-template))
 
 
-(defconst ensime--server-start-template
+(defconst ensime--sbt-start-template
 "
 import sbt._
+import IO._
 import java.io._
 
 scalaVersion := \"_scala_version_\"
@@ -620,16 +687,14 @@ val JavaTools = new File(sys.env(\"JAVA_HOME\"), \"/lib/tools.jar\")
 
 unmanagedClasspath in Runtime += { Attributed.blank(JavaTools) }
 
-mainClass in Compile := Some(\"org.ensime.server.Server\")
+val saveClasspathTask = TaskKey[Unit](\"saveClasspath\", \"Save the classpath to a file\")
 
-fork := true
-
-javaOptions ++= Seq (
-  \"-Dscala.usejavacp=true\",
-  \"-Densime.config=_config_file_\",
-  \"-Densime.cachedir=_cache_dir_\",
-  \"-Densime.active=IGNORED\"
-)
+saveClasspathTask := {
+  val managed = (managedClasspath in Runtime).value.map(_.data.getAbsolutePath)
+  val unmanaged = (unmanagedClasspath in Runtime).value.map(_.data.getAbsolutePath)
+  val out = file(\"_classpath_file_\")
+  write(out, (unmanaged ++ managed).mkString(File.pathSeparator))
+}
 ")
 
 (defun ensime-shutdown()
