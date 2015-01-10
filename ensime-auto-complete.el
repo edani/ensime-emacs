@@ -507,15 +507,18 @@ be used later to give contextual help when entering arguments."
 (defconst ensime--prefix-char-class "[a-zA-Z\\$0-9_#:<=>@!%&*+/?\\\\^|~-]")
 (defun ensime--get-completion-prefix-at-point ()
   "Returns the prefix to complete."
-  ;; As an optimization, first get an upper bound on the length of prefix using
-  ;; ensime--prefix-char-class. Emacs's looking-back function is sloooooww.
-  (let ((i (point)))
-    (while (string-match ensime--prefix-char-class (char-to-string (char-before i)))
-      (decf i))
-    (let ((s (buffer-substring-no-properties i (point))))
-      ;; Then use a proper scala identifier regex to verify.
-      (if (string-match (concat scala-syntax:plainid-re "$") s)
-	  (match-string 1 s) ""))))
+  ;; A bit of a hack: Piggyback on font-lock's tokenization to
+  ;; avoid requesting completions when inside comments.
+  (when (not (eq 'font-lock-comment-face (face-at-point)))
+    ;; As an optimization, first get an upper bound on the length of prefix using
+    ;; ensime--prefix-char-class. Emacs's looking-back function is sloooooww.
+    (let ((i (point)))
+      (while (string-match ensime--prefix-char-class (char-to-string (char-before i)))
+	(decf i))
+      (let ((s (buffer-substring-no-properties i (point))))
+	;; Then use a proper scala identifier regex to verify.
+	(if (string-match (concat scala-syntax:plainid-re "\\'") s)
+	    (match-string 1 s) "")))))
 
 (defun ensime-company (command &optional arg &rest _args)
   "Ensime backend for company-mode."
