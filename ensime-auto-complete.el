@@ -156,7 +156,16 @@ be used later to give contextual help when entering arguments."
 
 	  )))))
 
-(defun ensime-in-string-or-comment (pos)
+(defun ensime--in-comment (pos)
+  "A helper to determine if the text at point is in comment.
+   TODO: Currently this relies on font-lock-mode."
+  (let ((face (plist-get (text-properties-at pos) 'face)))
+    (and face
+     (or
+      (equal face 'font-lock-doc-face)
+      (equal face 'font-lock-comment-face)))))
+
+(defun ensime--in-string-or-comment (pos)
   "A helper to determine if the text at point is in a string
    or comment, and therefore should not be considered as part
    of a paren-balancing calculation.
@@ -180,7 +189,7 @@ be used later to give contextual help when entering arguments."
 	(backward-char 1)
 	(while (> (point) lbound)
 	  (cond
-	   ((ensime-in-string-or-comment (point)) nil)
+	   ((ensime--in-string-or-comment (point)) nil)
 	   ((looking-at "\\s)") (decf balance))
 	   ((looking-at "\\s(") (incf balance))
 	   (t
@@ -509,7 +518,7 @@ be used later to give contextual help when entering arguments."
   "Returns the prefix to complete."
   ;; A bit of a hack: Piggyback on font-lock's tokenization to
   ;; avoid requesting completions when inside comments.
-  (when (not (eq 'font-lock-comment-face (face-at-point)))
+  (when (not (ensime--in-comment (point)))
     ;; As an optimization, first get an upper bound on the length of prefix using
     ;; ensime--prefix-char-class. Emacs's looking-back function is sloooooww.
     (let ((i (point)))
