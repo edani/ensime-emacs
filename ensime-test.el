@@ -740,6 +740,43 @@
         "}"))))
 
    (ensime-test
+    "Test completion prefix lexing."
+    (with-temp-buffer
+      (insert (ensime-test-concat-lines
+               "package com.example"
+               "class C {"
+               "  def main {"
+	       "     val rat = dog/*1*/"
+	       "     rat ++=/*2*/"
+	       "     rat !/*3*/"
+	       "     rat CaptainCrun/*4*/"
+	       "     rat.++=/*5*/"
+	       "     rat.toSt/*6*/"
+	       "     x/*7*/"
+	       "     /*hello*/dog/*8*/"
+	       "     while (moose/*9*/)prin/*10*/"
+	       "     case _ =>r/*11*/"
+	       "  }"
+               "}"))
+      (dotimes (i 11)
+	(ensime-test-eat-label (int-to-string (1+ i)))
+	(ensime-assert-equal
+	 (ensime-completion-prefix-at-point)
+	 (nth i '("dog"
+		  "++="
+		  "!"
+		  "CaptainCrun"
+		  "++="
+		  "toSt"
+		  "x"
+		  "dog"
+		  "moose"
+		  "prin"
+		  "r"
+		  ))))
+      ))
+
+   (ensime-test
     "Test ensime-short-local-name"
     (ensime-assert-equal (ensime-short-local-name "Junk") "Junk")
     (ensime-assert-equal (ensime-short-local-name "Foo$$Junk") "Junk")
@@ -1177,7 +1214,8 @@
       ;; complete java package member by class name
       (ensime-test-eat-label "3")
       (let* ((candidates (ensime-ac-completion-candidates "Vec"))
-             (to-inserts (mapcar 'ensime-ac-candidate-to-insert candidates)))
+             (to-inserts (mapcar (lambda (c) (get-text-property 0 'to-insert c))
+				candidates)))
         (ensime-assert (member "java.util.Vector" to-inserts)))))
 
     ((:full-typecheck-finished val)

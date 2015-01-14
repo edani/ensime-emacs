@@ -79,7 +79,7 @@
 
 ;; File/path functions
 
-(defun ensime--parent-dir (dir)
+(defun ensime-parent-dir (dir)
   (unless (equal "/" dir)
     (file-name-directory (directory-file-name dir))))
 
@@ -457,6 +457,40 @@ PROP is the name of a text property."
 		       str)
     (setq str (replace-match "" t t str)))
   str)
+
+(defun ensime-in-comment-p (pos)
+  "A helper to determine if the text at point is in comment.
+   TODO: Currently this relies on font-lock-mode."
+  (let ((face (plist-get (text-properties-at pos) 'face)))
+    (and face
+     (or
+      (equal face 'font-lock-doc-face)
+      (equal face 'font-lock-comment-face)))))
+
+(defun ensime-at-bol-p ()
+  (not (string-match "[^\s-]" (buffer-substring-no-properties
+			       (point-at-bol)
+			       (point)))))
+
+(defun ensime-in-string-or-comment-p (pos)
+  "A helper to determine if the text at point is in a string
+   or comment, and therefore should not be considered as part
+   of a paren-balancing calculation.
+
+   TODO: Currently this relies on font-lock-mode. Could be
+   better."
+  (let ((face (plist-get (text-properties-at pos) 'face)))
+    (and face
+     (or
+      (equal face 'font-lock-doc-face)
+      (equal face 'font-lock-string-face)
+      (equal face 'font-lock-comment-face)))))
+
+(defun ensime-pt-at-end-of-prev-line ()
+  (save-excursion (forward-line -1)
+		  (min
+		   (- (point) 1)
+		   (point-at-eol))))
 
 ;; Testing helpers
 
