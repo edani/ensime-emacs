@@ -94,8 +94,8 @@
   (let* ((root-dir (file-name-as-directory
                     (make-temp-file "ensime_test_proj_" t)))
          (cache-dir (file-name-as-directory (concat root-dir "cache")))
-         (src-dir (file-name-as-directory (concat root-dir "src")))
-         (target-dir (file-name-as-directory (concat root-dir "target")))
+         (src-dir (file-name-as-directory (concat root-dir "src/main/scala")))
+         (target-dir (file-name-as-directory (concat root-dir "target/scala-2.11/classes" )))
          (test-target-dir (file-name-as-directory (concat root-dir "test-target")))
          (config (append
                   extra-config
@@ -114,10 +114,10 @@
                      (concat root-dir ".ensime")
                      (format "%S" config))))
 
-    (mkdir src-dir)
-    (mkdir cache-dir)
-    (mkdir target-dir)
-    (mkdir test-target-dir)
+    (mkdir src-dir t)
+    (mkdir cache-dir t)
+    (mkdir target-dir t)
+    (mkdir test-target-dir t)
     (let* ((src-file-names
             (mapcar
              (lambda (f) (ensime-create-file
@@ -156,6 +156,7 @@
                 arguments
                 (list "-d" target)
                 src-files)))
+    (assert (executable-find "javac"))
     (assert (= 0 (apply 'call-process "javac" nil "*javac*" nil args)))))
 
 (defun ensime-cleanup-tmp-project (proj &optional no-del)
@@ -1818,53 +1819,78 @@
         (goto-char (ensime-test-after-label "12"))
         (funcall check-sym-is 'class))
 
-      (ensime-test-cleanup proj t))))))
-
-
-(defvar ensime-non-working-suite
-
-  ;; Moved the tests that hang to a separate suite
-  (ensime-test-suite
+      (ensime-test-cleanup proj t))))
 
    (ensime-async-test
-    "HANGS Test debugging java project."
-    ;; This fails (hangs really) because ensime-server
-    ;; no longer supports Java. We should use scala for the input,
-    ;; it needs to be compiled.
+    "Test debugging scala project."
     (let* ((proj (ensime-create-tmp-project
                   `((:name
-                     "Test.java"
+                     "test/Test.scala"
                      :contents ,(ensime-test-concat-lines
-                                 "class Test{"
-                                 "  public static void main(String args[]) {"
-                                 "    String a = \"cat\";"
-                                 "    String b = \"dog\";"
-                                 "    String c = \"bird\";"
-                                 "    System.out.println(a + b + c);"
+				 "package test"
+                                 "object Test {"
+                                 "  def main(args: Array[String]) {"
+                                 "    val a = \"cat\""
+                                 "    val b = \"dog\""
+                                 "    val c = \"bird\""
+                                 "    println(a + b + c)"
                                  "  }"
                                  "}")))))
            (src-files (plist-get proj :src-files)))
-      (ensime-test-compile-java-proj proj '("-g"))
+      (ensime-create-file
+       (concat (plist-get proj :root-dir) "build.sbt")
+       (ensime-test-concat-lines
+	"import sbt._"
+	""
+	"name := \"test\""
+	""
+	"scalacOptions += \"-g:notailcalls\""
+	""
+	"scalaVersion := \"2.11.4\""))
+      (assert ensime-sbt-command)
+      (let ((default-directory (plist-get proj :root-dir)))
+	(assert (= 0 (apply 'call-process ensime-sbt-command nil
+			    "*sbt-test-compilation*" nil '("compile")))))
+      (assert (directory-files (concat (plist-get proj :target) "/test") nil "class$"))
       (ensime-test-init-proj proj))
-
 
     ((:compiler-ready val)
      (ensime-test-with-proj
       (proj src-files)
-      (ensime-rpc-debug-set-break buffer-file-name 4)
-      (ensime-rpc-debug-start "Test")))
+      (ensime-rpc-debug-set-break buffer-file-name 7)
+      (ensime-rpc-debug-start "test.Test")))
 
     ((:debug-event evt (equal (plist-get evt :type) 'start)))
 
     ((:debug-event evt (equal (plist-get evt :type) 'breakpoint))
-     (let* ((thread-id (plist-get evt :thread-id)))
-       (ensime-assert (ensime-rpc-debug-backtrace thread-id 0 -1)))
-     (ensime-rpc-debug-stop))
+     (ensime-test-with-proj
+      (proj src-files)
+      (let* ((thread-id (plist-get evt :thread-id))
+	     (trace (ensime-rpc-debug-backtrace thread-id 0 -1)))
+	(ensime-assert trace)
+	(let* ((frame-zero (nth 0 (plist-get trace :frames)))
+	       ;; Remove incidentals...
+	       (frame (plist-put frame-zero :this-object-id "NA")))
+	  (ensime-assert-equal
+	   frame
+	   `(:index 0 :locals
+		   ((:index 0 :name "args" :summary "Array[]" :type-name "java.lang.String[]")
+		    (:index 1 :name "a" :summary "\"cat\"" :type-name "java.lang.String")
+		    (:index 2 :name "b" :summary "\"dog\"" :type-name "java.lang.String")
+		    (:index 3 :name "c" :summary "\"bird\"" :type-name "java.lang.String"))
+		   :num-args 1
+		   :class-name "test.Test$"
+		   :method-name "main"
+		   :pc-location (:file ,(file-truename (car src-files)) :line 7)
+		   :this-object-id "NA"))))
+      (ensime-rpc-debug-stop)))
 
     ((:debug-event evt (equal (plist-get evt :type) 'disconnect))
      (ensime-test-with-proj
       (proj src-files)
-      (ensime-test-cleanup proj))))))
+      (ensime-test-cleanup proj))))
+  ))
+
 
 (defun ensime-run-all-tests ()
   "Run all regression tests for ensime-mode."
@@ -1874,8 +1900,6 @@
   (setq ensime--test-had-failures nil)
   (setq ensime--test-exit-on-finish (getenv "ENSIME_RUN_AND_EXIT"))
   (ensime-run-suite ensime-slow-suite)
-;; Don't run the tests that are known to fail.
-;;  (ensime-run-suite ensime-non-working-suite)
   )
 
 (defun ensime-run-one-test (key)
@@ -1884,8 +1908,7 @@
   (catch 'done
     (setq ensime--test-had-failures nil)
     (let ((tests (append ensime-fast-suite
-                         ensime-slow-suite
-                         ensime-non-working-suite)))
+                         ensime-slow-suite)))
       (dolist (test tests)
         (let ((title (plist-get test :title)))
           (when (integerp (string-match key title))
