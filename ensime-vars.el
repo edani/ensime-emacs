@@ -146,6 +146,11 @@ where SYMBOL-TYPE is one of:
   :type 'alist
   :group 'ensime-ui)
 
+(defcustom ensime-completion-style 'company
+  "Should be one of 'company, 'auto-complete or nil."
+  :type 'symbol
+  :group 'ensime-ui)
+
 (defcustom ensime-goto-test-config-defaults
   '(:test-class-names-fn ensime-goto-test--test-class-names
     :test-class-suffixes ("Test" "Spec" "Specification" "Check")

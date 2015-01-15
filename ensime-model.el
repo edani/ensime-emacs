@@ -192,6 +192,23 @@
 (defun ensime-note-message (note)
   (plist-get note :msg))
 
+(defun ensime-brief-type-sig (completion-type-sig)
+  "Return a formatted string representing the given method signature."
+  ;;(ensime-brief-type-sig '(((("aemon" "Person"))) "Dude"))
+  (let* ((sections (car completion-type-sig))
+	 (return-type (cadr completion-type-sig)))
+    (if sections
+	(format "%s: %s"
+		(mapconcat
+		 (lambda (section)
+		   (format "(%s)"
+			   (mapconcat
+			    (lambda (param-pair)
+			      (format "%s: %s" (car param-pair) (cadr param-pair)))
+			    section ", ")))
+		 sections "=>") return-type)
+      return-type)))
+
 
 (provide 'ensime-model)
 
