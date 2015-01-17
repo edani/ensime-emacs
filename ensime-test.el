@@ -744,7 +744,7 @@
     "Test completion prefix lexing."
     (with-temp-buffer
       (insert (ensime-test-concat-lines
-               "package com.example"
+               "package/*12*/ com.example"
                "class C {"
                "  def main {"
 	       "     val rat = dog/*1*/"
@@ -759,7 +759,7 @@
 	       "     case _ =>r/*11*/"
 	       "  }"
                "}"))
-      (dotimes (i 11)
+      (dotimes (i 12)
 	(ensime-test-eat-label (int-to-string (1+ i)))
 	(ensime-assert-equal
 	 (ensime-completion-prefix-at-point)
@@ -774,6 +774,7 @@
 		  "moose"
 		  "prin"
 		  "r"
+		  "package"
 		  ))))
       ))
 
