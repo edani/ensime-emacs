@@ -47,7 +47,7 @@
     ;; As an optimization, first get an upper bound on the length of prefix using
     ;; ensime--prefix-char-class. Emacs's looking-back function is sloooooww.
     (let ((i (point)))
-      (while (string-match ensime--prefix-char-class (char-to-string (char-before i)))
+      (while (and (> i 1) (string-match ensime--prefix-char-class (char-to-string (char-before i))))
 	(decf i))
       (let ((s (buffer-substring-no-properties i (point))))
 	;; Then use a proper scala identifier regex to verify.
