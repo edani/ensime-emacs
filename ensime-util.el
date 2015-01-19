@@ -79,10 +79,6 @@
 
 ;; File/path functions
 
-(defun ensime-parent-dir (dir)
-  (unless (equal "/" dir)
-    (file-name-directory (directory-file-name dir))))
-
 (defun ensime-source-file-p (&optional filename)
   "Return t if the given filename (or the currently visited file if no
 argument is supplied) is a .scala or .java file."
