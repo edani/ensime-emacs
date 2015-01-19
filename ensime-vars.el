@@ -68,14 +68,18 @@
   :type '(repeat string)
   :group 'ensime-server)
 
+(defun ensime--parent-dir (dir)
+  (unless (equal "/" dir)
+    (file-name-directory (directory-file-name dir))))
+
 (defcustom ensime-default-java-home
   (cond ((getenv "JDK_HOME"))
-	((getenv "JAVA_HOME"))
-	((file-exists-p "/usr/libexec/java_home")
-	 (s-chomp (shell-command-to-string "/usr/libexec/java_home")))
-	('t (let ((java (file-truename (executable-find "javac"))))
-	      (warn "JDK_HOME and JAVA_HOME are not set, inferring from %s" java)
-	      (ensime--parent-dir (ensime--parent-dir java)))))
+        ((getenv "JAVA_HOME"))
+        ((file-exists-p "/usr/libexec/java_home")
+         (s-chomp (shell-command-to-string "/usr/libexec/java_home")))
+        ('t (let ((java (file-truename (executable-find "javac"))))
+              (warn "JDK_HOME and JAVA_HOME are not set, inferring from %s" java)
+              (ensime--parent-dir (ensime--parent-dir java)))))
   "Location of the JDK's base directory"
   :type 'string
   :group 'ensime-server)
