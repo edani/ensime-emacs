@@ -34,7 +34,6 @@
   "Asynchronous event handlers waiting for signals. See 'ensime-test-sig'.")
 (make-variable-buffer-local 'ensime-async-handler-stack)
 
-
 (defvar ensime-shared-test-state '()
   "A state dump for anyone who wants to use it. Useful for async tests.")
 (make-variable-buffer-local 'ensime-shared-test-state)
@@ -85,7 +84,14 @@
          (progn ,@body)
        (delete-file ,name))))
 
+(defvar ensime--test-scala-version
+  (or (getenv "ENSIME_TEST_SERVER_VERSION")
+      ensime-default-scala-version))
 
+(defvar ensime--test-scala-major-version
+  (mapconcat 'int-to-string
+	     (-take 2 (version-to-list ensime--test-scala-version))
+	     "."))
 
 (defun ensime-create-tmp-project (src-files &optional extra-config)
   "Create a temporary project directory. Populate with config, source files.
@@ -95,14 +101,16 @@
                     (make-temp-file "ensime_test_proj_" t)))
          (cache-dir (file-name-as-directory (concat root-dir "cache")))
          (src-dir (file-name-as-directory (concat root-dir "src/main/scala")))
-         (target-dir (file-name-as-directory (concat root-dir "target/scala-2.11/classes" )))
+         (target-dir (file-name-as-directory
+		      (concat root-dir "target/scala-"
+			      ensime--test-scala-major-version "/classes" )))
          (test-target-dir (file-name-as-directory (concat root-dir "test-target")))
          (config (append
                   extra-config
                   `(:root-dir ,root-dir
                     :cache-dir ,cache-dir
                     :name "test"
-                    :scala-version "2.11.4"
+                    :scala-version ,ensime--test-scala-version
                     :subprojects
                       ((:name "test"
                         :module-name "test"
@@ -1847,7 +1855,8 @@
 	""
 	"scalacOptions += \"-g:notailcalls\""
 	""
-	"scalaVersion := \"2.11.4\""))
+	(concat "scalaVersion := \"" ensime--test-scala-version "\"")
+	))
       (assert ensime-sbt-command)
       (let ((default-directory (plist-get proj :root-dir)))
 	(assert (= 0 (apply 'call-process ensime-sbt-command nil
