@@ -14,14 +14,33 @@
   (add-to-list 'package-archives '("gnu" . "http://elpa.gnu.org/packages/")))
 (package-initialize)
 (require 'cl)
-(let ((needed-packages '(s dash popup auto-complete
-			   scala-mode2 sbt-mode yasnippet company)))
-  (unless (every #'package-installed-p needed-packages)
-    (package-refresh-contents)
-    (dolist (p needed-packages)
-      (unless (package-installed-p p)
-        (package-install p)))))
 
+(defun pkg-installed-p (pkg)
+  (package-installed-p (car pkg) (version-to-list (cadr pkg))))
+
+;; Load all package dependencies
+
+(condition-case err
+    (let* ((pkg-info
+	    (with-temp-buffer
+	      (insert-file-contents "../ensime-pkg.el")
+	      (goto-char (point-min))
+	      (read (current-buffer))))
+	   (name (cadr pkg-info))
+	   (needed-packages (cadr (nth 4 pkg-info))))
+      (assert (equal name "ensime"))
+      (message "Loaded ensime-pkg.el")
+      (message "Installing dependencies: %S" needed-packages)
+      (if (every #'pkg-installed-p needed-packages)
+	  (message "All dependencies present.")
+	(package-refresh-contents)
+	(dolist (p needed-packages)
+	  (unless (pkg-installed-p p)
+	    (package-install (car p))
+	    (when (not (pkg-installed-p p))
+	      (error (message "Failed to install %s at %s." p)))
+	    ))))
+  (error (message "Error loading dependencies: %s" err)))
 
 (add-to-list 'load-path "../")
 (require 'ensime)
