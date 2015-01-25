@@ -105,6 +105,25 @@ argument is supplied) is a .scala or .java file."
 	 (file (expand-file-name file-name)))
     (string-prefix-p dir file)))
 
+(defun ensime-dir-contains-file-p (file dir)
+  "Return t if dir logically contains file. This is in contrast to
+ file-in-directory-p, which tests for physical containment. For example:
+ If I have a buffer open, say /proj/src/X.scala, and src is a symlink to
+ /tmp/sources, (file-in-directory-p \"/proj/src/X.scala\" \"/proj\") will answer
+ nil, where ensime-path-includes-dir-p will answer t.
+ Note: This function assumes both file and dir actually exist."
+  (let ((phys-dir (file-truename dir))
+	(d (file-name-directory (expand-file-name file))))
+   (catch 'return
+      (while d
+	(let ((prev d))
+	  (when (string-prefix-p phys-dir (file-truename d))
+	    (throw 'return t))
+	  (setq d (file-name-directory (directory-file-name d)))
+	  (when (equal d prev)
+	    (throw 'return nil))
+	  )))))
+
 (defun ensime-temp-file-name (name)
   "Return the path of a temp file with filename 'name'."
   (expand-file-name
