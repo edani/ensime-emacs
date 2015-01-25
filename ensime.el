@@ -61,7 +61,6 @@
 (require 'ensime-inf)
 (require 'ensime-stacktrace)
 (require 'ensime-debug)
-(require 'ensime-builder)
 (require 'ensime-editor)
 (require 'ensime-goto-testfile)
 (require 'ensime-inspector)

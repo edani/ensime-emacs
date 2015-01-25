@@ -54,9 +54,8 @@
 	(if (string-match (concat scala-syntax:plainid-re "\\'") s)
 	    (match-string 1 s) "")))))
 
-(defun ensime-sync-buffer-and-get-completions-async
+(defun ensime-get-completions-async
     (max-results case-sense callback)
-  (ensime-write-buffer nil t)
   (ensime-rpc-async-completions-at-point max-results case-sense
    (lexical-let ((continuation callback))
      (lambda (info)
@@ -64,8 +63,7 @@
 			   (plist-get info :completions))))
 	 (funcall continuation candidates))))))
 
-(defun ensime-sync-buffer-and-get-completions (max-results case-sense)
-  (ensime-write-buffer nil t)
+(defun ensime-get-completions (max-results case-sense)
   (let* ((info
 	  (ensime-rpc-completions-at-point
 	   max-results case-sense))
@@ -79,7 +77,6 @@
  annotated candidate. Otherwise returns nil."
   (let ((prefix (ensime-completion-prefix-at-point)))
     (when (> (length prefix) 0)
-      (ensime-write-buffer nil t)
       (let* ((info (ensime-rpc-completions-at-point
 		    2 ensime-company-case-sensitive))
 	     (candidates (ensime--annotate-completions (plist-get info :completions))))

@@ -245,9 +245,6 @@
                   'ensime-typecheck-current-file)
 
         (add-hook 'ensime-source-buffer-saved-hook
-                  'ensime-builder-track-changed-files t)
-
-        (add-hook 'ensime-source-buffer-saved-hook
                   'ensime-sem-high-refresh-hook t)
 
         (add-hook 'ensime-source-buffer-loaded-hook
@@ -278,9 +275,6 @@
 
       (remove-hook 'ensime-source-buffer-saved-hook
                    'ensime-typecheck-current-file)
-
-      (remove-hook 'ensime-source-buffer-saved-hook
-                   'ensime-builder-track-changed-files)
 
       (remove-hook 'ensime-source-buffer-saved-hook
                    'ensime-sem-high-refresh-hook)
@@ -463,7 +457,7 @@
          (config (ensime-config-load config-file))
          (root-dir (ensime--get-root-dir config) )
          (cache-dir (file-name-as-directory (ensime--get-cache-dir config)))
-         (name (ensime--get-cache-dir config))
+         (name (ensime--get-name config))
          (scala-version (or (plist-get config :scala-version) ensime-default-scala-version))
          (server-env (or (plist-get config :server-env) ensime-default-server-env))
          (buffer (or (plist-get config :buffer) (concat ensime-default-buffer-prefix name)))
@@ -527,7 +521,8 @@
       (when (and (>= now (+ ensime-last-change-time ensime-typecheck-idle-interval))
                  (>= now earliest-allowed-typecheck)
                  (< last-typecheck ensime-last-change-time))
-      (ensime-typecheck-current-file t)))))
+        (ensime-typecheck-current-file t)
+        (ensime-sem-high-refresh-hook)))))
 
 (defun ensime-reload ()
   "Re-initialize the project with the current state of the config file.
