@@ -59,7 +59,7 @@ ensime configuration."
           (mapcar #'expand-file-name (ensime-source-roots-from-config)))
          (dir
           (find-if
-           (lambda (dir) (ensime-path-prefix-p file-name dir))
+           (lambda (dir) (ensime-dir-contains-file-p file-name dir))
            all-sources)))
       (when dir (file-name-as-directory (expand-file-name dir)))))
 
