@@ -108,7 +108,9 @@
   (interactive)
   (when (or (ensime-at-bol-p)
 	    (not (ensime--company-try-completion)))
-    (indent-according-to-mode)))
+    (if mark-active
+        (indent-region (region-beginning) (region-end))
+      (indent-according-to-mode))))
 
 (defun ensime-company-enable ()
   (set (make-local-variable 'company-backends) '(ensime-company))
