@@ -150,7 +150,7 @@ server."
 (defun ensime-inf-get-repl-cmd-line ()
   "Get the command needed to launch a repl, including all
 the current project's dependencies. Returns list of form (cmd [arg]*)"
-  (if (ensime-connected-p)
+  (if (and (ensime-connected-p) (ensime-analyzer-ready))
       (ensime-replace-keywords
        ensime-inf-cmd-template
        (ensime-rpc-repl-config))

@@ -84,29 +84,17 @@ This is automatically synchronized from Lisp.")
 (ensime-def-connection-var ensime-protocol-version nil
   "The protocol version used on the connection.")
 
-(ensime-def-connection-var ensime-server-implementation-type nil
-  "The implementation type of the Lisp process.")
-
 (ensime-def-connection-var ensime-server-implementation-version nil
   "The implementation type of the Lisp process.")
 
 (ensime-def-connection-var ensime-server-implementation-name nil
   "The short name for the Lisp implementation.")
 
-(ensime-def-connection-var ensime-server-implementation-program nil
-  "The argv[0] of the process running the Lisp implementation.")
-
 (ensime-def-connection-var ensime-connection-name nil
   "The short name for connection.")
 
 (ensime-def-connection-var ensime-config nil
   "The project configuration corresponding to this connection.")
-
-(ensime-def-connection-var ensime-communication-style nil
-  "The communication style.")
-
-(ensime-def-connection-var ensime-machine-instance nil
-  "The name of the (remote) machine running the Lisp process.")
 
 (ensime-def-connection-var ensime-analyzer-ready nil
   "Whether the analyzer has finished its initial run.")
@@ -294,6 +282,12 @@ This doesn't mean it will connect right after Ensime is loaded."
   "Make a connection out of PROCESS."
   (let ((ensime-dispatching-connection process))
 
+    (setf (ensime-protocol-version process) nil
+          (ensime-pid process) nil
+          (ensime-server-implementation-name) nil
+          (ensime-connection-name) nil
+          (ensime-analyzer-ready nil))
+
     ;; Initialize connection state in the process-buffer of PROC."
 
     ;; To make life simpler for the user: if this is the only open
@@ -318,11 +312,9 @@ This doesn't mean it will connect right after Ensime is loaded."
          (y-or-n-p "Close old connections first? "))
     (ensime-disconnect-all))
   (message "Connecting to Swank on port %S.." port)
-  (let ()
-    (message "Connecting to Swank on port %S.." port)
-    (let* ((process (ensime-net-connect host port))
-       (ensime-dispatching-connection process))
-      (ensime-setup-connection process))))
+  (let* ((process (ensime-net-connect host port))
+         (ensime-dispatching-connection process))
+    (ensime-setup-connection process)))
 
 
 (defun ensime-handle-connection-info (connection info)
@@ -404,9 +396,9 @@ This doesn't mean it will connect right after Ensime is loaded."
 
 (defun ensime-draw-connection-list ()
   (let ((default-pos nil)
-	(fstring "%s%2s  %-10s  %-17s  %-7s %-s\n"))
-    (insert (format fstring " " "Nr" "Name" "Port" "Pid" "Type")
-	    (format fstring " " "--" "----" "----" "---" "----"))
+	(fstring "%s%2s  %-10s  %-17s  %-7s\n"))
+    (insert (format fstring " " "Nr" "Name" "Port" "Pid")
+	    (format fstring " " "--" "----" "----" "---"))
     (dolist (p (reverse ensime-net-processes))
       (ensime-insert-propertized
        (list 'ensime-connection p)
@@ -415,9 +407,7 @@ This doesn't mean it will connect right after Ensime is loaded."
 	       (ensime-connection-number p)
 	       (ensime-connection-name p)
 	       (or (process-id p) (process-contact p))
-	       (ensime-pid p)
-	       (ensime-server-implementation-type p))))
-    ))
+	       (ensime-pid p))))))
 
 
 
