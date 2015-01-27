@@ -189,7 +189,7 @@
 
     (`candidates
      ;; Just ignore if there's no connection.
-     (when (ensime-connected-p)
+     (when (and (ensime-connected-p) (ensime-analyzer-ready))
        (let ((max-results 1000000)  ;; We want *all* candidates.
 	     (case-sense nil))
 	 `(:async . (lambda (callback)
