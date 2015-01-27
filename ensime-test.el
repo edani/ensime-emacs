@@ -1482,7 +1482,8 @@
                      :contents ,(ensime-test-concat-lines
                                  "class HelloWorld{"
                                  "def foo:Int=1"
-                                 "}"))))))
+                                 "}"
+                                 ""))))))
       (ensime-test-init-proj proj))
 
     ((:connected connection-info))
@@ -1514,7 +1515,8 @@
         (ensime-assert-equal src (ensime-test-concat-lines
                                   "class HelloWorld {"
                                   "  def foo: Int = 1"
-                                  "}")))
+                                  "}"
+                                  "")))
 
       (ensime-test-cleanup proj))))
 
