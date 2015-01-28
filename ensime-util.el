@@ -105,9 +105,10 @@ argument is supplied) is a .scala or .java file."
 	 (file (expand-file-name file-name)))
     (string-prefix-p dir file)))
 
-(defun ensime-dir-contains-file-p (file dir)
-  "Return t if dir logically contains file. This is in contrast to
- file-in-directory-p, which tests for physical containment. For example:
+(defun ensime-path-includes-dir-p (file dir)
+  "Return t if dir is found in file's absolute path, either directly or via
+ symbolic link. This is in contrast to file-in-directory-p, which tests for
+ physical containment. For example:
  If I have a buffer open, say /proj/src/X.scala, and src is a symlink to
  /tmp/sources, (file-in-directory-p \"/proj/src/X.scala\" \"/proj\") will answer
  nil, where ensime-path-includes-dir-p will answer t.

@@ -797,7 +797,44 @@
     (ensime-assert-equal (ensime-strip-dollar-signs "com.example.Foo$")
                          "com.example.Foo")
     (ensime-assert-equal (ensime-strip-dollar-signs "com.example.Foo$$Junk")
-                         "com.example.Foo.Junk"))))
+                         "com.example.Foo.Junk"))
+
+
+   (ensime-test
+    "Test ensime-path-includes-dir-p"
+    (let ((d (make-temp-file "foo" t)))
+      (make-directory (concat d "/proj/src/main") t)
+      (make-directory (concat d "/proj/src/main/java") t)
+      (ensime-create-file (concat d "/proj/src/main/java/Test.java") "import java.util.bla")
+      (make-directory (concat d "/tmp/scala_misc") t)
+      (ensime-create-file (concat d "/tmp/scala_misc/Test.scala") "import java.util.bla")
+      (ensime-create-file (concat d "/tmp/other_misc/Things.scala") "import bla bla")
+      (make-symbolic-link (concat d "/tmp/scala_misc") (concat d "/proj/src/main/scala"))
+      (make-symbolic-link (concat d "/tmp/other_misc/Things.scala") (concat d "/proj/src/main/scala/Things.scala"))
+      (assert (file-exists-p (concat d "/proj/src/main/java/Test.java")))
+      (assert (file-exists-p (concat d "/proj/")))
+      (assert (ensime-path-includes-dir-p (concat d "/proj/src/main/java/Test.java")
+					  (concat d "/proj")))
+      (assert (ensime-path-includes-dir-p (concat d "/proj/src/main/scala/Test.scala")
+					  (concat d "/proj")))
+      (assert (ensime-path-includes-dir-p (concat d "/proj/src/main/scala/Test.scala")
+					  (concat d "/proj/src")))
+      (assert (ensime-path-includes-dir-p (concat d "/proj/src/main/scala/Test.scala")
+					  (concat d "/proj/src/main")))
+      (assert (ensime-path-includes-dir-p (concat d "/proj/src/main/scala/Test.scala")
+					  (concat d "/")))
+      (assert (ensime-path-includes-dir-p (concat d "/proj/src/main/scala/Things.scala")
+					  (concat d "/proj/src/main/scala")))
+      (assert (ensime-path-includes-dir-p (concat d "/proj/src/main/scala/Things.scala")
+					  (concat d "/proj/src/")))
+      (assert (ensime-path-includes-dir-p (concat d "/proj/src/main/scala/Things.scala")
+					  (concat d "/proj/src")))
+      (assert (ensime-path-includes-dir-p (concat d "/proj/src/main/scala/Things.scala")
+					  (concat d "/tmp/scala_misc")))
+      (assert (not (ensime-path-includes-dir-p (concat d "/proj/src/main/scala/Things.scala")
+					       (concat d "/proj/x"))))
+      ))
+   ))
 
 (defvar ensime-slow-suite
 
@@ -1216,7 +1253,8 @@
       (let* ((candidates (ensime-ac-completion-candidates "ut")))
         (ensime-assert (member "util" candidates)))
       (insert "il.HashMap")
-      (ensime-write-buffer)))
+      (ensime-typecheck-current-file)
+      ))
 
     ((:full-typecheck-finished val)
      (ensime-test-with-proj
@@ -1226,7 +1264,9 @@
       (let* ((candidates (ensime-ac-completion-candidates "Vec"))
              (to-inserts (mapcar (lambda (c) (get-text-property 0 'to-insert c))
 				candidates)))
-        (ensime-assert (member "java.util.Vector" to-inserts)))))
+        (ensime-assert (member "java.util.Vector" to-inserts)))
+      (ensime-typecheck-current-file)
+      ))
 
     ((:full-typecheck-finished val)
      (ensime-test-with-proj
@@ -1234,7 +1274,9 @@
       ;; complete java package member by class name in name list
       (ensime-test-eat-label "4")
       (let* ((candidates (ensime-ac-completion-candidates "Vec")))
-        (ensime-assert (member "Vector" candidates)))))
+        (ensime-assert (member "Vector" candidates)))
+      (ensime-typecheck-current-file)
+      ))
 
     ((:full-typecheck-finished val)
      (ensime-test-with-proj
@@ -1496,20 +1538,10 @@
     ((:full-typecheck-finished val)
      (ensime-test-with-proj
       (proj src-files)
-      (ensime-format-source)))
-
-    ((:return-value val)
-     (ensime-test-with-proj
-      (proj src-files)
-
-      ;; Don't check source immediately cause it might not be rendered in buffer..."
-      (ensime-typecheck-current-file)))
-
-    ((:full-typecheck-finished val)
-     (ensime-test-with-proj
-      (proj src-files)
-      ;; Set cursor to symbol in method body..
       (find-file (car src-files))
+      ;; Formatting became synchronous with protocol 0.8.11 :-(
+      (ensime-assert (version< "0.8.10" (ensime-protocol-version) ))
+      (ensime-format-source)
       (let ((src (buffer-substring-no-properties
                   (point-min) (point-max))))
         (ensime-assert-equal src (ensime-test-concat-lines
@@ -1517,7 +1549,6 @@
                                   "  def foo: Int = 1"
                                   "}"
                                   "")))
-
       (ensime-test-cleanup proj))))
 
    (ensime-async-test

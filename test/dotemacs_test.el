@@ -4,7 +4,20 @@
     (princ text 'external-debugging-output)
     text))
 
-(ad-activate 'message)
+;; If we're running under X (as we do on CI), dump to debug output.
+(when (not (null window-system))
+  (ad-activate 'message)
+  (setq debugger
+	(lambda (reason &optional arg2)
+	  (message "Debugger entered!")
+	  (let* ((i 3)
+		 (frame (backtrace-frame i)))
+	    (while frame
+	      (message "  %s" (cdr frame))
+	      (setq i (+ i 1))
+	      (setq frame (backtrace-frame i)))))))
+
+(setq debug-on-error t)
 
 (setq user-emacs-directory (expand-file-name "./emacs.d"))
 (require 'package)
@@ -46,11 +59,12 @@
 (require 'ensime)
 (require 'ensime-test)
 (setq ensime-test-dev-home (expand-file-name "../"))
+(setq ensime-log-events t)
+(setq ensime-typecheck-when-idle nil)
 (message "Using ensime-test-dev-home of %s" ensime-test-dev-home)
 (add-hook 'scala-mode-hook 'ensime-scala-mode-hook)
 
 (setq inhibit-startup-message t)
-(setq debug-on-error nil)
 (setq debug-on-quit nil)
 (setq visible-bell t)
 (setq visual-line-mode nil)

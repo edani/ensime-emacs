@@ -44,7 +44,7 @@
 		    (unless no-ref-sources
 		      (when-let (dir (plist-get conf :source-jars-dir))
 				(list dir)))))))
-      (-first (lambda (dir) (ensime-dir-contains-file-p file dir))
+      (-first (lambda (dir) (ensime-path-includes-dir-p file dir))
 	      source-roots))))
 
 (defmacro ensime-set-key (conf key val)
