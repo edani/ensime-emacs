@@ -577,6 +577,10 @@ CACHE-DIR is the server's persistent output directory."
       (if (executable-find ensime-sbt-command)
           (comint-exec (current-buffer) buffer ensime-sbt-command nil (list "run"))
         (error "sbt command not found")))
+    ;; Make sure we clean up nicely (required on Windows, or port files won't
+    ;; be removed).
+    (add-hook 'kill-emacs-hook 'ensime-interrupt-all-servers)
+    (add-hook 'kill-buffer-hook 'ensime-interrupt-buffer-process nil t)
     (let ((proc (get-buffer-process (current-buffer))))
       (ensime-set-query-on-exit-flag proc)
       (run-hooks 'ensime-server-process-start-hook)
