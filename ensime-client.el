@@ -237,6 +237,16 @@ overrides `ensime-buffer-connection'.")
 		(ensime-config good-conn) source-file)))
    ensime-net-processes))
 
+(defun ensime-interrupt-all-servers ()
+  (-each ensime-server-processes
+    (lambda (p) (ensime-interrupt-buffer-process (process-buffer p)))))
+
+(defun ensime-interrupt-buffer-process (&optional buffer)
+  "Send SIGINT to p if p is an active process."
+  (when-let (proc (ensime-proc-if-alive
+		   (get-buffer-process (or buffer (current-buffer)))))
+	    (interrupt-process proc)))
+
 (defun ensime-prompt-for-connection ()
   "Prompt the user to select a server connection. Used in situations where
  the active connection is ambiguous."
