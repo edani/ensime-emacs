@@ -87,13 +87,13 @@
 (defun ensime-completion-at-point-function ()
   "Standard Emacs 24+ completion function, handles completion-at-point requests.
  See: https://www.gnu.org/software/emacs/manual/html_node/elisp/Completion-in-Buffers.html"
-  (let* ((prefix (ensime--get-completion-prefix-at-point))
+  (let* ((prefix (ensime-completion-prefix-at-point))
 	 (start (- (point) (length prefix)))
 	 (end (point))
 	 (props '(:annotation-function
 		  (lambda (m)
 		    (when (get-text-property 0 'is-callable m)
-		      (ensime-ac-brief-type-sig
+		      (ensime-brief-type-sig
 		       (get-text-property 0 'type-sig m))))
 		  :exit-function
 		  (lambda (m status)
@@ -106,7 +106,7 @@
 	      '(metadata . ((display-sort-function . identity))))
 	     (t
 	      (complete-with-action
-	       action (plist-get (ensime--ask-server-for-completions)
+	       action (plist-get (ensime-get-completions 1000000 nil)
 				 :candidates) prefix pred))))))
     `(,start ,end ,completion-func . ,props)))
 
