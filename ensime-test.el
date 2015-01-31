@@ -836,6 +836,10 @@
       ))
    ))
 
+(defun ensime--test-completions ()
+  "Helper for completion testing."
+  (plist-get (ensime-get-completions 30 nil) :candidates))
+
 (defvar ensime-slow-suite
 
   (ensime-test-suite
@@ -954,28 +958,28 @@
       (proj src-files)
       ;; object method completion
       (ensime-test-eat-label "1")
-      (let* ((candidates (ensime-ac-completion-candidates "")))
+      (let* ((candidates (ensime--test-completions)))
         (ensime-assert (member "add" candidates)))
 
       ;; Try completion when a method begins without target
       ;; on next line.
       (ensime-test-eat-label "2")
-      (let* ((candidates (ensime-ac-completion-candidates "")))
+      (let* ((candidates (ensime--test-completions)))
         (ensime-assert (member "blarg" candidates)))
 
       ;; Instance completion with prefix
       (ensime-test-eat-label "3")
-      (let* ((candidates (ensime-ac-completion-candidates "pri")))
+      (let* ((candidates (ensime--test-completions)))
         (ensime-assert (member "println" candidates)))
 
       ;; Complete member of argument
       (ensime-test-eat-label "4")
-      (let* ((candidates (ensime-ac-completion-candidates "s")))
+      (let* ((candidates (ensime--test-completions)))
         (ensime-assert (member "substring" candidates)))
 
       ;; Chaining of calls
       (ensime-test-eat-label "5")
-      (let* ((candidates (ensime-ac-completion-candidates "hea")))
+      (let* ((candidates (ensime--test-completions)))
         (ensime-assert (member "headOption" candidates)))
 
       (ensime-test-cleanup proj))))
@@ -998,7 +1002,8 @@
                                  "  def blarg:Int = 5"
 
                                  "  def add(a:Int):Int = {"
-                                 "    a + bl/*2*/"
+                                 "    val x = a + bl/*2*/"
+				 "    x + blar/*3*/"
                                  "  }"
 
                                  "}")))))
@@ -1020,13 +1025,19 @@
 
       ;; constructor completion
       (ensime-test-eat-label "1")
-      (let* ((candidates (ensime-ac-completion-candidates "Fi")))
+      (let* ((candidates (ensime--test-completions)))
         (ensime-assert (member "File" candidates)))
 
       ;; local method name completion.
       (ensime-test-eat-label "2")
-      (let* ((candidates (ensime-ac-completion-candidates "bl")))
+      (let* ((candidates (ensime--test-completions)))
         (ensime-assert (member "blarg" candidates)))
+
+      ;; exercize emacs CAPF function
+      (ensime-test-eat-label "3")
+      (completion-at-point)
+      (ensime-assert-equal
+       "blarg" (buffer-substring-no-properties (- (point) 5) (point)))
 
       (ensime-test-cleanup proj))))
 
@@ -1083,7 +1094,7 @@
       (proj src-files)
       ;; Expand simple, two argument list.
       (ensime-test-eat-label "1")
-      (let* ((candidates (ensime-ac-completion-candidates))
+      (let* ((candidates (ensime--test-completions))
 	     (pt (point)))
         (ensime-assert (member "add" candidates))
 	(insert "d")
@@ -1098,7 +1109,7 @@
       (proj src-files)
       ;; Expand operator.
       (ensime-test-eat-label "2")
-      (let* ((candidates (ensime-ac-completion-candidates))
+      (let* ((candidates (ensime--test-completions))
 	     (pt (point)))
         (ensime-assert (member "+" candidates))
 	(insert "+")
@@ -1113,7 +1124,7 @@
       (proj src-files)
       ;; Expand operator after typing '.'
       (ensime-test-eat-label "3")
-      (let* ((candidates (ensime-ac-completion-candidates))
+      (let* ((candidates (ensime--test-completions))
 	     (pt (point)))
         (ensime-assert (member "+" candidates))
 	(insert "+")
@@ -1128,7 +1139,7 @@
       (proj src-files)
       ;; Expand a function taking a named function as argument.
       (ensime-test-eat-label "4")
-      (let* ((candidates (ensime-ac-completion-candidates))
+      (let* ((candidates (ensime--test-completions))
 	     (pt (point)))
         (ensime-assert (member "doBlock" candidates))
 	(insert "ck")
@@ -1143,7 +1154,7 @@
       (proj src-files)
       ;; Expand a function taking a function block as argument.
       (ensime-test-eat-label "5")
-      (let* ((candidates (ensime-ac-completion-candidates))
+      (let* ((candidates (ensime--test-completions))
 	     (pt (point)))
         (ensime-assert (member "doBlock" candidates))
 	(insert "ck")
@@ -1158,7 +1169,7 @@
       (proj src-files)
       ;; Expand a function taking a by name block.
       (ensime-test-eat-label "6")
-      (let* ((candidates (ensime-ac-completion-candidates))
+      (let* ((candidates (ensime--test-completions))
 	     (pt (point)))
         (ensime-assert (member "doByName" candidates))
 	(insert "me")
@@ -1173,7 +1184,7 @@
       (proj src-files)
       ;; Expand a field assignment
       (ensime-test-eat-label "7")
-      (let* ((candidates (ensime-ac-completion-candidates))
+      (let* ((candidates (ensime--test-completions))
 	     (pt (point)))
         (ensime-assert (member "field_=" candidates))
 	(insert "ld_=")
@@ -1188,7 +1199,7 @@
       (proj src-files)
       ;; Expand an empty argument list for java method.
       (ensime-test-eat-label "8")
-      (let* ((candidates (ensime-ac-completion-candidates))
+      (let* ((candidates (ensime--test-completions))
 	     (pt (point)))
         (ensime-assert (member "hashCode" candidates))
 	(insert "de")
@@ -1202,7 +1213,7 @@
       (proj src-files)
       ;; Expand an no argument list for nullary scala method
       (ensime-test-eat-label "9")
-      (let* ((candidates (ensime-ac-completion-candidates))
+      (let* ((candidates (ensime--test-completions))
 	     (pt (point)))
         (ensime-assert (member "toLong" candidates))
 	(insert "ng")
@@ -1250,7 +1261,7 @@
 
       ;; complete java package member
       (ensime-test-eat-label "1")
-      (let* ((candidates (ensime-ac-completion-candidates "ut")))
+      (let* ((candidates (ensime--test-completions)))
         (ensime-assert (member "util" candidates)))
       (insert "il.HashMap")
       (ensime-typecheck-current-file)
@@ -1261,7 +1272,7 @@
       (proj src-files)
       ;; complete java package member by class name
       (ensime-test-eat-label "3")
-      (let* ((candidates (ensime-ac-completion-candidates "Vec"))
+      (let* ((candidates (ensime--test-completions))
              (to-inserts (mapcar (lambda (c) (get-text-property 0 'to-insert c))
 				candidates)))
         (ensime-assert (member "java.util.Vector" to-inserts)))
@@ -1273,7 +1284,7 @@
       (proj src-files)
       ;; complete java package member by class name in name list
       (ensime-test-eat-label "4")
-      (let* ((candidates (ensime-ac-completion-candidates "Vec")))
+      (let* ((candidates (ensime--test-completions)))
         (ensime-assert (member "Vector" candidates)))
       (ensime-typecheck-current-file)
       ))
@@ -1283,7 +1294,7 @@
       (proj src-files)
       ;; complete scala package
       (ensime-test-eat-label "2")
-      (let* ((candidates (ensime-ac-completion-candidates "sc")))
+      (let* ((candidates (ensime--test-completions)))
         (ensime-assert (member "scala" candidates)))
 
       (ensime-test-cleanup proj))))
