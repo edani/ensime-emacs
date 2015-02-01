@@ -458,8 +458,9 @@
   (interactive)
     (let* ((config-file (ensime-config-find))
            (config (ensime-config-load config-file))
-           (scala-version (or (plist-get config :scala-version) ensime-default-scala-version)))
-      (ensime--update-server scala-version `(lambda () (message "ENSIME server updated.")))))
+           (scala-version (plist-get config :scala-version))
+           (server-java (plist-get config :java-home)))
+      (ensime--update-server scala-version server-java `(lambda () (message "ENSIME server updated.")))))
 
 (defun ensime--maybe-update-and-start (&optional host port)
   (if (and host port)
@@ -468,10 +469,11 @@
       (ensime--retry-connect nil host (lambda () port) config cache-dir)
     (let* ((config-file (ensime-config-find))
            (config (ensime-config-load config-file))
-           (scala-version (or (plist-get config :scala-version) ensime-default-scala-version)))
+           (scala-version (plist-get config :scala-version))
+           (server-java (plist-get config :java-home)))
       (if (file-exists-p (ensime--classpath-file scala-version))
           (ensime--1 config-file)
-        (ensime--update-server scala-version `(lambda () (ensime--1 ,config-file)))))))
+        (ensime--update-server scala-version server-java `(lambda () (ensime--1 ,config-file)))))))
 
 (defun* ensime--1 (config-file)
   (when (and (ensime-source-file-p) (not ensime-mode))
@@ -480,10 +482,10 @@
          (root-dir (ensime--get-root-dir config) )
          (cache-dir (file-name-as-directory (ensime--get-cache-dir config)))
          (name (ensime--get-name config))
-         (scala-version (or (plist-get config :scala-version) ensime-default-scala-version))
+         (scala-version (plist-get config :scala-version))
          (server-env (or (plist-get config :server-env) ensime-default-server-env))
          (buffer (or (plist-get config :buffer) (concat ensime-default-buffer-prefix name)))
-         (server-java (or (plist-get config :java-home) ensime-default-java-home))
+         (server-java (plist-get config :java-home))
          (server-flags (or (plist-get config :java-flags) ensime-default-java-flags)))
     (make-directory cache-dir 't)
 
@@ -585,7 +587,7 @@ Analyzer will be restarted. All source will be recompiled."
    (t
     (message "Process %s exited: %s" process event))))
 
-(defun ensime--update-server (scala-version on-success-fn)
+(defun ensime--update-server (scala-version server-java on-success-fn)
   (with-current-buffer (get-buffer-create (generate-new-buffer-name "*ensime-update*"))
     (let* ((default-directory (file-name-as-directory
                                (make-temp-file "ensime_update_" t)))
@@ -600,8 +602,11 @@ Analyzer will be restarted. All source will be recompiled."
       (ensime-write-to-file buildpropsfile "sbt.version=0.13.7\n")
 
       (if (executable-find ensime-sbt-command)
-          (let ((process (start-process "*ensime-update*" (current-buffer)
-                                        ensime-sbt-command "saveClasspath" "clean")))
+          (let* ((process-environment
+                  (cons (concat "JAVA_HOME=" server-java) process-environment))
+                 (process
+                  (start-process "*ensime-update*" (current-buffer)
+                                 ensime-sbt-command "saveClasspath" "clean")))
             (display-buffer-at-bottom (current-buffer) nil)
             (set-process-sentinel process
                                   `(lambda (process event)

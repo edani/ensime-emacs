@@ -85,8 +85,7 @@
        (delete-file ,name))))
 
 (defvar ensime--test-scala-version
-  (or (getenv "ENSIME_TEST_SERVER_VERSION")
-      ensime-default-scala-version))
+  (getenv "ENSIME_TEST_SERVER_VERSION"))
 
 (defvar ensime--test-scala-major-version
   (mapconcat 'int-to-string
