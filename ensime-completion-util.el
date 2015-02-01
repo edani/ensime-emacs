@@ -87,28 +87,29 @@
 (defun ensime-completion-at-point-function ()
   "Standard Emacs 24+ completion function, handles completion-at-point requests.
  See: https://www.gnu.org/software/emacs/manual/html_node/elisp/Completion-in-Buffers.html"
-  (let* ((prefix (ensime-completion-prefix-at-point))
-	 (start (- (point) (length prefix)))
-	 (end (point))
-	 (props '(:annotation-function
-		  (lambda (m)
-		    (when (get-text-property 0 'is-callable m)
-		      (ensime-brief-type-sig
-		       (get-text-property 0 'type-sig m))))
-		  :exit-function
-		  (lambda (m status)
-		    (when (eq status 'finished)
-		      (ensime-ac-complete-action m)))))
-	 (completion-func
-	  (lambda (prefix pred action)
-	    (cond
-	     ((eq action 'metadata)
-	      '(metadata . ((display-sort-function . identity))))
-	     (t
-	      (complete-with-action
-	       action (plist-get (ensime-get-completions 1000000 nil)
-				 :candidates) prefix pred))))))
-    `(,start ,end ,completion-func . ,props)))
+  (when (ensime-connected-p)
+    (let* ((prefix (ensime-completion-prefix-at-point))
+	   (start (- (point) (length prefix)))
+	   (end (point))
+	   (props '(:annotation-function
+		    (lambda (m)
+		      (when (get-text-property 0 'is-callable m)
+			(ensime-brief-type-sig
+			 (get-text-property 0 'type-sig m))))
+		    :exit-function
+		    (lambda (m status)
+		      (when (eq status 'finished)
+			(ensime-ac-complete-action m)))))
+	   (completion-func
+	    (lambda (prefix pred action)
+	      (cond
+	       ((eq action 'metadata)
+		'(metadata . ((display-sort-function . identity))))
+	       (t
+		(complete-with-action
+		 action (plist-get (ensime-get-completions 1000000 nil)
+				   :candidates) prefix pred))))))
+      `(,start ,end ,completion-func . ,props))))
 
 (provide 'ensime-completion-util)
 
