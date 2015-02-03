@@ -48,14 +48,14 @@
          (scala-version (plist-get config :scala-version))
          (server-env (or (plist-get config :server-env) ensime-default-server-env))
          (buffer (or (plist-get config :buffer) (concat ensime-default-buffer-prefix name)))
-         (server-java (plist-get config :java-home))
+         (server-java (file-name-as-directory (plist-get config :java-home)))
          (server-flags (or (plist-get config :java-flags) ensime-default-java-flags)))
     (make-directory cache-dir 't)
 
     (let* ((server-proc
             (ensime--maybe-start-server
              (generate-new-buffer-name (concat "*" buffer "*"))
-             scala-version server-flags
+             server-java scala-version server-flags
              (list* (concat "JDK_HOME=" server-java)
                     (concat "JAVA_HOME=" server-java)
                     server-env)
@@ -118,11 +118,11 @@ Analyzer will be restarted. All source will be recompiled."
       (ensime-set-config conn config)
       (ensime-init-project conn))))
 
-(defun ensime--maybe-start-server (buffer scala-version flags env config-file cache-dir)
+(defun ensime--maybe-start-server (buffer java-home scala-version flags env config-file cache-dir)
   "Return a new or existing server process."
   (let ((existing (comint-check-proc buffer)))
     (if existing existing
-      (ensime--start-server buffer scala-version flags env config-file cache-dir))))
+      (ensime--start-server buffer java-home scala-version flags env config-file cache-dir))))
 
 (defun ensime--user-directory ()
   (file-name-as-directory
@@ -196,7 +196,7 @@ Analyzer will be restarted. All source will be recompiled."
   (if (find system-type '(cygwin windows-nt)) ";" ":")
   "Separator used in Java classpaths")
 
-(defun ensime--start-server (buffer scala-version flags user-env config-file cache-dir)
+(defun ensime--start-server (buffer java-home scala-version flags user-env config-file cache-dir)
   "Start an ensime server in the given buffer and return the created process.
 BUFFER is the buffer to receive the server output.
 FLAGS is a list of JVM flags.
@@ -206,7 +206,6 @@ CACHE-DIR is the server's persistent output directory."
   (with-current-buffer (get-buffer-create buffer)
     (comint-mode)
     (let* ((default-directory cache-dir)
-           (java-home (file-name-as-directory (getenv "JAVA_HOME")))
            (tools-jar (concat java-home "lib/tools.jar"))
            (classpath-file (ensime--classpath-file scala-version))
            (classpath (concat tools-jar
