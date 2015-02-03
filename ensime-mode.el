@@ -427,11 +427,6 @@
 	   (cond ((zerop pending) nil)
 		 (t (format "%s" pending)))))))
 
-(defun ensime--age-file (file)
-  (float-time
-   (time-subtract (current-time)
-		  (nth 5 (or (file-attributes (file-truename file))
-			     (file-attributes file))))))
 
 (defun ensime--get-cache-dir (config)
   (let ((cache-dir (plist-get config :cache-dir)))
@@ -451,8 +446,6 @@
       (error "Name in ensime configuration file appears to be unset"))
     name))
 
-;; Startup
-
 (defun ensime-update ()
   "Install the most recent version of ENSIME server."
   (interactive)
@@ -469,9 +462,9 @@
     (let* ((config-file (ensime-config-find))
            (config (ensime-config-load config-file))
            (scala-version (plist-get config :scala-version)))
-      (if (file-exists-p (ensime--classpath-file scala-version))
-          (ensime--1 config-file)
-        (ensime--update-server scala-version `(lambda () (ensime--1 ,config-file)))))))
+      (if (ensime--classfile-needs-refresh-p (ensime--classpath-file scala-version))
+          (ensime--update-server scala-version `(lambda () (ensime--1 ,config-file)))
+        (ensime--1 config-file)))))
 
 (defun* ensime--1 (config-file)
   (when (and (ensime-source-file-p) (not ensime-mode))
@@ -569,6 +562,18 @@ Analyzer will be restarted. All source will be recompiled."
            scala-version
            (ensime--select-server-version scala-version))
    (ensime--user-directory)))
+
+(defun ensime--classfile-needs-refresh-p (classfile)
+  (if (file-exists-p classfile)
+      (let ((ensime-el (locate-file "ensime" load-path '(".el" ".elc"))))
+        (if ensime-el
+            (let ((classfile-mtime (nth 5 (file-attributes classfile)))
+                  (ensime-files (directory-files-and-attributes (file-name-directory ensime-el)
+                                                                nil
+                                                                "^ensime.*\\.elc?$")))
+              (some (lambda (a) (time-less-p classfile-mtime (nth 6 a))) ensime-files))
+          nil))
+    t))
 
 (defun ensime--update-sentinel (process event scala-version on-success-fn)
   (cond
