@@ -85,10 +85,9 @@
        (delete-file ,name))))
 
 (defvar ensime--test-scala-version
-  (or (getenv "ENSIME_TEST_SERVER_VERSION")
-      ensime-default-scala-version))
+  (getenv "ENSIME_TEST_SERVER_VERSION"))
 
-(defvar ensime--test-scala-major-version
+(defun ensime--test-scala-major-version ()
   (mapconcat 'int-to-string
 	     (-take 2 (version-to-list ensime--test-scala-version))
 	     "."))
@@ -103,7 +102,7 @@
          (src-dir (file-name-as-directory (concat root-dir "src/main/scala")))
          (target-dir (file-name-as-directory
 		      (concat root-dir "target/scala-"
-			      ensime--test-scala-major-version "/classes" )))
+			      (ensime--test-scala-major-version) "/classes" )))
          (test-target-dir (file-name-as-directory (concat root-dir "test-target")))
          (config (append
                   extra-config
