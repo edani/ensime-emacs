@@ -615,6 +615,10 @@ Analyzer will be restarted. All source will be recompiled."
 (defvar ensime-server-process-start-hook nil
   "Hook called whenever a new process gets started.")
 
+(defvar ensime--classpath-separator
+  (if (find system-type '(cygwin windows-nt)) ";" ":")
+  "Separator used in Java classpaths")
+
 (defun ensime--start-server (buffer scala-version flags user-env config-file cache-dir)
   "Start an ensime server in the given buffer and return the created process.
 BUFFER is the buffer to receive the server output.
@@ -625,10 +629,14 @@ CACHE-DIR is the server's persistent output directory."
   (with-current-buffer (get-buffer-create buffer)
     (comint-mode)
     (let* ((default-directory cache-dir)
+           (java-home (file-name-as-directory (getenv "JAVA_HOME")))
+           (tools-jar (concat java-home "lib/tools.jar"))
            (classpath-file (ensime--classpath-file scala-version))
-           (classpath (ensime-read-from-file classpath-file))
+           (classpath (concat tools-jar
+                              ensime--classpath-separator
+                              (ensime-read-from-file classpath-file)))
            (process-environment (append user-env process-environment))
-           (java-command (concat (getenv "JAVA_HOME") "/bin/java"))
+           (java-command (concat java-home "bin/java"))
            (args (-flatten (list
                             "-classpath" classpath
                             "-Dscala.usejavacp=true"
@@ -681,11 +689,6 @@ resolvers += \"Typesafe repository\" at \"http://repo.typesafe.com/typesafe/rele
 resolvers += \"Akka Repo\" at \"http://repo.akka.io/repository\"
 
 libraryDependencies += \"org.ensime\" %% \"ensime\" % \"_server_version_\"
-
-// guaranteed to exist when started from emacs
-val JavaTools = new File(sys.env(\"JAVA_HOME\"), \"/lib/tools.jar\")
-
-unmanagedClasspath in Runtime += { Attributed.blank(JavaTools) }
 
 val saveClasspathTask = TaskKey[Unit](\"saveClasspath\", \"Save the classpath to a file\")
 
