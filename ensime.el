@@ -69,6 +69,7 @@
 (require 'ensime-notes)
 (require 'ensime-popup)
 (require 'ensime-refactor)
+(require 'ensime-startup)
 (require 'ensime-undo)
 (require 'ensime-search)
 (require 'ensime-scalex)
