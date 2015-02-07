@@ -181,6 +181,20 @@ Do not show 'Writing..' message."
       (set-buffer-modified-p nil))
     ))
 
+(defun ensime-write-to-file (filename string)
+  "Write the given string to FILENAME, creating parent directories as needed"
+  (let ((dir (file-name-directory filename)))
+    (make-directory dir t))
+  (with-temp-buffer
+    (insert string)
+    (write-region (point-min) (point-max) filename)))
+
+(defun ensime-read-from-file (filename)
+  "Return the contents of FILENAME as a string"
+  (with-temp-buffer
+    (insert-file-contents filename)
+    (buffer-string)))
+
 ;; Commonly used functions
 
 (defun ensime-curry (fun &rest args)
