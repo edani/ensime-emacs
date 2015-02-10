@@ -110,6 +110,7 @@
                     :cache-dir ,cache-dir
                     :name "test"
                     :scala-version ,ensime--test-scala-version
+                    :java-home ,(getenv "JAVA_HOME")
                     :subprojects
                       ((:name "test"
                         :module-name "test"
