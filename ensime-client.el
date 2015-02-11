@@ -133,9 +133,6 @@ overrides `ensime-buffer-connection'.")
 (defvar-local ensime-buffer-connection nil
   "Network connection to use in the current buffer.")
 
-(defvar-local ensime--buffer-unrelated-connections nil
-  "Network connections known to not be associated with the current buffer.")
-
 (defvar ensime-connection-counter 0
   "The number of ENSIME connections made. For generating serial numbers.")
 
@@ -146,23 +143,14 @@ overrides `ensime-buffer-connection'.")
      the connection is not present.
    * This function is ambiguous if there's more than one ensime connection for
      the current source file (shouldn't really happen in practice)."
-  (when (-difference ensime-net-processes
-		     ensime--buffer-unrelated-connections)
-    (or (ensime-conn-if-alive ensime-dispatching-connection)
-	(ensime-conn-if-alive ensime-buffer-connection)
-	(let ((conn (ensime-conn-if-alive
-		     (ensime-owning-connection-for-source-file
-		      buffer-file-name))))
-	  (if conn
-	      (progn
-		;; Cache the connection so lookup is fast next time.
-		(setq ensime-buffer-connection conn)
-		conn)
-	    ;; Otherwise remember the connections we've already checked
-	    ;; (an optimization).
-	    (setq ensime--buffer-unrelated-connections ensime-net-processes)
-	    nil
-	    )))))
+  (or (ensime-conn-if-alive ensime-dispatching-connection)
+      (ensime-conn-if-alive ensime-buffer-connection)
+      (when-let (conn (ensime-conn-if-alive
+		       (ensime-owning-connection-for-source-file
+			buffer-file-name)))
+	  ;; Cache the connection so lookup is fast next time.
+	  (setq ensime-buffer-connection conn)
+	  conn)))
 
 (defun ensime-proc-if-alive (proc)
   "Returns proc if proc's buffer is alive and proc has not exited,
@@ -223,29 +211,43 @@ overrides `ensime-buffer-connection'.")
 		  (setq result (cons conn result)))))
         result))
 
-(defun ensime-owning-server-process-for-source-file
-    (source-file &optional loose)
+(defvar-local ensime--buffer-unrelated-server-procs nil
+  "An optimization: server processes known to not be associated with the current
+ buffer.")
+(defun ensime-owning-server-process-for-source-file (source-file)
   "Returns the first server process with a source-root that contains
-  file-in. If loose is non-nil, also return true if project-root contains
   file-in."
-  (-first
-   (lambda (proc)
-     (when-let (good-proc (ensime-proc-if-alive proc))
-	       (ensime-config-includes-source-file
-		(process-get good-proc :ensime-config) source-file)))
-   ensime-server-processes))
+  (when (-difference ensime-server-processes ensime--buffer-unrelated-server-procs)
+    (let ((found (-find
+		  (lambda (proc)
+		    (when-let (good-proc (ensime-proc-if-alive proc))
+			      (ensime-config-includes-source-file
+			       (process-get good-proc :ensime-config) source-file)))
+		  ensime-server-processes)))
+      (if found found
+	;; Otherwise remember the procs we've already checked.
+	(setq ensime--buffer-unrelated-server-procs ensime-server-processes)
+	nil
+	))))
 
-(defun ensime-owning-connection-for-source-file
-    (source-file &optional loose)
+(defvar-local ensime--buffer-unrelated-connections nil
+  "An optimization: connections known to not be associated with the current
+ buffer.")
+(defun ensime-owning-connection-for-source-file (source-file)
   "Returns the first connection process with a source-root that contains
-  source-file. If loose is non-nil, also return true if project-root contains
   source-file."
-  (-find
-   (lambda (conn)
-     (when-let (good-conn (ensime-conn-if-alive conn))
-	       (ensime-config-includes-source-file
-		(ensime-config good-conn) source-file)))
-   ensime-net-processes))
+  (when (-difference ensime-net-processes ensime--buffer-unrelated-connections)
+    (let ((found (-find
+		  (lambda (conn)
+		    (when-let (good-conn (ensime-conn-if-alive conn))
+			      (ensime-config-includes-source-file
+			       (ensime-config good-conn) source-file)))
+		  ensime-net-processes)))
+      (if found found
+	;; Otherwise remember the connections we've already checked.
+	(setq ensime--buffer-unrelated-connections ensime-net-processes)
+	nil
+	))))
 
 (defun ensime-interrupt-all-servers ()
   (-each ensime-server-processes
