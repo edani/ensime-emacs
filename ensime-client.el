@@ -130,10 +130,11 @@ This is automatically synchronized from Lisp.")
 This is dynamically bound while handling messages from Lisp; it
 overrides `ensime-buffer-connection'.")
 
-(make-variable-buffer-local
- (defvar ensime-buffer-connection nil
-   "Network connection to use in the current buffer."))
+(defvar-local ensime-buffer-connection nil
+  "Network connection to use in the current buffer.")
 
+(defvar-local ensime--buffer-unrelated-connections nil
+  "Network connections known to not be associated with the current buffer.")
 
 (defvar ensime-connection-counter 0
   "The number of ENSIME connections made. For generating serial numbers.")
@@ -141,18 +142,27 @@ overrides `ensime-buffer-connection'.")
 (defun ensime-connection-or-nil ()
   "Return the connection to use for ENSIME interaction in the current buffer.
  Return nil if there's no connection.
-   * In most code we prefer (ensime-connection),
-     which raises an error if the connection is not present.
+   * In most code we prefer (ensime-connection), which raises an error if
+     the connection is not present.
    * This function is ambiguous if there's more than one ensime connection for
      the current source file (shouldn't really happen in practice)."
-  (or (ensime-conn-if-alive ensime-dispatching-connection)
-      (ensime-conn-if-alive ensime-buffer-connection)
-      (when-let (conn (ensime-conn-if-alive
-		       (ensime-owning-connection-for-source-file
-			buffer-file-name)))
+  (when (-difference ensime-net-processes
+		     ensime--buffer-unrelated-connections)
+    (or (ensime-conn-if-alive ensime-dispatching-connection)
+	(ensime-conn-if-alive ensime-buffer-connection)
+	(let ((conn (ensime-conn-if-alive
+		     (ensime-owning-connection-for-source-file
+		      buffer-file-name))))
+	  (if conn
+	      (progn
 		;; Cache the connection so lookup is fast next time.
 		(setq ensime-buffer-connection conn)
-		conn)))
+		conn)
+	    ;; Otherwise remember the connections we've already checked
+	    ;; (an optimization).
+	    (setq ensime--buffer-unrelated-connections ensime-net-processes)
+	    nil
+	    )))))
 
 (defun ensime-proc-if-alive (proc)
   "Returns proc if proc's buffer is alive and proc has not exited,
