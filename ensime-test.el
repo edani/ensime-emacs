@@ -110,7 +110,10 @@
                     :cache-dir ,cache-dir
                     :name "test"
                     :scala-version ,ensime--test-scala-version
-                    :java-home ,(getenv "JAVA_HOME")
+                    :java-home
+		    ,(or (getenv "JAVA_HOME")
+			 (when-let (cmd (executable-find "/usr/libexec/java_home"))
+				   (s-chop-suffix "\n" (shell-command-to-string cmd))))
                     :subprojects
                       ((:name "test"
                         :module-name "test"
