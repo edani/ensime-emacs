@@ -180,6 +180,11 @@ Analyzer will be restarted. All source will be recompiled."
           (let ((process (start-process "*ensime-update*" (current-buffer)
                                         ensime-sbt-command "saveClasspath" "clean")))
             (display-buffer-at-bottom (current-buffer) nil)
+            (set-process-filter process
+				;; Log output on CI testing runs.
+				`(lambda (process text)
+				   (when (not (null window-system))
+				     (princ text 'external-debugging-output))))
             (set-process-sentinel process
                                   `(lambda (process event)
                                      (ensime--update-sentinel process
