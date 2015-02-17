@@ -111,7 +111,7 @@
                     :name "test"
                     :scala-version ,ensime--test-scala-version
                     :java-home
-		    ,(or (getenv "JAVA_HOME")
+		    ,(or (or (getenv "JDK_HOME") (getenv "JAVA_HOME"))
 			 (when-let (cmd (executable-find "/usr/libexec/java_home"))
 				   (s-chop-suffix "\n" (shell-command-to-string cmd))))
                     :subprojects
