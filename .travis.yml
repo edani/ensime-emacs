@@ -5,7 +5,7 @@ jdk:
 
 env:
   matrix:
-    - "EMACS=emacs24 ENSIME_TEST_SERVER_VERSION=2.11.4"
+    - "EMACS=emacs24 ENSIME_TEST_SERVER_VERSION=2.11.5"
 
 install:
   - if [ "$EMACS" = "emacs23" ]; then
