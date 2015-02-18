@@ -306,9 +306,9 @@ This doesn't mean it will connect right after Ensime is loaded."
 
     (setf (ensime-protocol-version process) nil
           (ensime-pid process) nil
-          (ensime-server-implementation-name) nil
-          (ensime-connection-name) nil
-          (ensime-analyzer-ready nil))
+          (ensime-server-implementation-name process) nil
+          (ensime-connection-name process) nil
+          (ensime-analyzer-ready process) nil)
 
     ;; Initialize connection state in the process-buffer of PROC."
 
