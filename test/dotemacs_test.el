@@ -36,7 +36,7 @@
 (condition-case err
     (let* ((pkg-info
 	    (with-temp-buffer
-	      (insert-file-contents "../ensime-pkg.el")
+	      (insert-file-contents "ensime-pkg.el")
 	      (goto-char (point-min))
 	      (read (current-buffer))))
 	   (name (cadr pkg-info))
@@ -55,10 +55,16 @@
 	    ))))
   (error (message "Error loading dependencies: %s" err)))
 
-(add-to-list 'load-path "../")
+(when (getenv "TRAVIS")
+  (unless (package-installed-p 'undercover)
+    (package-install 'undercover))
+  (when (require 'undercover nil t)
+    (undercover "ensime*.el" (:exclude "ensime-client.el" "ensime-startup.el"))))
+
+(add-to-list 'load-path "./")
 (require 'ensime)
 (require 'ensime-test)
-(setq ensime-test-dev-home (expand-file-name "../"))
+(setq ensime-test-dev-home (expand-file-name "./"))
 (setq ensime-log-events t)
 (setq ensime-typecheck-when-idle nil)
 (message "Using ensime-test-dev-home of %s" ensime-test-dev-home)
