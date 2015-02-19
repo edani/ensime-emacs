@@ -220,7 +220,6 @@ CACHE-DIR is the server's persistent output directory."
            (java-command (concat java-home "bin/java"))
            (args (-flatten (list
                             "-classpath" classpath
-                            "-Dscala.usejavacp=true"
                             flags
                             (concat "-Densime.config=" (expand-file-name config-file))
                             "org.ensime.server.Server"))))
