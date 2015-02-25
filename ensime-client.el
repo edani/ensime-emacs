@@ -939,6 +939,10 @@ versions cannot deal with that."
 
 ;;; RPC functions
 
+(defun ensime-rpc-doc-uri-at-point (file point)
+  (ensime-eval
+   `(swank:doc-uri-at-point ,file ,point)))
+
 (defun ensime-rpc-method-bytecode (file line)
   (ensime-eval
    `(swank:method-bytecode ,file ,line)))
