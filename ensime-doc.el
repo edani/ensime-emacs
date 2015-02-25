@@ -77,16 +77,9 @@ browsing the documentation for that symbol."
 (defun ensime-show-doc-for-symbol-at-point ()
   "Browse to documentation for the symbol at current point."
   (interactive)
-  (let* ((sym (ensime-rpc-symbol-at-point))
-	 (url (ensime-make-doc-url-for-sym sym)))
-    (if url
-	(progn
-	  (message "Looking up doc for %s..."
-		   (ensime-symbol-name sym))
-	  (browse-url url))
+  (let* ((url (ensime-rpc-doc-uri-at-point buffer-file-name (point))))
+    (if url (browse-url (url-encode-url url))
       (message "No documentation found."))))
-
-
 
 (defun ensime-make-android-doc-url (type &optional member)
   "Given a scala type, and optionally a type member, construct the
