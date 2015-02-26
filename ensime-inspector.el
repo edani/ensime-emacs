@@ -105,7 +105,8 @@
 
       (when with-doc-link
         (insert " ")
-        (ensime-insert-link "doc" (ensime-make-doc-url type))
+	(ensime-insert-action-link
+	 "doc" `(lambda (x) (browse-url (ensime-make-doc-url ',type))))
 	(let ((pos (plist-get type :pos)))
           (when (ensime-pos-available-p pos)
             (insert " ")
@@ -166,10 +167,10 @@
                       (message "Sorry, no definition found.")))))
              font-lock-function-name-face)
 
-            (ensime-insert-link
-             member-name
-             (ensime-make-doc-url owner-type m)
+	    (ensime-insert-action-link
+	     member-name `(lambda (x) (browse-url (ensime-make-doc-url ',owner-type ',m)))
              font-lock-function-name-face))
+
 	  (tab-to-tab-stop)
 	  (ensime-inspector-insert-linked-type type nil nil))
 
