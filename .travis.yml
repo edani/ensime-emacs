@@ -20,4 +20,8 @@ install:
         sudo apt-get install -qq emacs24 emacs24-el;
     fi
 
-script: test/run_emacs_tests.sh
+script:
+  - test/run_emacs_tests.sh 2>&1 | tee stdout | grep "Starting test"
+
+after_failure:
+  - cat stdout
