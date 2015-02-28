@@ -23,7 +23,7 @@ if [ "$TRAVIS" = "true" ] ; then
 fi
 
 if [ $# -ge 1 ]; then
-  $EMACS --no-init-file --load test/dotemacs_test.el --eval '(ensime-run-one-test "'"$*"'")'
+  exec $EMACS --no-init-file --load test/dotemacs_test.el --eval '(ensime-run-one-test "'"$*"'")'
 else
-  $EMACS --no-init-file --load test/dotemacs_test.el  --eval '(ensime-run-all-tests)'
+  exec $EMACS --no-init-file --load test/dotemacs_test.el  --eval '(ensime-run-all-tests)'
 fi
