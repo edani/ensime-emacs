@@ -4,6 +4,8 @@ jdk:
 - openjdk6
 
 env:
+  global:
+    - TRAVIS_UNDERCOVER=true
   matrix:
     - "EMACS=emacs24 ENSIME_TEST_SERVER_VERSION=2.11.5"
 

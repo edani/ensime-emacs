@@ -55,7 +55,7 @@
 	    ))))
   (error (message "Error loading dependencies: %s" err)))
 
-(when (getenv "TRAVIS")
+(when (getenv "TRAVIS_UNDERCOVER")
   (unless (package-installed-p 'undercover)
     (package-install 'undercover))
   (when (require 'undercover nil t)
