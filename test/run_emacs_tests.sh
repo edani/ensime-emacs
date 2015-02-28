@@ -16,6 +16,7 @@ if [ "$TRAVIS" = "true" ] ; then
     echo "Starting Xvfb..."
     export DISPLAY=:99
     Xvfb $DISPLAY -screen 0 1024x768x16 &
+    XVFBPID=$!
     sleep 5
 
     echo "Testing with emacs=$EMACS"
@@ -23,7 +24,15 @@ if [ "$TRAVIS" = "true" ] ; then
 fi
 
 if [ $# -ge 1 ]; then
-  exec $EMACS --no-init-file --load test/dotemacs_test.el --eval '(ensime-run-one-test "'"$*"'")'
+  $EMACS --no-init-file --load test/dotemacs_test.el --eval '(ensime-run-one-test "'"$*"'")'
 else
-  exec $EMACS --no-init-file --load test/dotemacs_test.el  --eval '(ensime-run-all-tests)'
+  $EMACS --no-init-file --load test/dotemacs_test.el  --eval '(ensime-run-all-tests)'
 fi
+
+RETVAL=$?
+
+if [ ! -z "$XVFBPID" ] ; then
+    kill $XVFBPID
+fi
+
+exit $RETVAL
