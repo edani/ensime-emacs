@@ -943,6 +943,10 @@ versions cannot deal with that."
   (ensime-eval
    `(swank:doc-uri-at-point ,file ,point)))
 
+(defun ensime-rpc-doc-uri-for-symbol (fqn &optional member-name member-type-id)
+  (ensime-eval
+   `(swank:doc-uri-for-symbol ,fqn ,member-name ,member-type-id)))
+
 (defun ensime-rpc-method-bytecode (file line)
   (ensime-eval
    `(swank:method-bytecode ,file ,line)))
