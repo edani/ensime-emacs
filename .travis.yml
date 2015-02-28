@@ -18,4 +18,4 @@ install:
         sudo apt-get install -qq emacs24 emacs24-el;
     fi
 
-script: bash test/.travis.sh
+script: test/run_emacs_tests.sh
