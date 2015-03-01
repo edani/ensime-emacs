@@ -62,6 +62,16 @@
 (put 'ensime-test-interrupted 'error-message "Test Interrupted")
 
 
+(defun ensime--extract-scala-library-jar ()
+  (with-temp-buffer
+    (insert-file-contents
+     (ensime--classpath-file ensime--test-scala-version))
+    (--first
+     (string-match (concat "/scala-library-" ensime--test-scala-version ".jar") it )
+     (split-string (buffer-string) ensime--classpath-separator 'omit-nulls))))
+
+
+
 (defun ensime-test-concat-lines (&rest lines)
   (mapconcat #'identity lines "\n"))
 
@@ -104,6 +114,7 @@
 		      (concat root-dir "target/scala-"
 			      (ensime--test-scala-major-version) "/classes" )))
          (test-target-dir (file-name-as-directory (concat root-dir "test-target")))
+         (scala-jar (ensime--extract-scala-library-jar))
          (config (append
                   extra-config
                   `(:root-dir ,root-dir
@@ -119,6 +130,7 @@
                         :module-name "test"
                         :source-roots (,src-dir)
                         :depends-on-modules nil
+                        :compile-deps (,scala-jar)
                         :target ,target-dir
                         :test-target ,test-target-dir)))))
          (conf-file (ensime-create-file
