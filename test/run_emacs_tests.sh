@@ -7,9 +7,7 @@ if [ "$TRAVIS" = "true" ] ; then
     sleep 5
 fi
 
-if [ -z "$ENSIME_RUN_AND_EXIT" ] ; then
-    export ENSIME_RUN_AND_EXIT=1
-fi
+export ENSIME_RUN_AND_EXIT=t
 
 if [ -z "$ENSIME_TEST_SERVER_VERSION" ] ; then
     export ENSIME_TEST_SERVER_VERSION=2.11.5
