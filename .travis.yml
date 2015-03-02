@@ -19,6 +19,7 @@ addons:
 install:
   - curl -L https://www.dropbox.com/s/y3bhjrchxrm9reh/emacs-24.4-bin.tar.bz2 | tar xjf - -C $HOME
   - git clone --depth 1 https://github.com/fommil/ensime-emacs.git $HOME/ensime-emacs
+  - sh -e /etc/init.d/xvfb start && sleep 5
 script:
   - test/run_emacs_tests.sh #2>&1 | tee stdout | grep "Starting test"
 after_failure:
@@ -26,5 +27,6 @@ after_failure:
 env:
   global:
     - TRAVIS_UNDERCOVER=true
+    - DISPLAY=:99
   matrix:
     - ENSIME_TEST_SERVER_VERSION=$TRAVIS_SCALA_VERSION EMACS=$HOME/emacs-24.4-bin/bin/emacs-24.4
