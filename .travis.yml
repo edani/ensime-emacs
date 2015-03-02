@@ -31,5 +31,5 @@ env:
 #    - EMACS_VERSION=24.1 EMACS_URL=https://www.dropbox.com/s/lf2c9op9wax86y8/emacs-24.1-bin.tar.bz2
 #    - EMACS_VERSION=24.2 EMACS_URL=https://www.dropbox.com/s/u1isy5ywhu5a2yg/emacs-24.2-bin.tar.bz2
     - EMACS_VERSION=24.3 EMACS_URL=https://www.dropbox.com/s/iy3dqx5r378rpe6/emacs-24.3-bin.tar.bz2
-# 24.4 introduced a bug that hits our tests
-#    - EMACS_VERSION=24.4 EMACS_URL=https://www.dropbox.com/s/y3bhjrchxrm9reh/emacs-24.4-bin.tar.bz2
+# 24.4 weird (kill-emacs 0) behaviour https://github.com/ensime/ensime-server/issues/862
+    - EMACS_VERSION=24.4 EMACS_URL=https://www.dropbox.com/s/y3bhjrchxrm9reh/emacs-24.4-bin.tar.bz2
