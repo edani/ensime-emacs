@@ -62,6 +62,16 @@
 (put 'ensime-test-interrupted 'error-message "Test Interrupted")
 
 
+(defun ensime--extract-scala-library-jar ()
+  (with-temp-buffer
+    (insert-file-contents
+     (ensime--classpath-file ensime--test-scala-version))
+    (--first
+     (string-match (concat "/scala-library-" ensime--test-scala-version ".jar") it )
+     (split-string (buffer-string) ensime--classpath-separator 'omit-nulls))))
+
+
+
 (defun ensime-test-concat-lines (&rest lines)
   (mapconcat #'identity lines "\n"))
 
@@ -104,6 +114,7 @@
 		      (concat root-dir "target/scala-"
 			      (ensime--test-scala-major-version) "/classes" )))
          (test-target-dir (file-name-as-directory (concat root-dir "test-target")))
+         (scala-jar (ensime--extract-scala-library-jar))
          (config (append
                   extra-config
                   `(:root-dir ,root-dir
@@ -119,6 +130,7 @@
                         :module-name "test"
                         :source-roots (,src-dir)
                         :depends-on-modules nil
+                        :compile-deps (,scala-jar)
                         :target ,target-dir
                         :test-target ,test-target-dir)))))
          (conf-file (ensime-create-file
@@ -370,18 +382,14 @@
               (test (car ensime-test-queue)))
           (setq ensime-shared-test-state '())
           (setq ensime-async-handler-stack '())
-
-	  (message "\n")
+          (message "\n")
           (message "Starting test: '%s'" (plist-get test :title))
-
           (if (plist-get test :async)
-
               ;; Asynchronous test
               (let ((handlers (reverse (plist-get test :handlers))))
                 (dolist (h handlers)
                   (push h ensime-async-handler-stack))
                 (funcall (plist-get test :trigger)))
-
             ;; Synchronous test
             (progn
               (pop ensime-test-queue)
@@ -391,14 +399,13 @@
                   (ensime-test-interrupted
                    (message "Error executing test, moving to next."))))
               (ensime-run-next-test))))
-      (goto-char (point-max))
-      (let* ((status (if ensime--test-had-failures 1 0))
-	     (msg (format "Finished suite with status %s." status)))
-	(message msg)
-	(when ensime--test-exit-on-finish
-	  (kill-emacs status)))
-	)))
-
+      (progn
+        (goto-char (point-max))
+        (let* ((status (if ensime--test-had-failures 1 0))
+               (msg (format "Finished suite with status %s." status)))
+          (message msg)
+          (when ensime--test-exit-on-finish
+            (kill-emacs status)))))))
 
 (defmacro ensime-assert (pred)
   `(let ((val ,pred))
@@ -1953,14 +1960,17 @@
   "Run all regression tests for ensime-mode."
   (interactive)
   (setq debug-on-error t)
-  (ensime-run-suite ensime-fast-suite)
-  (setq ensime--test-had-failures nil)
-  (setq ensime--test-exit-on-finish (getenv "ENSIME_RUN_AND_EXIT"))
-  (ensime-run-suite ensime-slow-suite)
-  )
+  (ensime--update-server
+   ensime--test-scala-version
+   (lambda()
+     (ensime-run-suite ensime-fast-suite)
+     (setq ensime--test-had-failures nil)
+     (setq ensime--test-exit-on-finish (getenv "ENSIME_RUN_AND_EXIT"))
+     (ensime-run-suite ensime-slow-suite))))
 
 (defun ensime-run-one-test (key)
-  "Run a single test selected by title."
+  "Run a single test selected by title.
+Must run the run-all script first to update the server."
   (interactive "sEnter a regex matching a test's title: ")
   (catch 'done
     (setq ensime--test-had-failures nil)
