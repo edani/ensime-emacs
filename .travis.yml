@@ -3,22 +3,22 @@ jdk:
   - openjdk6
 scala:
   - 2.11.5
-sudo: false
+#sudo: false
 cache:
   directories:
     - $HOME/.ivy2/cache
-addons:
-  apt_packages:
+#addons:
+#  apt_packages:
   # https://github.com/travis-ci/apt-package-whitelist
-  - openjdk-6-source
+#  - openjdk-6-source
   #- openjdk-7-source
   # Travis doen't allow ppa's on its docker infrastructure but by
   # installing emacs23-gtk we get most of the dependencies we need to
   # run our own build of emacs-24.4.
-  - emacs23-gtk
+#  - emacs23-gtk
 install:
-  - curl -L https://www.dropbox.com/s/y3bhjrchxrm9reh/emacs-24.4-bin.tar.bz2 | tar xjf - -C $HOME
-  - git clone --depth 1 https://github.com/fommil/ensime-emacs.git $HOME/ensime-emacs
+#  - curl -L https://www.dropbox.com/s/y3bhjrchxrm9reh/emacs-24.4-bin.tar.bz2 | tar xjf - -C $HOME
+  - sudo add-apt-repository -y ppa:cassou/emacs && sudo apt-get update -qq && sudo apt-get install -qq openjdk-6-source emacs24 emacs24-el
   - sh -e /etc/init.d/xvfb start && sleep 5
 script:
   - test/run_emacs_tests.sh #2>&1 | tee stdout | grep "Starting test"
@@ -29,4 +29,5 @@ env:
     - TRAVIS_UNDERCOVER=true
     - DISPLAY=:99
   matrix:
-    - ENSIME_TEST_SERVER_VERSION=$TRAVIS_SCALA_VERSION EMACS=$HOME/emacs-24.4-bin/bin/emacs-24.4
+#    - ENSIME_TEST_SERVER_VERSION=$TRAVIS_SCALA_VERSION EMACS=$HOME/emacs-24.4-bin/bin/emacs-24.4
+    - ENSIME_TEST_SERVER_VERSION=$TRAVIS_SCALA_VERSION EMACS=emacs24
