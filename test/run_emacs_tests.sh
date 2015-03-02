@@ -1,8 +1,13 @@
 #!/bin/bash
 
-if [ -z "$ENSIME_RUN_AND_EXIT" ] ; then
-    export ENSIME_RUN_AND_EXIT=1
+if [ "$TRAVIS" = "true" ] ; then
+    echo "Starting Xvfb..."
+    export DISPLAY=:99
+    Xvfb $DISPLAY -screen 0 1024x768x16 &
+    sleep 5
 fi
+
+export ENSIME_RUN_AND_EXIT=t
 
 if [ -z "$ENSIME_TEST_SERVER_VERSION" ] ; then
     export ENSIME_TEST_SERVER_VERSION=2.11.5

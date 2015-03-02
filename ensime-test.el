@@ -51,7 +51,7 @@
 
 (defvar ensime--test-had-failures nil)
 
-(defvar ensime--test-exit-on-finish nil)
+(defvar ensime--test-exit-on-finish (getenv "ENSIME_RUN_AND_EXIT"))
 
 (put 'ensime-test-assert-failed
      'error-conditions '(error ensime-test-assert-failed))
@@ -210,11 +210,8 @@
 
 (defun ensime-kill-all-ensime-servers ()
   "Kill all inferior ensime server buffers."
-  (dolist (conn ensime-net-processes)
-    (message "Quitting %s" conn)
-    (ensime-quit-connection conn))
-   (dolist (b (buffer-list))
-    (when (string-match "^\\*inferior-ensime-server" (buffer-name b))
+  (dolist (b (buffer-list))
+    (when (string-match "^\\*inferior-ensime-server.*" (buffer-name b))
       (kill-buffer b))))
 
 (defmacro ensime-test-var-put (var val)
@@ -1914,14 +1911,22 @@
       (assert (directory-files (concat (plist-get proj :target) "/test") nil "class$"))
       (ensime-test-init-proj proj))
 
-    ((:compiler-ready val)
+    ((:compiler-ready val))
+    
+    ((:full-typecheck-finished val))
+
+    ((:region-sem-highlighted val))
+
+    ((:indexer-ready val)
      (ensime-test-with-proj
       (proj src-files)
       (ensime-rpc-debug-set-break buffer-file-name 7)
       (ensime-rpc-debug-start "test.Test")))
-
+    
     ((:debug-event evt (equal (plist-get evt :type) 'start)))
 
+    ((:debug-event evt (equal (plist-get evt :type) 'threadStart)))
+    
     ((:debug-event evt (equal (plist-get evt :type) 'breakpoint))
      (ensime-test-with-proj
       (proj src-files)
@@ -1963,10 +1968,19 @@
   (ensime--update-server
    ensime--test-scala-version
    (lambda()
+     ;; temporarilly disable exiting, to run the fast suite (this is a
+     ;; bit of a hack)
+     (setq ensime--test-exit-on-finish--old ensime--test-exit-on-finish)
+     (setq ensime--test-exit-on-finish nil)
      (ensime-run-suite ensime-fast-suite)
+     (setq ensime--test-exit-on-finish ensime--test-exit-on-finish--old)
+     (when (and ensime--test-had-failures ensime--test-exit-on-finish)
+       (kill-emacs 1))
+     ;; reset failures, incase interactive caller wants to see slow results
      (setq ensime--test-had-failures nil)
-     (setq ensime--test-exit-on-finish (getenv "ENSIME_RUN_AND_EXIT"))
-     (ensime-run-suite ensime-slow-suite))))
+     (ensime-run-suite ensime-slow-suite)
+     (when (ensime--test-exit-on-finish)
+       (kill-emacs (if ensime--test-had-failures 1 0))))))
 
 (defun ensime-run-one-test (key)
   "Run a single test selected by title.
