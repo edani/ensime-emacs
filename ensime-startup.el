@@ -235,12 +235,18 @@ CACHE-DIR is the server's persistent output directory."
         (error "java command %s not found" java-command))
       ;; Make sure we clean up nicely (required on Windows, or port files won't
       ;; be removed).
-      (add-hook 'kill-emacs-hook 'ensime-interrupt-all-servers)
+      (add-hook 'kill-emacs-hook 'ensime-kill-emacs-hook-function)
       (add-hook 'kill-buffer-hook 'ensime-interrupt-buffer-process nil t)
       (let ((proc (get-buffer-process (current-buffer))))
         (ensime-set-query-on-exit-flag proc)
         (run-hooks 'ensime-server-process-start-hook)
         proc))))
+
+(defun ensime-kill-emacs-hook-function ()
+  "Swallow and log errors on exit."
+  (condition-case err
+      (ensime-interrupt-all-servers)
+    (message "Error while killing emacs: %s" err)))
 
 (defun ensime--select-server-version(scala-version) "0.9.10-SNAPSHOT")
 
