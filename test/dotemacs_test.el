@@ -60,8 +60,9 @@
     (package-install 'undercover))
   (when (require 'undercover nil t)
     (undercover "ensime*.el"
-                (:exclude "ensime-startup.el")
-                (:report-file "coveralls.json"))))
+                ;; https://github.com/ensime/ensime-server/issues/875
+                (:exclude "ensime-startup.el"
+                          "ensime-test.el" "dotemacs_test.el"))))
 
 (add-to-list 'load-path "./")
 (require 'ensime)

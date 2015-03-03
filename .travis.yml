@@ -2,7 +2,11 @@ language: scala
 jdk:
   - openjdk6
 scala:
-  - 2.11.5
+# https://github.com/ensime/ensime-server/issues/866
+#  - 2.9.2
+#  - 2.9.3
+#  - 2.10.4
+  - 2.11.6
 sudo: false
 cache:
   directories:
@@ -23,8 +27,8 @@ install:
     $EMACS --version
 script:
   - test/run_emacs_tests.sh #2>&1 | tee stdout | grep "Starting test"
-after_success:
-  - if [ ! -z "$UNDERCOVER" ] ; then curl -v -include --form json_file=@coveralls.json https://coveralls.io/api/v1/jobs ; fi
+#after_success:
+#  - if [ ! -z "$UNDERCOVER" ] ; then curl -v -include --form json_file=@coveralls.json https://coveralls.io/api/v1/jobs ; fi
 #after_failure:
 #  - cat stdout
 env:
@@ -35,4 +39,5 @@ env:
 #    - EMACS_VERSION=24.1 EMACS_URL=https://www.dropbox.com/s/lf2c9op9wax86y8/emacs-24.1-bin.tar.bz2
 #    - EMACS_VERSION=24.2 EMACS_URL=https://www.dropbox.com/s/u1isy5ywhu5a2yg/emacs-24.2-bin.tar.bz2
     - EMACS_VERSION=24.3 EMACS_URL=https://www.dropbox.com/s/iy3dqx5r378rpe6/emacs-24.3-bin.tar.bz2 UNDERCOVER=true
-    - EMACS_VERSION=24.4 EMACS_URL=https://www.dropbox.com/s/y3bhjrchxrm9reh/emacs-24.4-bin.tar.bz2
+# emacs 24.4 being weird https://github.com/ensime/ensime-server/issues/862
+#    - EMACS_VERSION=24.4 EMACS_URL=https://www.dropbox.com/s/y3bhjrchxrm9reh/emacs-24.4-bin.tar.bz2
