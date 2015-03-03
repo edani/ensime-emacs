@@ -17,6 +17,13 @@ if [ -z "$EMACS" ] ; then
     export EMACS=emacs
 fi
 
+if [ -d "emacs.d/ensime" ] ; then
+    echo "Found existing ensime classpath cache"
+else
+    $EMACS --no-init-file --load test/dotemacs_test.el --eval \
+           "(ensime--update-server \"$ENSIME_TEST_SERVER_VERSION\" (lambda() (kill-emacs 0)))"
+fi
+
 if [ $# -ge 1 ]; then
   exec $EMACS --no-init-file --load test/dotemacs_test.el --eval '(ensime-run-one-test "'"$*"'")'
 else

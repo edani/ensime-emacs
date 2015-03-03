@@ -1965,22 +1965,19 @@
   "Run all regression tests for ensime-mode."
   (interactive)
   (setq debug-on-error t)
-  (ensime--update-server
-   ensime--test-scala-version
-   (lambda()
-     ;; temporarilly disable exiting, to run the fast suite (this is a
-     ;; bit of a hack)
-     (setq ensime--test-exit-on-finish--old ensime--test-exit-on-finish)
-     (setq ensime--test-exit-on-finish nil)
-     (ensime-run-suite ensime-fast-suite)
-     (setq ensime--test-exit-on-finish ensime--test-exit-on-finish--old)
-     (when (and ensime--test-had-failures ensime--test-exit-on-finish)
-       (kill-emacs 1))
-     ;; reset failures, incase interactive caller wants to see slow results
-     (setq ensime--test-had-failures nil)
-     (ensime-run-suite ensime-slow-suite)
-     (when (ensime--test-exit-on-finish)
-       (kill-emacs (if ensime--test-had-failures 1 0))))))
+  ;; temporarilly disable exiting, to run the fast suite (this is a
+  ;; bit of a hack)
+  (setq ensime--test-exit-on-finish--old ensime--test-exit-on-finish)
+  (setq ensime--test-exit-on-finish nil)
+  (ensime-run-suite ensime-fast-suite)
+  (setq ensime--test-exit-on-finish ensime--test-exit-on-finish--old)
+  (when (and ensime--test-had-failures ensime--test-exit-on-finish)
+    (kill-emacs 1))
+  ;; reset failures, incase interactive caller wants to see slow results
+  (setq ensime--test-had-failures nil)
+  (ensime-run-suite ensime-slow-suite)
+  (when (ensime--test-exit-on-finish)
+    (kill-emacs (if ensime--test-had-failures 1 0))))
 
 (defun ensime-run-one-test (key)
   "Run a single test selected by title.
