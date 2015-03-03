@@ -55,11 +55,13 @@
 	    ))))
   (error (message "Error loading dependencies: %s" err)))
 
-(when (getenv "TRAVIS_UNDERCOVER")
+(when (getenv "UNDERCOVER")
   (unless (package-installed-p 'undercover)
     (package-install 'undercover))
   (when (require 'undercover nil t)
-    (undercover "ensime*.el" (:exclude "ensime-client.el" "ensime-startup.el"))))
+    (undercover "ensime*.el"
+                (:exclude "ensime-startup.el")
+                (:report-file "coveralls.json"))))
 
 (add-to-list 'load-path "./")
 (require 'ensime)
