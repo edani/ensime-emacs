@@ -30,11 +30,13 @@
 	(accum ""))
     (dolist (piece pieces)
       (setq accum (concat accum piece))
-      (ensime-insert-action-link
-       piece
-       `(lambda (x)
-	  (ensime-inspect-package-by-path ,accum))
-       (or face font-lock-type-face))
+      (ensime--propertize-inserted-text
+       (:ensime-package accum)
+       (ensime-insert-action-link
+	piece
+	`(lambda (x)
+	   (ensime-inspect-package-by-path ,accum))
+	(or face font-lock-type-face)))
       (insert ".")
       (setq accum (concat accum ".")))))
 
@@ -49,16 +51,21 @@
        (ensime-type-inspector-show
         (ensime-rpc-inspect-type-by-id ,type-id)))))
 
+(defmacro* ensime--propertize-inserted-text (prop-list &rest body)
+  `(let ((start-props-point (point)))
+     ,@body
+     (add-text-properties start-props-point (point) (list ,@prop-list))))
+
 (defun ensime-inspector-insert-link-to-type (text type-id type-full-name is-obj)
   "A helper for type link insertion. See usage in
  ensime-inspector-insert-linked-type. If is-obj is
  non-nil, use an alternative color for the link."
-  (ensime-insert-action-link
-   text
-   (ensime-make-inspect-type-action type-id type-full-name)
-   (if is-obj
-       font-lock-constant-face
-     font-lock-type-face)))
+  (ensime--propertize-inserted-text
+   (:ensime-type-full-name type-full-name)
+   (ensime-insert-action-link
+    text
+    (ensime-make-inspect-type-action type-id type-full-name)
+    (if is-obj font-lock-constant-face font-lock-type-face))))
 
 (defun ensime-inspector-insert-linked-type
   (type &optional with-doc-link qualified)
@@ -102,25 +109,7 @@
 	    (if (not (eq tpe last-type-arg))
 		(insert ", ")))
 	  (insert "]")))
-
-      (when with-doc-link
-        (insert " ")
-	(ensime-insert-action-link
-	 "doc" `(lambda (x) (browse-url (ensime-make-doc-url ',type))))
-	(let ((pos (plist-get type :pos)))
-          (when (ensime-pos-available-p pos)
-            (insert " ")
-            (ensime-insert-action-link
-             "source"
-             `(lambda (x)
-                (if (ensime-pos-valid-local-p ,pos)
-                    (ensime-goto-source-location ,pos t)
-                  (let* ((info (ensime-rpc-get-type-by-name ,type-full-name))
-                         (pos (plist-get info :pos)))
-                    (if (ensime-pos-valid-local-p pos)
-                        (ensime-goto-source-location pos t)
-                      (message "Sorry, no definition found.")))))
-             font-lock-keyword-face)))))))
+      )))
 
 
 (defun ensime-inspector-insert-linked-arrow-type
@@ -154,22 +143,17 @@
     (if (or (equal 'method (ensime-declared-as m))
 	    (equal 'field (ensime-declared-as m)))
 	(progn
-          (if (ensime-pos-available-p pos)
-            (ensime-insert-action-link
-             member-name
-             `(lambda (x)
-                (if (ensime-pos-valid-local-p ,pos)
-                    (ensime-goto-source-location ,pos t)
-                  (let* ((info (ensime-rpc-get-member-by-name ,owner-full-name ,member-name nil))
-                         (pos (plist-get info :decl-pos)))
-                    (if (ensime-pos-valid-local-p pos)
-                        (ensime-goto-source-location pos t)
-                      (message "Sorry, no definition found.")))))
-             font-lock-function-name-face)
+	  (ensime--propertize-inserted-text
+	   (:ensime-type-full-name
+	    owner-full-name
+	    :ensime-member-name
+	    member-name
+	    :ensime-member-type-id
+	    (ensime-type-id type))
 
-	    (ensime-insert-action-link
-	     member-name `(lambda (x) (browse-url (ensime-make-doc-url ',owner-type ',m)))
-             font-lock-function-name-face))
+	   (ensime-insert-action-link
+	    member-name `(lambda (x) ())
+	    font-lock-function-name-face))
 
 	  (tab-to-tab-stop)
 	  (ensime-inspector-insert-linked-type type nil nil))
@@ -240,7 +224,10 @@
 	   (if pack-path (ensime-inspect-package-by-path pack-path)
 	     ;; otherwise, inspect type
 	     (let* ((inspect-info (ensime-type-inspect-info-at-point)))
-	       (ensime-type-inspector-show inspect-info)))))))
+	       (ensime-type-inspector-show inspect-info)))))
+
+    (message "M-. to go to a symbol's source, C-c C-v d to browse documentation.")
+    ))
 
 (defun ensime-companion-type-name (type-name)
   (if (string-match "\\(.*\\)\\$$" type-name)
@@ -502,6 +489,45 @@ inspect the package of the current source file."
 		      info))))
     ))
 
+(defun ensime-inspector-browse-source ()
+  "Browse the source code of the symbol at point."
+  (interactive)
+  (let* ((props (text-properties-at (point)))
+	 (type-full-name (plist-get props :ensime-type-full-name))
+	 (member-name (plist-get props :ensime-member-name))
+	 (member-type-id (plist-get props :ensime-member-type-id))
+	 (package (plist-get props :ensime-package)))
+    (let ((pos (cond
+		((and type-full-name member-name)
+		 (let* ((info (ensime-rpc-get-member-by-name type-full-name member-name nil)))
+		   (plist-get info :decl-pos)))
+
+		(type-full-name
+		 (let* ((info (ensime-rpc-get-type-by-name type-full-name)))
+		   (plist-get info :pos)))
+
+		(package
+		 (let* ((info (ensime-rpc-get-member-by-name package)))
+		   (plist-get info :pos)))
+
+		(t nil))))
+      (if (ensime-pos-valid-local-p pos)
+	  (ensime-goto-source-location pos t)
+	(message "Sorry, no definition found.")))))
+
+(defun ensime-inspector-browse-doc ()
+  "Browse the documentation of the symbol at point (in an external browser)."
+  (interactive)
+  (let* ((props (text-properties-at (point)))
+	 (type-full-name (plist-get props :ensime-type-full-name))
+	 (member-name (plist-get props :ensime-member-name))
+	 (member-type-id (plist-get props :ensime-member-type-id))
+	 (package (plist-get props :ensime-package)))
+    (if package
+	(browse-url (ensime-rpc-doc-uri-for-symbol package))
+      (browse-url (ensime-rpc-doc-uri-for-symbol
+		   type-full-name member-name member-type-id)))))
+
 (defvar ensime-inspector-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map [?\t] 'forward-button)
@@ -509,6 +535,8 @@ inspect the package of the current source file."
     (define-key map (kbd "M-p") 'backward-button)
     (define-key map (kbd ".") 'ensime-inspector-forward-page)
     (define-key map (kbd ",") 'ensime-inspector-backward-page)
+    (define-key map (kbd "M-.") 'ensime-inspector-browse-source)
+    (define-key map (kbd "C-c C-v d") 'ensime-inspector-browse-doc)
     map)
   "Type and package inspector key bindings.")
 
