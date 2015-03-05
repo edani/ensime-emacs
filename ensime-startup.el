@@ -66,7 +66,7 @@
                              (concat cache-dir "/port")))))
 
       ;; Surface the server buffer so user can observe the startup progress.
-      (display-buffer-at-bottom (process-buffer server-proc) nil)
+      (display-buffer (process-buffer server-proc) nil)
 
       ;; Store the config on the server process so we can identify it later.
       (process-put server-proc :ensime-config config)
@@ -156,14 +156,14 @@ Analyzer will be restarted. All source will be recompiled."
             (when-let
              (win (get-buffer-window (process-buffer process)))
              (delete-window win))
-            (kill-buffer (process-buffer process))
             (funcall on-success-fn))
         (message "Could not create classpath file %s" classpath-file))))
    (t
     (message "Process %s exited: %s" process event))))
 
 (defun ensime--update-server (scala-version on-success-fn)
-  (with-current-buffer (get-buffer-create (generate-new-buffer-name "*ensime-update*"))
+  (with-current-buffer (get-buffer-create "*ensime-update*")
+    (erase-buffer)
     (let* ((default-directory (file-name-as-directory
                                (make-temp-file "ensime_update_" t)))
            (classpath-file (ensime--classpath-file scala-version))
@@ -179,12 +179,13 @@ Analyzer will be restarted. All source will be recompiled."
       (if (executable-find ensime-sbt-command)
           (let ((process (start-process "*ensime-update*" (current-buffer)
                                         ensime-sbt-command "saveClasspath" "clean")))
-            (display-buffer-at-bottom (current-buffer) nil)
-            (set-process-filter process
-				;; Log output on CI testing runs.
-				`(lambda (process text)
-				   (when (not (null window-system))
-				     (princ text 'external-debugging-output))))
+            (display-buffer (current-buffer) nil)
+            (when (getenv "ENSIME_TEST_SERVER_VERSION")
+              (set-process-filter process
+                                  ;; Log output on CI testing runs.
+                                  `(lambda (process text)
+                                     (when (not (null window-system))
+                                       (princ text 'external-debugging-output)))))
             (set-process-sentinel process
                                   `(lambda (process event)
                                      (ensime--update-sentinel process
