@@ -63,6 +63,14 @@
   :type 'string
   :group 'ensime-server)
 
+(defcustom ensime-server-version "0.9.10-SNAPSHOT"
+  "Distributed version of the server to upgrade and start.
+This is primarily useful for ENSIME developers (or bug reporters)
+to test against. The client is designed to work with the default
+version."
+  :type 'string
+  :group 'ensime-server)
+
 (defcustom ensime-default-server-env ()
   "A `process-environment' compatible list of environment variables"
   :type '(repeat string)

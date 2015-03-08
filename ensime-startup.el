@@ -130,9 +130,7 @@ Analyzer will be restarted. All source will be recompiled."
 
 (defun ensime--classpath-file (scala-version)
   (expand-file-name
-   (format "classpath_%s_%s"
-           scala-version
-           (ensime--select-server-version scala-version))
+   (format "classpath_%s_%s" scala-version ensime-server-version)
    (ensime--user-directory)))
 
 (defun ensime--classfile-needs-refresh-p (classfile)
@@ -249,14 +247,11 @@ CACHE-DIR is the server's persistent output directory."
       (ensime-interrupt-all-servers)
     (message "Error while killing emacs: %s" err)))
 
-(defun ensime--select-server-version(scala-version) "0.9.10-SNAPSHOT")
-
 (defun ensime--create-sbt-start-script (scala-version)
   ;; emacs has some weird case-preservation rules in regexp replace
   ;; see http://github.com/magnars/s.el/issues/62
   (s-replace-all (list (cons "_scala_version_" scala-version)
-                       (cons "_server_version_" (ensime--select-server-version
-                                                 scala-version))
+                       (cons "_server_version_" ensime-server-version)
                        (cons "_classpath_file_" (ensime--classpath-file scala-version)))
                  ensime--sbt-start-template))
 
