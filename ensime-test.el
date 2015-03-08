@@ -67,7 +67,7 @@
     (insert-file-contents
      (ensime--classpath-file ensime--test-scala-version))
     (--first
-     (string-match (concat "/scala-library-" ensime--test-scala-version ".jar") it )
+     (string-match (concat "/scala-library.*\.jar") it )
      (split-string (buffer-string) ensime--classpath-separator 'omit-nulls))))
 
 
@@ -1965,19 +1965,18 @@
   "Run all regression tests for ensime-mode."
   (interactive)
   (setq debug-on-error t)
-  ;; temporarilly disable exiting, to run the fast suite (this is a
-  ;; bit of a hack)
+  ;; HACK: temporarilly disable exiting, to run the fast suite
   (setq ensime--test-exit-on-finish--old ensime--test-exit-on-finish)
   (setq ensime--test-exit-on-finish nil)
-  (ensime-run-suite ensime-fast-suite)
-  (setq ensime--test-exit-on-finish ensime--test-exit-on-finish--old)
-  (when (and ensime--test-had-failures ensime--test-exit-on-finish)
-    (kill-emacs 1))
-  ;; reset failures, incase interactive caller wants to see slow results
-  (setq ensime--test-had-failures nil)
-  (ensime-run-suite ensime-slow-suite)
-  (when (ensime--test-exit-on-finish)
-    (kill-emacs (if ensime--test-had-failures 1 0))))
+
+  (ensime--update-server
+   ensime--test-scala-version
+   (lambda() 
+     (ensime-run-suite ensime-fast-suite)
+     (setq ensime--test-exit-on-finish ensime--test-exit-on-finish--old)
+     (when (and ensime--test-had-failures ensime--test-exit-on-finish)
+       (kill-emacs 1))
+     (ensime-run-suite ensime-slow-suite))))
 
 (defun ensime-run-one-test (key)
   "Run a single test selected by title.
