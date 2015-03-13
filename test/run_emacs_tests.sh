@@ -10,7 +10,7 @@ fi
 export ENSIME_RUN_AND_EXIT=t
 
 if [ -z "$ENSIME_TEST_SERVER_VERSION" ] ; then
-    export ENSIME_TEST_SERVER_VERSION=2.11.5
+    export ENSIME_TEST_SERVER_VERSION=2.11.6
 fi
 
 if [ -z "$EMACS" ] ; then
