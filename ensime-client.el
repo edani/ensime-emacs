@@ -1172,7 +1172,12 @@ with the current project's dependencies loaded. Returns a property list."
   (ensime-eval-async `(swank:exec-refactor ,proc-id , refactor-type) continue))
 
 (defun ensime-rpc-refactor-cancel (proc-id)
-  (ensime-eval-async `(swank:cancel-refactor ,proc-id) #'identity))
+  ;(ensime-eval-async `(swank:cancel-refactor ,proc-id) #'identity))
+  (ensime-eval-async
+   `(swank:cancel-refactor ,proc-id)
+   (lambda (result)
+     (kill-buffer ensime-refactor-info-buffer-name)
+     result)))
 
 
 (defun ensime-rpc-shutdown-server ()
