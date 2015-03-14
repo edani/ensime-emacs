@@ -51,7 +51,7 @@
 
 (defvar ensime--test-had-failures nil)
 
-(defvar ensime--test-exit-on-finish (getenv "ENSIME_RUN_AND_EXIT"))
+(defvar ensime--test-exit-on-finish (string= "t" (getenv "ENSIME_RUN_AND_EXIT")))
 
 (put 'ensime-test-assert-failed
      'error-conditions '(error ensime-test-assert-failed))
@@ -1238,9 +1238,9 @@
                      "hello_world.scala"
                      :contents ,(ensime-test-concat-lines
                                  "package com.helloworld"
-                                 "import java.ut/*1*/"
+                                 "import scala.collection.imm/*1*/"
                                  "import Vec/*3*/"
-                                 "import java.util.{ List, Vec/*4*/}"
+                                 "import scala.collection.immutable.{ List, Vec/*4*/}"
                                  "class HelloWorld{"
                                  "import sc/*2*/"
                                  "}")))))
@@ -1262,30 +1262,30 @@
 
       (find-file (car src-files))
 
-      ;; complete java package member
+      ;; complete package member
       (ensime-test-eat-label "1")
       (let* ((candidates (ensime--test-completions)))
-        (ensime-assert (member "util" candidates)))
-      (insert "il.HashMap")
+        (ensime-assert (member "immutable" candidates)))
+      (insert "utable.List")
       (ensime-typecheck-current-file)
       ))
 
     ((:full-typecheck-finished val)
      (ensime-test-with-proj
       (proj src-files)
-      ;; complete java package member by class name
+      ;; complete package member by class name
       (ensime-test-eat-label "3")
       (let* ((candidates (ensime--test-completions))
              (to-inserts (mapcar (lambda (c) (get-text-property 0 'to-insert c))
 				candidates)))
-        (ensime-assert (member "java.util.Vector" to-inserts)))
+        (ensime-assert (member "scala.collection.immutable.Vector" to-inserts)))
       (ensime-typecheck-current-file)
       ))
 
     ((:full-typecheck-finished val)
      (ensime-test-with-proj
       (proj src-files)
-      ;; complete java package member by class name in name list
+      ;; complete package member by class name in name list
       (ensime-test-eat-label "4")
       (let* ((candidates (ensime--test-completions)))
         (ensime-assert (member "Vector" candidates)))
@@ -1295,7 +1295,7 @@
     ((:full-typecheck-finished val)
      (ensime-test-with-proj
       (proj src-files)
-      ;; complete scala package
+      ;; complete scala package in class body
       (ensime-test-eat-label "2")
       (let* ((candidates (ensime--test-completions)))
         (ensime-assert (member "scala" candidates)))
@@ -1309,7 +1309,7 @@
                      "hello_world.scala"
                      :contents ,(ensime-test-concat-lines
                                  "package com.helloworld"
-                                 "import java.util.Vector"
+                                 "import scala.collection.immutable.Vector"
                                  "class HelloWorld{"
                                  "}"))))))
       (ensime-test-init-proj proj))
@@ -1336,7 +1336,7 @@
       (ensime-assert
        (equal (length touched-files) 1))
       (goto-char (point-min))
-      (ensime-assert (null (search-forward "import java.util.Vector" nil t)))
+      (ensime-assert (null (search-forward "import scala.collection.immutable.Vector" nil t)))
       (ensime-test-cleanup proj))))
 
    (ensime-async-test
@@ -1690,24 +1690,24 @@
     ((:indexer-ready status)
      (ensime-test-with-proj
       (proj src-files)
-      ;; Work around race condition
-      (sit-for 5)
       ;; Prevent a previous search from affecting this test
       (setq ensime-search-text "")
       (ensime-search)
-      (insert "java.util.Vector")))
+      (insert "scala.collection.immutable.Vector")))
 
     ((:search-buffer-populated val)
      (ensime-test-with-proj
       (proj src-files)
 
       (with-current-buffer ensime-search-target-buffer-name
+        ;; uncomment to see the results (e.g. if they change due to server improvements)
+        ;;(message "%s" (buffer-string))
         (goto-char 1)
-        (ensime-assert (search-forward-regexp "java.util.Vector[^a-Z]" nil t))
+        (ensime-assert (search-forward-regexp "scala.collection.immutable.Vector[[:space:]]+" nil t))
         (goto-char 1)
-        (ensime-assert (search-forward "java.util.Vector.set" nil t))
-        (goto-char 1)
-        (ensime-assert (search-forward "java.util.Vector.addAll" nil t)))
+        ;; I don't necessarilly agree with these results, indeed they will change when
+        ;; we refactor the search backend.
+        (ensime-assert (search-forward "scala.collection.immutable.VectorIterator" nil t)))
 
       (ensime-search-quit)
       (ensime-test-cleanup proj))))
@@ -1721,7 +1721,7 @@
                                  "package pack"
                                  "class A(value:String){"
                                  "def hello(){"
-                                 "  println(new /*1*/ArrayList())"
+                                 "  println(new /*1*/ListBuffer())"
                                  "}"
                                  "}"))))))
       (ensime-test-init-proj proj))
@@ -1736,16 +1736,14 @@
     ((:indexer-ready status)
      (ensime-test-with-proj
       (proj src-files)
-      ;; Work around race condition
-      (sit-for 5)
       (goto-char 1)
-      (ensime-assert (null (search-forward "import java.util.ArrayList" nil t)))
+      (ensime-assert (null (search-forward "import scala.collection.mutable.ListBuffer" nil t)))
 
       (goto-char (ensime-test-after-label "1"))
       (ensime-import-type-at-point t)
 
       (goto-char 1)
-      (ensime-assert (search-forward "import java.util.ArrayList" nil t))
+      (ensime-assert (search-forward "import scala.collection.mutable.ListBuffer" nil t))
 
       (ensime-test-cleanup proj))))
 

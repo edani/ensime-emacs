@@ -7,7 +7,12 @@ if [ "$TRAVIS" = "true" ] ; then
     sleep 5
 fi
 
-export ENSIME_RUN_AND_EXIT=t
+# set to 'nil' when writing tests, it'll leave emacs open for you to
+# interactively inspect the environment
+if [ -z $ENSIME_RUN_AND_EXIT ] ; then
+   export ENSIME_RUN_AND_EXIT=t
+fi
+
 export ENSIME_SKIP_JRE_INDEX=t
 
 if [ -z "$ENSIME_TEST_SERVER_VERSION" ] ; then
