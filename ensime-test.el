@@ -1964,7 +1964,6 @@
 (defun ensime-run-all-tests ()
   "Run all regression tests for ensime-mode."
   (interactive)
-  (setq debug-on-error t)
   ;; HACK: temporarilly disable exiting, to run the fast suite
   (setq ensime--test-exit-on-finish--old ensime--test-exit-on-finish)
   (setq ensime--test-exit-on-finish nil)

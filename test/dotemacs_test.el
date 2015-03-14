@@ -3,21 +3,13 @@
 		(format "%s\n" (apply 'format format-string args)))))
     (princ text 'external-debugging-output)
     text))
-
-;; If we're running under X (as we do on CI), dump to debug output.
 (when (not (null window-system))
-  (ad-activate 'message)
-  (setq debugger
-	(lambda (reason &optional arg2)
-	  (message "Debugger entered!")
-	  (let* ((i 3)
-		 (frame (backtrace-frame i)))
-	    (while frame
-	      (message "  %s" (cdr frame))
-	      (setq i (+ i 1))
-	      (setq frame (backtrace-frame i)))))))
+  (ad-activate 'message))
 
-(setq debug-on-error t)
+(setq command-error-function
+      (lambda(a b c)
+        (message "%s %s %s" a b c)
+        (kill-emacs 1)))
 
 (setq user-emacs-directory (expand-file-name "./emacs.d"))
 (require 'package)
