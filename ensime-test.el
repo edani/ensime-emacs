@@ -1690,8 +1690,6 @@
     ((:indexer-ready status)
      (ensime-test-with-proj
       (proj src-files)
-      ;; Work around race condition
-      (sit-for 5)
       ;; Prevent a previous search from affecting this test
       (setq ensime-search-text "")
       (ensime-search)
@@ -1738,12 +1736,6 @@
     ((:indexer-ready status)
      (ensime-test-with-proj
       (proj src-files)
-      ;; FIXME: shouldn't have race conditions anymore
-      (sit-for 5)
-
-      ;; uncomment to see the results (e.g. if they change due to server improvements)
-      ;;(message "%s" (buffer-string))
-
       (goto-char 1)
       (ensime-assert (null (search-forward "import scala.collection.mutable.ListBuffer" nil t)))
 
