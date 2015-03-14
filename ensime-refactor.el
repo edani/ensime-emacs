@@ -188,7 +188,8 @@
 (defun ensime-refactor-handle-result (result)
   (let ((touched (plist-get result :touched-files)))
     (ensime-revert-visited-files touched t)
-    (ensime-event-sig :refactor-done touched)))
+    (ensime-event-sig :refactor-done touched)
+    (kill-buffer ensime-refactor-info-buffer-name)))
 
 (defun ensime-refactor-populate-confirmation-buffer (refactor-type changes)
   (let ((header
