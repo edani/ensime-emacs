@@ -1,9 +1,12 @@
 #!/bin/bash
 
+# tests must be run from the parent of the test directory
+cd "`dirname $0`/../"
+
 if [ "$TRAVIS" = "true" ] ; then
     echo "Starting Xvfb..."
     export DISPLAY=:99
-    Xvfb $DISPLAY -screen 0 1024x768x16 &
+    Xvfb $DISPLAY -screen 0 1024x768x16 > /dev/null 2>&1 &
     sleep 5
 fi
 
