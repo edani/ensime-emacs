@@ -178,7 +178,7 @@ Analyzer will be restarted. All source will be recompiled."
           (let ((process (start-process "*ensime-update*" (current-buffer)
                                         ensime-sbt-command "saveClasspath" "clean")))
             (display-buffer (current-buffer) nil)
-            (when (getenv "ENSIME_TEST_SERVER_VERSION")
+            (when (getenv "CONTINUOUS_INTEGRATION")
               (set-process-filter process
                                   ;; Log output on CI testing runs.
                                   `(lambda (process text)
