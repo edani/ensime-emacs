@@ -95,7 +95,7 @@
        (delete-file ,name))))
 
 (defvar ensime--test-scala-version
-  (getenv "ENSIME_TEST_SERVER_VERSION"))
+  (getenv "SCALA_VERSION"))
 
 (defun ensime--test-scala-major-version ()
   (mapconcat 'int-to-string
@@ -121,10 +121,7 @@
                     :cache-dir ,cache-dir
                     :name "test"
                     :scala-version ,ensime--test-scala-version
-                    :java-home
-		    ,(or (or (getenv "JDK_HOME") (getenv "JAVA_HOME"))
-			 (when-let (cmd (executable-find "/usr/libexec/java_home"))
-				   (s-chop-suffix "\n" (shell-command-to-string cmd))))
+                    :java-home ,(getenv "JDK_HOME")
                     :subprojects
                       ((:name "test"
                         :module-name "test"

@@ -3,7 +3,7 @@
 # deps:
 #  - build-deps emacs
 #  - xvfb
-#  - oracle-7-jdk
+#  - oracle-6-jdk
 
 # This file is to help us track upstream regressions in emacs. On
 # debian systems, type `apt-get build-deps emacs` to get everything
@@ -25,7 +25,7 @@ make -C src emacs || exit 125
 
 cd $TEST_DIR
 
-JDK_HOME=/usr/lib/jvm/jdk-6-oracle-x64/ JAVA_HOME=/usr/lib/jvm/jdk-6-oracle-x64/jre/ TRAVIS=true test/run_emacs_tests.sh
+CONTINUOUS_INTEGRATION=true `dirname $0`/run_emacs_tests.sh
 
 RET=$?
 
