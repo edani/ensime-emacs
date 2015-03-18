@@ -63,6 +63,13 @@
   :type 'string
   :group 'ensime-server)
 
+(defcustom ensime-auto-generate-config nil
+  "If true, ENSIME will try to create a config file automatically, and
+update it when the project definition changes. At the moment, this only
+works for sbt projects."
+  :type 'boolean
+  :group 'ensime-ui)
+
 (defcustom ensime-server-version "0.9.10-SNAPSHOT"
   "Distributed version of the server to upgrade and start.
 This is primarily useful for ENSIME developers (or bug reporters)

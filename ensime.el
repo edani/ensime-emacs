@@ -95,7 +95,12 @@
    ENSIME server and connect to its Swank server."
   (interactive)
   (condition-case ex
-      (ensime--maybe-update-and-start)
+      (if ensime-auto-generate-config
+          (ensime--maybe-refresh-config
+           nil
+           'ensime--maybe-update-and-start
+           '(lambda (reason) (ensime--maybe-update-and-start)))
+        (ensime--maybe-update-and-start))
     ('error (error (format
                     "check that sbt is on your PATH and that your config is compatible with %s [%s]"
                     "http://github.com/ensime/ensime-server/wiki/Example-Configuration-File" ex)))))
@@ -104,7 +109,12 @@
 (defun ensime-remote (host port)
   "Read config file for settings. Then connect to an existing ENSIME server."
   (interactive "shost: \nnport: ")
-  (ensime--maybe-update-and-start (url-gateway-nslookup-host host) port))
+
+  (if ensime-auto-generate-config
+      (ensime--maybe-refresh-config
+       nil
+       `(lambda () (ensime--maybe-update-and-start (url-gateway-nslookup-host ,host) ,port))
+       `(lambda (reason) (ensime--maybe-update-and-start (url-gateway-nslookup-host ,host) ,port)))))
 
 (provide 'ensime)
 

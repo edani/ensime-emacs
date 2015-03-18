@@ -108,15 +108,16 @@
 
 (defun ensime-reload ()
   "Re-initialize the project with the current state of the config file.
-Analyzer will be restarted. All source will be recompiled."
+Analyzer will be restarted."
   (interactive)
-  (let* ((conn (ensime-connection))
-	 (current-conf (ensime-config conn))
-	 (force-dir (plist-get current-conf :root-dir))
-	 (config (ensime-config-load (ensime-config-find force-dir) force-dir)))
-    (when (not (null config))
-      (ensime-set-config conn config)
-      (ensime-init-project conn))))
+  (let* ((conn (ensime-connection-or-nil))
+         (server-process (ensime-owning-server-process-for-source-file (buffer-file-name)))
+         (buf (when server-process (process-buffer server-process))))
+    (when conn
+      (catch (ensime-shutdown)))
+    (when buf
+      (kill-buffer buf))
+    (ensime)))
 
 (defun ensime--maybe-start-server (buffer java-home scala-version flags env config-file cache-dir)
   "Return a new or existing server process."
@@ -134,16 +135,12 @@ Analyzer will be restarted. All source will be recompiled."
    (ensime--user-directory)))
 
 (defun ensime--classfile-needs-refresh-p (classfile)
-  (if (file-exists-p classfile)
-      (let ((ensime-el (locate-file "ensime" load-path '(".el" ".elc"))))
-        (if ensime-el
-            (let ((classfile-mtime (nth 5 (file-attributes classfile)))
-                  (ensime-files (directory-files-and-attributes (file-name-directory ensime-el)
-                                                                nil
-                                                                "^ensime.*\\.elc?$")))
-              (some (lambda (a) (time-less-p classfile-mtime (nth 6 a))) ensime-files))
-          nil))
-    t))
+  (let ((ensime-el (locate-file "ensime" load-path '(".el" ".elc"))))
+    (if ensime-el
+        (ensime--dependencies-newer-than-target-p
+         classfile
+         (directory-files (file-name-directory ensime-el) t "^ensime.*\\.elc?$"))
+      nil)))
 
 (defun ensime--update-sentinel (process event scala-version on-success-fn)
   (cond
