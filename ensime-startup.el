@@ -264,6 +264,8 @@ import java.io._
 
 scalaVersion := \"_scala_version_\"
 
+ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) }
+
 resolvers += Resolver.sonatypeRepo(\"snapshots\")
 
 resolvers += \"Typesafe repository\" at \"http://repo.typesafe.com/typesafe/releases/\"
