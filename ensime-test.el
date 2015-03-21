@@ -1236,7 +1236,7 @@
                      :contents ,(ensime-test-concat-lines
                                  "package com.helloworld"
                                  "import scala.collection.imm/*1*/"
-                                 "import Vec/*3*/"
+                                 ;;"import Vec/*3*/"
                                  "import scala.collection.immutable.{ List, Vec/*4*/}"
                                  "class HelloWorld{"
                                  "import sc/*2*/"
@@ -1267,17 +1267,17 @@
       (ensime-typecheck-current-file)
       ))
 
-    ((:full-typecheck-finished val)
-     (ensime-test-with-proj
-      (proj src-files)
-      ;; complete package member by class name
-      (ensime-test-eat-label "3")
-      (let* ((candidates (ensime--test-completions))
-             (to-inserts (mapcar (lambda (c) (get-text-property 0 'to-insert c))
-				candidates)))
-        (ensime-assert (member "scala.collection.immutable.Vector" to-inserts)))
-      (ensime-typecheck-current-file)
-      ))
+    ;; ((:full-typecheck-finished val)
+    ;;  (ensime-test-with-proj
+    ;;   (proj src-files)
+    ;;   ;; complete package member by class name
+    ;;   (ensime-test-eat-label "3")
+    ;;   (let* ((candidates (ensime--test-completions))
+    ;;          (to-inserts (mapcar (lambda (c) (get-text-property 0 'to-insert c))
+	;; 			candidates)))
+    ;;     (ensime-assert (member "scala.collection.immutable.Vector" to-inserts)))
+    ;;   (ensime-typecheck-current-file)
+    ;;   ))
 
     ((:full-typecheck-finished val)
      (ensime-test-with-proj
