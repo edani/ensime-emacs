@@ -52,7 +52,8 @@
     (package-install 'undercover))
   (when (require 'undercover nil t)
     (undercover "ensime*.el"
-                (:report-file "coveralls.json")
+;; WORKAROUND https://github.com/sviridov/undercover.el/issues/7
+;;                (:report-file "coveralls.json")
                 (:exclude "ensime-test.el" "dotemacs_test.el"))))
 
 (add-to-list 'load-path "./")
