@@ -943,9 +943,13 @@ versions cannot deal with that."
   (ensime-eval
    `(swank:doc-uri-at-point ,file ,point)))
 
-(defun ensime-rpc-doc-uri-for-symbol (fqn &optional member-name member-type-id)
+(defun ensime-rpc-doc-uri-for-symbol (fqn &optional member-name member-signature)
   (ensime-eval
-   `(swank:doc-uri-for-symbol ,fqn ,member-name ,member-type-id)))
+   `(swank:doc-uri-for-symbol ,fqn ,member-name ,member-signature)))
+
+(defun ensime-rpc-symbol-by-name (fqn &optional member-name member-signature)
+  (ensime-eval
+   `(swank:symbol-by-name ,fqn ,member-name ,member-signature)))
 
 (defun ensime-rpc-method-bytecode (file line)
   (ensime-eval
@@ -1114,10 +1118,6 @@ with the current project's dependencies loaded. Returns a property list."
 (defun ensime-rpc-get-type-by-name (name)
   (ensime-eval
    `(swank:type-by-name ,name)))
-
-(defun ensime-rpc-get-member-by-name (type-name member-name member-is-type-p)
-  (ensime-eval
-   `(swank:member-by-name ,type-name ,member-name ,member-is-type-p)))
 
 (defun ensime-rpc-get-type-by-name-at-point (name)
   (ensime-eval
