@@ -1,0 +1,22 @@
+# BLOCKED https://github.com/Shippable/support/issues/1170
+build_image:
+  - ensime/ensime:shippable-1.0
+
+script:
+  - test/run_emacs_tests.sh
+
+# WORKAROUND https://github.com/sviridov/undercover.el/issues/7
+#after_success:
+#  - if [ -n "$UNDERCOVER" ] ; then
+#      curl -v -include --form json_file=@coveralls.json https://coveralls.io/api/v1/jobs ;
+#    fi
+
+env:
+  global:
+    # WORKAROUND https://github.com/Shippable/support/issues/1198
+    - COVERALLS_REPO_TOKEN=OhZ6uNJvQaFC64CSt8To3TrAmZAGDdJ1A
+  matrix:
+    - SCALA_VERSION=2.11.6 EMACS=/opt/emacs-24.1/bin/emacs
+    - SCALA_VERSION=2.11.6 EMACS=/opt/emacs-24.2/bin/emacs
+    - SCALA_VERSION=2.11.6 EMACS=/opt/emacs-24.3/bin/emacs
+    - SCALA_VERSION=2.11.6 EMACS=/opt/emacs-24.4/bin/emacs UNDERCOVER=true
