@@ -137,6 +137,9 @@
 (defun ensime-member-type (member)
   (plist-get member :type))
 
+(defun ensime-member-signature (member)
+  (plist-get member :signature-string))
+
 (defun ensime-member-pos (member)
   (plist-get member :pos))
 

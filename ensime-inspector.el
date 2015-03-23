@@ -138,7 +138,8 @@
   (let* ((type (ensime-member-type m))
          (owner-full-name (ensime-type-full-name owner-type))
 	 (pos (ensime-member-pos m))
-	 (member-name (ensime-member-name m)))
+	 (member-name (ensime-member-name m))
+	 (member-sig (ensime-member-signature m)))
 
     (if (or (equal 'method (ensime-declared-as m))
 	    (equal 'field (ensime-declared-as m)))
@@ -148,8 +149,8 @@
 	    owner-full-name
 	    :ensime-member-name
 	    member-name
-	    :ensime-member-type-id
-	    (ensime-type-id type))
+	    :ensime-member-signature
+	    member-sig)
 
 	   (ensime-insert-action-link
 	    member-name `(lambda (x) ())
@@ -490,24 +491,21 @@ inspect the package of the current source file."
     ))
 
 (defun ensime-inspector-browse-source ()
-  "Browse the source code of the symbol at point."
+  "Browse the source code of the symbol at point. Note: we don't make any
+ attempt to browse package symbols (what would we browse?)."
   (interactive)
   (let* ((props (text-properties-at (point)))
 	 (type-full-name (plist-get props :ensime-type-full-name))
 	 (member-name (plist-get props :ensime-member-name))
-	 (member-type-id (plist-get props :ensime-member-type-id))
-	 (package (plist-get props :ensime-package)))
+	 (member-sig (plist-get props :ensime-member-signature)))
     (let ((pos (cond
 		((and type-full-name member-name)
-		 (let* ((info (ensime-rpc-get-member-by-name type-full-name member-name nil)))
+		 (let* ((info (ensime-rpc-symbol-by-name
+			       type-full-name member-name member-sig)))
 		   (plist-get info :decl-pos)))
 
 		(type-full-name
 		 (let* ((info (ensime-rpc-get-type-by-name type-full-name)))
-		   (plist-get info :pos)))
-
-		(package
-		 (let* ((info (ensime-rpc-get-member-by-name package)))
 		   (plist-get info :pos)))
 
 		(t nil))))
@@ -521,12 +519,12 @@ inspect the package of the current source file."
   (let* ((props (text-properties-at (point)))
 	 (type-full-name (plist-get props :ensime-type-full-name))
 	 (member-name (plist-get props :ensime-member-name))
-	 (member-type-id (plist-get props :ensime-member-type-id))
+	 (member-sig (plist-get props :ensime-member-signature))
 	 (package (plist-get props :ensime-package)))
     (if package
 	(browse-url (ensime-rpc-doc-uri-for-symbol package))
       (browse-url (ensime-rpc-doc-uri-for-symbol
-		   type-full-name member-name member-type-id)))))
+		   type-full-name member-name member-sig)))))
 
 (defvar ensime-inspector-mode-map
   (let ((map (make-sparse-keymap)))
