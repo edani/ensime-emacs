@@ -128,7 +128,7 @@ argument is supplied) is a .scala or .java file."
 (defun ensime-temp-file-name (name)
   "Return the path of a temp file with filename 'name'."
   (expand-file-name
-   (concat (file-name-as-directory (ensime-temp-directory)) name)))
+   (ensime--join-paths (ensime-temp-directory name))))
 
 ; TODO deprecate and rewrite callers to use the cache-dir
 (defun ensime-temp-directory ()
@@ -146,11 +146,6 @@ argument is supplied) is a .scala or .java file."
 				      buffer-file-name)))))
      (ensime-write-buffer ,file-sym)
      ,@body))
-
-(defmacro ensime-with-temp-file (name)
-  "Return the path of a temp file with filename 'name'."
-  (concat (file-name-as-directory (ensime-temp-directory))
-	  name))
 
 (defun ensime-assert-executable-on-path (name)
   (when (null (executable-find name))
@@ -194,6 +189,22 @@ Do not show 'Writing..' message."
   (with-temp-buffer
     (insert-file-contents filename)
     (buffer-string)))
+
+(defun ensime--dependencies-newer-than-target-p (target-file dep-files-list)
+  (if (file-exists-p target-file)
+      (let ((target-mtime (nth 5 (file-attributes target-file))))
+        (some (lambda (d)
+                (time-less-p target-mtime (nth 5 (file-attributes d))))
+              dep-files-list))
+    t))
+
+(defun ensime--join-paths (base &rest paths)
+  (if paths
+      (apply
+       'ensime--join-paths
+       (concat (file-name-as-directory base) (first paths))
+       (rest paths))
+    base))
 
 ;; Commonly used functions
 

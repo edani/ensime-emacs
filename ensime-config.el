@@ -123,6 +123,66 @@
     (lambda (m) (plist-get m :source-roots))
     (plist-get (ensime-config (ensime-connection)) :subprojects))))
 
+
+;; Confing auto-gen -- sbt only
+
+(defun ensime-refresh-config ()
+  "Try to refresh the ENSIME config file based on the project definition. Currently
+only sbt projects are supported."
+  (interactive)
+  (ensime--maybe-refresh-config
+   t
+   '(lambda () (message "ENSIME config updated."))
+   '(lambda (reason) (message "ENSIME config not updated: %s" reason))))
+
+(defun ensime--maybe-refresh-config (force after-refresh-fn no-refresh-fn)
+  (let ((no-refresh-reason "couldn't detect project type"))
+    (when-let (project-root (sbt:find-root))
+      (let ((config-file (ensime--join-paths project-root ".ensime")))
+        (if (or force
+                (ensime--config-sbt-needs-refresh-p project-root config-file))
+            (progn
+              (setq no-refresh-reason nil)
+              (ensime--refresh-config-sbt project-root after-refresh-fn))
+          (setq no-refresh-reason "config up to date"))))
+
+    (when no-refresh-reason
+      (funcall no-refresh-fn no-refresh-reason))))
+
+(defun ensime--refresh-config-sbt (project-root on-success-fn)
+  (with-current-buffer (get-buffer-create "*ensime-gen-config*")
+    (erase-buffer)
+      (let ((default-directory project-root))
+        (if (executable-find ensime-sbt-command)
+            (let ((process (start-process "*ensime-gen-config*" (current-buffer)
+                                          ensime-sbt-command "gen-ensime")))
+              (display-buffer (current-buffer) nil)
+        (set-process-sentinel process
+                              `(lambda (process event)
+                                 (ensime--refresh-config-sentinel process
+                                                                  event
+                                                                  ',on-success-fn)))
+              (message "Updating ENSIME config..."))
+          (error "sbt command not found")))))
+
+(defun ensime--refresh-config-sentinel (process event on-success-fn)
+  (cond
+   ((equal event "finished\n")
+    (when-let (win (get-buffer-window (process-buffer process)))
+              (delete-window win))
+    (funcall on-success-fn))
+   (t
+    (message "Process %s exited: %s" process event))))
+
+(defun ensime--config-sbt-needs-refresh-p (project-root config-file)
+  (let* ((sbt-project (ensime--join-paths project-root "project"))
+         (sbt-files (append (directory-files project-root t ".*\\.sbt")
+                            (directory-files sbt-project t ".*\\.scala"))))
+    (if sbt-files
+        (ensime--dependencies-newer-than-target-p config-file sbt-files)
+      nil)))
+
+
 (provide 'ensime-config)
 
 ;; Local Variables:
