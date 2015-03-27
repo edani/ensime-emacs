@@ -766,9 +766,25 @@
 	       "     /*hello*/dog/*8*/"
 	       "     while (moose/*9*/)prin/*10*/"
 	       "     case _ =>r/*11*/"
+	       "     dfkjsdfj/*13*/"
+	       "     dfkjsdfj132/*14*/"
+	       "     dfkjsdfj132:+/*15*/"
+	       "     dfkjsdfj132_:+/*16*/"
+	       "     _MAX_LEN_/*17*/"
+	       "     `yield`/*18*/"
+	       "     αρετη/*19*/"
+	       "     _y/*20*/"
+	       "     dot_product_*/*21*/"
+	       "     __system/*22*/"
+	       "     empty_?/*23*/"
+	       "     ./*24*/"
+	       "     .kjsdf/*25*/"
+	       "       kjsdf/*26*/"
+	       "       \"abc $hell/*27*/\""
+	       "       abc_*=efg/*28*/"
 	       "  }"
                "}"))
-      (dotimes (i 12)
+      (dotimes (i 28)
 	(ensime-test-eat-label (int-to-string (1+ i)))
 	(ensime-assert-equal
 	 (ensime-completion-prefix-at-point)
@@ -784,6 +800,22 @@
 		  "prin"
 		  "r"
 		  "package"
+		  "dfkjsdfj"
+		  "dfkjsdfj132"
+		  ":+"
+		  "dfkjsdfj132_:+"
+		  "_MAX_LEN_"
+		  "`yield`"
+		  "αρετη"
+		  "_y"
+		  "dot_product_*"
+		  "__system"
+		  "empty_?"
+		  ""
+		  "kjsdf"
+		  "kjsdf"
+		  "hell"
+		  "efg"
 		  ))))
       ))
 
