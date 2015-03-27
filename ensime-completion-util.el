@@ -38,21 +38,55 @@
 		   'to-insert to-insert
 		   ))) completions))
 
-(defconst ensime--prefix-char-class "[a-zA-Z\\$0-9_#:<=>@!%&*+/?\\\\^|~-]")
+
+;; In order to efficiently and accurately match completion prefixes, we construct
+;; a regular expression which matches scala identifiers in reverse.
+;;
+;; For referece, Scala identifier syntax (SLS 2.11)
+;; -------------------------------
+;; op       ::=  opchar {opchar}
+;; varid    ::=  lower idrest
+;; plainid  ::=  upper idrest |  varid |  op
+;; id       ::=  plainid | ‘`’ stringLiteral ‘`’
+;; idrest   ::=  {letter | digit} [‘_’ op]
+;;
+(defconst ensime--rev-idrest-re
+  (concat
+   "\\(" scala-syntax:op-re "_+" "\\|" "_" "\\)?"
+   "\\(" "[" scala-syntax:letter-group scala-syntax:digit-group "]+" "_?" "\\)*"
+   ))
+(defconst ensime--rev-alphaid-re
+  ;; '$' intentionally omitted, as user identifiers should not include it, and
+  ;; it breaks completion of interpolated vars in strings.
+  (concat "\\(" ensime--rev-idrest-re
+	  "[" "[:lower:]" "[:upper:]" "_" "]" "\\)"))
+(defconst ensime--rev-plainid-re
+  (concat "\\(" ensime--rev-alphaid-re "\\|" scala-syntax:op-re "\\)"))
+(defconst ensime--rev-quotedid-re "`[^`\n\r]+`")
+(defconst ensime--rev-id-re
+  (concat "^" "\\(" ensime--rev-quotedid-re "\\|" ensime--rev-plainid-re "\\)"))
+(defconst ensime--prefix-char-class
+  (concat "["
+	  "`"
+	  scala-syntax:letterOrDigit-group
+	  scala-syntax:opchar-group
+	  "]"))
+
 (defun ensime-completion-prefix-at-point ()
   "Returns the prefix to complete."
   ;; A bit of a hack: Piggyback on font-lock's tokenization to
-  ;; avoid requesting completions when inside comments.
+  ;; avoid requesting completions inside comments.
   (when (not (ensime-in-comment-p (point)))
     ;; As an optimization, first get an upper bound on the length of prefix using
-    ;; ensime--prefix-char-class. Emacs's looking-back function is sloooooww.
-    (let ((i (point)))
+    ;; ensime--prefix-char-class.
+    (let ((i (point))
+	  (s ""))
       (while (and (> i 1) (string-match ensime--prefix-char-class (char-to-string (char-before i))))
+	(setq s (concat s (char-to-string (char-before i))))
 	(decf i))
-      (let ((s (buffer-substring-no-properties i (point))))
-	;; Then use a proper scala identifier regex to verify.
-	(if (string-match (concat scala-syntax:plainid-re "\\'") s)
-	    (match-string 1 s) "")))))
+      ;; Then use a proper scala identifier regex to extract the prefix.
+      (if (string-match ensime--rev-id-re s)
+	  (s-reverse (match-string 1 s)) ""))))
 
 (defun ensime-get-completions-async
     (max-results case-sense callback)
