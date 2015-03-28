@@ -67,9 +67,8 @@
     (insert-file-contents
      (ensime--classpath-file ensime--test-scala-version))
     (--first
-     (string-match (concat "/scala-library.*\.jar") it )
+     (string-match "[/\\]scala-library.*\\.jar$" it )
      (split-string (buffer-string) ensime--classpath-separator 'omit-nulls))))
-
 
 
 (defun ensime-test-concat-lines (&rest lines)
@@ -106,14 +105,14 @@
   "Create a temporary project directory. Populate with config, source files.
  Return a plist describing the project. Note: Delete such projects with
  ensime-cleanup-tmp-project."
-  (let* ((root-dir (file-name-as-directory
-                    (make-temp-file "ensime_test_proj_" t)))
-         (cache-dir (file-name-as-directory (concat root-dir "cache")))
-         (src-dir (file-name-as-directory (concat root-dir "src/main/scala")))
-         (target-dir (file-name-as-directory
-		      (concat root-dir "target/scala-"
-			      (ensime--test-scala-major-version) "/classes" )))
-         (test-target-dir (file-name-as-directory (concat root-dir "test-target")))
+  (let* ((root-dir (make-temp-file "ensime_test_proj_" t))
+         (cache-dir (expand-file-name "cache" root-dir))
+         (src-dir (expand-file-name "src/main/scala" root-dir))
+         (target-dir (expand-file-name
+		      (concat "target/scala-"
+			      (ensime--test-scala-major-version) "/classes" )
+                      root-dir))
+         (test-target-dir (expand-file-name "test-target" root-dir))
          (scala-jar (ensime--extract-scala-library-jar))
          (config (append
                   extra-config
@@ -131,22 +130,33 @@
                         :target ,target-dir
                         :test-target ,test-target-dir)))))
          (conf-file (ensime-create-file
-                     (concat root-dir ".ensime")
+                     (expand-file-name ".ensime" root-dir)
                      (format "%S" config))))
 
     (mkdir src-dir t)
     (mkdir cache-dir t)
     (mkdir target-dir t)
     (mkdir test-target-dir t)
+
+    (when ensime--test-cached-project
+      (message "Copying %s to %s"
+               (plist-get ensime--test-cached-project :cache-dir)
+               cache-dir)
+      (copy-directory (plist-get ensime--test-cached-project :cache-dir)
+                      cache-dir nil t t)
+      (when (file-exists-p (expand-file-name "port" cache-dir))
+        (delete-file (expand-file-name "port" cache-dir))))
+
     (let* ((src-file-names
             (mapcar
              (lambda (f) (ensime-create-file
-                          (concat src-dir (plist-get f :name))
+                          (expand-file-name (plist-get f :name) src-dir)
                           (plist-get f :contents)))
              src-files)))
       (list
        :src-files src-file-names
        :root-dir root-dir
+       :cache-dir cache-dir
        :conf-file conf-file
        :src-dir src-dir
        :target target-dir))))
@@ -198,12 +208,15 @@
                (kill-buffer nil)))
             (t)))
 
-    (when (not no-del)
-      ;; a bit of paranoia..
-      (if (and root-dir (integerp (string-match "^/tmp/" root-dir)))
-          ;; ..before we wipe away the project dir
-          (with-current-buffer ensime-testing-buffer
-            (shell-command (format "rm -rf %S" root-dir)))))))
+    (when (and (not no-del)
+               root-dir
+               ;; a bit of paranoia..
+               (or (integerp (string-match "^/tmp/" root-dir))
+                   (integerp (string-match "/Temp/" root-dir))))
+      ;; ..before we wipe away the project dir
+      (message "Deleting %s" root-dir)
+      (with-current-buffer ensime-testing-buffer
+        (delete-directory root-dir t)))))
 
 (defun ensime-kill-all-ensime-servers ()
   "Kill all inferior ensime server buffers."
@@ -273,7 +286,8 @@
   (switch-to-buffer ensime-testing-buffer)
   (erase-buffer)
   (setq ensime-test-queue suite)
-  (ensime-run-next-test))
+  (let ((ensime--test-cached-project nil))
+    (ensime-run-next-test)))
 
 (defmacro ensime-test-suite (&rest tests)
   "Define a sequence of tests to execute.
@@ -398,6 +412,8 @@
         (let* ((status (if ensime--test-had-failures 1 0))
                (msg (format "Finished suite with status %s." status)))
           (message msg)
+          (when ensime--test-cached-project
+            (ensime-cleanup-tmp-project ensime--test-cached-project))
           (when ensime--test-exit-on-finish
             (kill-emacs status)))))))
 
@@ -465,11 +481,13 @@
      (find-file (car src-files))
      (ensime)))
 
-(defmacro ensime-test-cleanup (proj-name &optional no-del)
+(defmacro ensime-test-cleanup (proj &optional no-del)
   "Delete temporary project files. Kill ensime buffers."
   `(progn
-     (ensime-cleanup-tmp-project ,proj-name ,no-del)
-     (ensime-kill-all-ensime-servers)))
+     (ensime-kill-all-ensime-servers)
+     ; In Windows, we can't delete cache files until the server process has exited
+     (sleep-for 1)
+     (ensime-cleanup-tmp-project ,proj ,no-del)))
 
 ;;;;;;;;;;;;;;;;;;
 ;; ENSIME Tests ;;
@@ -872,9 +890,32 @@
   "Helper for completion testing."
   (plist-get (ensime-get-completions 30 nil) :candidates))
 
+(defvar ensime--test-cached-project
+  "When set, indicates a project that can be reused to setup tests"
+  nil)
+
 (defvar ensime-slow-suite
 
   (ensime-test-suite
+
+   (ensime-async-test
+    "Cache index."
+    (let* ((proj (ensime-create-tmp-project
+                  `((:name
+                     "test.scala"
+                     :contents ,(ensime-test-concat-lines
+                                 "package pack.a"
+                                 "class A {"
+                                 "}"))))))
+      (ensime-test-init-proj proj))
+
+    ((:connected connection-info))
+
+    ((:indexer-ready val)
+     (ensime-test-with-proj
+      (proj src-files)
+      (setq ensime--test-cached-project proj)
+      (ensime-test-cleanup proj t))))
 
    (ensime-async-test
     "Test inspect type at point."
@@ -889,12 +930,12 @@
 
     ((:connected connection-info))
 
-    ((:full-typecheck-finished val)
+    ((:indexer-ready val)
      (ensime-test-with-proj
       (proj src-files)
       (ensime-typecheck-current-file)))
 
-    ((:indexer-ready val)
+    ((:full-typecheck-finished val)
      (ensime-test-with-proj
       (proj src-files)
       (find-file (car src-files))
@@ -922,12 +963,12 @@
 
     ((:connected connection-info))
 
-    ((:full-typecheck-finished val)
+    ((:indexer-ready val)
      (ensime-test-with-proj
       (proj src-files)
       (ensime-typecheck-current-file)))
 
-    ((:indexer-ready val)
+    ((:full-typecheck-finished val)
      (ensime-test-with-proj
       (proj src-files)
       (find-file (car src-files))
@@ -1280,12 +1321,12 @@
 
     ((:connected connection-info))
 
-    ((:full-typecheck-finished val)
+    ((:indexer-ready status)
      (ensime-test-with-proj
       (proj src-files)
       (ensime-typecheck-current-file)))
 
-    ((:indexer-ready status)
+    ((:full-typecheck-finished val)
      (ensime-test-with-proj
       (proj src-files)
 
@@ -1711,12 +1752,12 @@
 
     ((:connected connection-info))
 
-    ((:full-typecheck-finished val)
+    ((:indexer-ready status)
      (ensime-test-with-proj
       (proj src-files)
       (ensime-typecheck-current-file)))
 
-    ((:indexer-ready status)
+    ((:full-typecheck-finished val)
      (ensime-test-with-proj
       (proj src-files)
       ;; Prevent a previous search from affecting this test
@@ -1757,12 +1798,12 @@
 
     ((:connected connection-info))
 
-    ((:full-typecheck-finished val)
+    ((:indexer-ready status)
      (ensime-test-with-proj
       (proj src-files)
       (ensime-typecheck-current-file)))
 
-    ((:indexer-ready status)
+    ((:full-typecheck-finished val)
      (ensime-test-with-proj
       (proj src-files)
       (goto-char 1)
@@ -1921,7 +1962,7 @@
                                  "}")))))
            (src-files (plist-get proj :src-files)))
       (ensime-create-file
-       (concat (plist-get proj :root-dir) "build.sbt")
+       (expand-file-name "build.sbt" (plist-get proj :root-dir))
        (ensime-test-concat-lines
 	"import sbt._"
 	""
@@ -1932,28 +1973,29 @@
 	(concat "scalaVersion := \"" ensime--test-scala-version "\"")
 	))
       (assert ensime-sbt-command)
-      (let ((default-directory (plist-get proj :root-dir)))
+      (let ((default-directory (file-name-as-directory (plist-get proj :root-dir))))
 	(assert (= 0 (apply 'call-process ensime-sbt-command nil
 			    "*sbt-test-compilation*" nil '("compile")))))
       (assert (directory-files (concat (plist-get proj :target) "/test") nil "class$"))
       (ensime-test-init-proj proj))
 
-    ((:compiler-ready val))
-    
-    ((:full-typecheck-finished val))
+    ((:connected connection-info))
 
-    ((:region-sem-highlighted val))
+    ((:indexer-ready status)
+     (ensime-test-with-proj
+      (proj src-files)
+      (ensime-typecheck-current-file)))
 
-    ((:indexer-ready val)
+    ((:full-typecheck-finished val)
      (ensime-test-with-proj
       (proj src-files)
       (ensime-rpc-debug-set-break buffer-file-name 7)
       (ensime-rpc-debug-start "test.Test")))
-    
+
     ((:debug-event evt (equal (plist-get evt :type) 'start)))
 
     ((:debug-event evt (equal (plist-get evt :type) 'threadStart)))
-    
+
     ((:debug-event evt (equal (plist-get evt :type) 'breakpoint))
      (ensime-test-with-proj
       (proj src-files)
@@ -1997,7 +2039,7 @@
 
   (ensime--update-server
    ensime--test-scala-version
-   (lambda() 
+   (lambda()
      (ensime-run-suite ensime-fast-suite)
      (setq ensime--test-exit-on-finish ensime--test-exit-on-finish--old)
      (when (and ensime--test-had-failures ensime--test-exit-on-finish)
@@ -2023,4 +2065,3 @@ Must run the run-all script first to update the server."
 ;; Local Variables:
 ;; no-byte-compile: t
 ;; End:
-
