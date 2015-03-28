@@ -19,6 +19,8 @@
 ;;     Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
 ;;     MA 02111-1307, USA.
 
+(require 'scala-mode2-syntax)
+
 (defun ensime--annotate-completions (completions)
   "Maps plist structures to propertized strings that will survive
  being passed through the innards of auto-complete or company."
