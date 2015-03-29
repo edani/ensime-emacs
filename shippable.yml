@@ -17,6 +17,6 @@ env:
     - COVERALLS_REPO_TOKEN=OhZ6uNJvQaFC64CSt8To3TrAmZAGDdJ1A
   matrix:
     - SCALA_VERSION=2.11.6 EMACS=/opt/emacs-24.1/bin/emacs
-    - SCALA_VERSION=2.11.6 EMACS=/opt/emacs-24.2/bin/emacs
-    - SCALA_VERSION=2.11.6 EMACS=/opt/emacs-24.3/bin/emacs
+#    - SCALA_VERSION=2.11.6 EMACS=/opt/emacs-24.2/bin/emacs
+#    - SCALA_VERSION=2.11.6 EMACS=/opt/emacs-24.3/bin/emacs
     - SCALA_VERSION=2.11.6 EMACS=/opt/emacs-24.4/bin/emacs UNDERCOVER=true
