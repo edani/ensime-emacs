@@ -5,11 +5,10 @@ build_image:
 script:
   - test/run_emacs_tests.sh
 
-# WORKAROUND https://github.com/sviridov/undercover.el/issues/7
-#after_success:
-#  - if [ -n "$UNDERCOVER" ] ; then
-#      curl -v -include --form json_file=@coveralls.json https://coveralls.io/api/v1/jobs ;
-#    fi
+after_success:
+ - if [ -n "$UNDERCOVER" ] ; then
+     curl -v -include --form json_file=@coveralls.json https://coveralls.io/api/v1/jobs ;
+   fi
 
 env:
   global:
