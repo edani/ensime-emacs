@@ -164,13 +164,11 @@ Analyzer will be restarted."
            (classpath-file (ensime--classpath-file scala-version))
            (buildfile (concat default-directory "build.sbt"))
            (buildcontents (ensime--create-sbt-start-script scala-version))
-           (pluginsfile (concat default-directory "project/plugins.sbt"))
            (buildpropsfile (concat default-directory "project/build.properties")))
 
       (when (file-exists-p classpath-file) (delete-file classpath-file))
       (make-directory (file-name-directory classpath-file) t)
       (ensime-write-to-file buildfile buildcontents)
-      (ensime-write-to-file pluginsfile "addMavenResolverPlugin\n")
       (ensime-write-to-file buildpropsfile "sbt.version=0.13.8\n")
 
       (if (executable-find ensime-sbt-command)
