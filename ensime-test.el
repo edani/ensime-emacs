@@ -473,21 +473,20 @@
        (find-file (car existing)))
      ,@body))
 
-(defmacro ensime-test-init-proj (proj-name)
+(defun ensime-test-init-proj (proj)
   "Store the project in a test var. Load the source files, switch to
  the first source file, and init ensime."
-  `(let ((src-files (plist-get ,proj-name :src-files)))
-     (ensime-test-var-put :proj ,proj-name)
-     (find-file (car src-files))
-     (ensime)))
+  (let ((src-files (plist-get proj :src-files)))
+    (ensime-test-var-put :proj proj)
+    (find-file (car src-files))
+    (ensime)))
 
-(defmacro ensime-test-cleanup (proj &optional no-del)
+(defun ensime-test-cleanup (proj &optional no-del)
   "Delete temporary project files. Kill ensime buffers."
-  `(progn
-     (ensime-kill-all-ensime-servers)
-     ; In Windows, we can't delete cache files until the server process has exited
-     (sleep-for 1)
-     (ensime-cleanup-tmp-project ,proj ,no-del)))
+  (ensime-kill-all-ensime-servers)
+  ; In Windows, we can't delete cache files until the server process has exited
+  (sleep-for 1)
+  (ensime-cleanup-tmp-project proj no-del))
 
 ;;;;;;;;;;;;;;;;;;
 ;; ENSIME Tests ;;
@@ -1015,9 +1014,7 @@
                                  "  }"
                                  "}")))))
            (src-files (plist-get proj :src-files)))
-      (ensime-test-var-put :proj proj)
-      (find-file (car src-files))
-      (ensime))
+      (ensime-test-init-proj proj))
 
     ((:connected connection-info))
 
@@ -1081,9 +1078,7 @@
 
                                  "}")))))
            (src-files (plist-get proj :src-files)))
-      (ensime-test-var-put :proj proj)
-      (find-file (car src-files))
-      (ensime))
+      (ensime-test-init-proj proj))
 
     ((:connected connection-info))
 
@@ -1151,9 +1146,7 @@
                                  "  }"
                                  "}")))))
            (src-files (plist-get proj :src-files)))
-      (ensime-test-var-put :proj proj)
-      (find-file (car src-files))
-      (ensime))
+      (ensime-test-init-proj proj))
 
     ((:connected connection-info))
 
@@ -1315,9 +1308,7 @@
                                  "import sc/*2*/"
                                  "}")))))
            (src-files (plist-get proj :src-files)))
-      (ensime-test-var-put :proj proj)
-      (find-file (car src-files))
-      (ensime))
+      (ensime-test-init-proj proj))
 
     ((:connected connection-info))
 
@@ -1689,8 +1680,7 @@
     ((:full-typecheck-finished val)
      (ensime-test-with-proj
       (proj src-files)
-      (let ((proj (ensime-test-var-get :proj))
-            (notes (ensime-all-notes)))
+      (let ((notes (ensime-all-notes)))
         (ensime-assert (> (length notes) 0))
         (ensime-test-cleanup proj)))))
 
@@ -1943,7 +1933,7 @@
         (goto-char (ensime-test-after-label "12"))
         (funcall check-sym-is 'class))
 
-      (ensime-test-cleanup proj t))))
+      (ensime-test-cleanup proj))))
 
    (ensime-async-test
     "Test debugging scala project."
