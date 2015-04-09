@@ -28,7 +28,7 @@ fi
 
 if [ -z "$JDK_HOME" ] ; then
     if [ -n "$JAVA_HOME" ] ; then
-        export JDK_HOME=$JAVA_HOME
+        export JDK_HOME="$JAVA_HOME"
     elif [ -x "/usr/libexec/java_home" ] ; then
         export JDK_HOME=`/usr/libexec/java_home`
     else
@@ -39,7 +39,7 @@ fi
 export JAVA_HOME="$JDK_HOME/jre"
 
 if [ $# -ge 1 ]; then
-  exec $EMACS --no-init-file --load test/dotemacs_test.el --eval '(ensime-run-one-test "'"$*"'")'
+  exec "$EMACS" --no-init-file --load test/dotemacs_test.el --eval '(ensime-run-one-test "'"$*"'")'
 else
-  exec $EMACS --no-init-file --load test/dotemacs_test.el  --eval '(ensime-run-all-tests)'
+  exec "$EMACS" --no-init-file --load test/dotemacs_test.el  --eval '(ensime-run-all-tests)'
 fi
