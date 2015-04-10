@@ -1,5 +1,9 @@
 ;;; ensime-notes.el --- Compiler Notes (Error/Warning overlays)
 
+(eval-when-compile
+  (require 'cl)
+  (require 'ensime-macros))
+
 ;; Note: This might better be a connection-local variable, but
 ;; afraid that might lead to hanging overlays..
 
@@ -237,5 +241,4 @@ any buffer visiting the given file."
 (provide 'ensime-notes)
 
 ;; Local Variables:
-;; no-byte-compile: t
 ;; End:

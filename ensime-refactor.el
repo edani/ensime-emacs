@@ -19,8 +19,9 @@
 ;;     Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
 ;;     MA 02111-1307, USA.
 
-
-(eval-when-compile (require 'ensime-macros))
+(eval-when-compile
+  (require 'cl)
+  (require 'ensime-macros))
 
 (defvar ensime-refactor-id-counter 0
   "Each refactoring is given a unique id.")
@@ -209,6 +210,5 @@
 (provide 'ensime-refactor)
 
 ;; Local Variables:
-;; no-byte-compile: t
 ;; End:
 

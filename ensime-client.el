@@ -40,35 +40,23 @@
 ;;; they can tie a buffer to a specific connection. The rest takes
 ;;; care of itself.
 
+(eval-when-compile
+  (require 'cl)
+  (require 'ensime-macros))
+(require 'ensime-vars)
 
-(defmacro ensime-def-connection-var (varname &rest initial-value-and-doc)
-  "Define a connection-local variable.
-The value of the variable can be read by calling the function of the
-same name (it must not be accessed directly). The accessor function is
-setf-able.
+(defvar ensime-net-processes nil
+  "List of processes (sockets) connected to Lisps.")
 
-The actual variable bindings are stored buffer-local in the
-process-buffers of connections. The accessor function refers to
-the binding for `ensime-connection'."
-  (let ((real-var (intern (format "%s:connlocal" varname)))
-        (store-var (gensym)))
-    `(progn
-       ;; Variable
-       (make-variable-buffer-local
-       (defvar ,real-var ,@initial-value-and-doc))
-       ;; Accessor
-       (defun ,varname (&optional process)
-         (ensime-with-connection-buffer (process) ,real-var))
-       ;; Setf
-       (defsetf ,varname (&optional process) (store)
-         `(let ((,',store-var ,store))
-            (ensime-with-connection-buffer (,process)
-              (setq ,',real-var ,',store-var)
-              ,',store-var)))
-       '(\, varname))))
+(defvar ensime-server-processes nil
+  "List of (active) ensime server processes spawned by emacs.")
 
-(put 'ensime-def-connection-var 'lisp-indent-function 2)
-(put 'ensime-indulge-pretty-colors 'ensime-def-connection-var t)
+(defvar ensime-net-process-close-hooks '()
+  "List of functions called when a ensime network connection closes.
+The functions are called with the process as their argument.")
+
+(defvar ensime-log-events nil
+  "*Log protocol events to the *ensime-events* buffer.")
 
 (ensime-def-connection-var ensime-connection-number nil
   "Serial number of a connection.
@@ -123,8 +111,6 @@ This is automatically synchronized from Lisp.")
 (ensime-def-connection-var ensime-continuation-counter 0
   "Continuation serial number counter.")
 
-
-
 (defvar ensime-dispatching-connection nil
   "Network process currently executing.
 This is dynamically bound while handling messages from Lisp; it
@@ -135,6 +121,20 @@ overrides `ensime-buffer-connection'.")
 
 (defvar ensime-connection-counter 0
   "The number of ENSIME connections made. For generating serial numbers.")
+
+(defvar ensime-connections-buffer-name "*ENSIME Connections*")
+
+(defvar ensime-outline-mode-in-events-buffer nil
+  "*Non-nil means use outline-mode in *ensime-events*.")
+
+(defvar ensime-event-buffer-name "*ensime-events*"
+  "The name of the ensime event buffer.")
+
+(defvar ensime-event-hooks)
+
+(defvar ensime-stack-eval-tags nil
+  "List of stack-tags of continuations waiting on the stack.")
+
 
 (defun ensime-connection-or-nil ()
   "Return the connection to use for ENSIME interaction in the current buffer.
@@ -325,13 +325,14 @@ This doesn't mean it will connect right after Ensime is loaded."
 
     process))
 
-(defun ensime-connect (host port)
+(defun ensime-connect (host port &optional disconnect)
   "Connect to a running Swank server. Return the connection."
   (interactive (list
         (read-from-minibuffer "Host: " "127.0.0.1")
-        (read-from-minibuffer "Port: " (format "%d" ensime-default-server-port) nil t)))
-  (when (and (interactive-p) ensime-net-processes
-         (y-or-n-p "Close old connections first? "))
+        (read-from-minibuffer "Port: " nil nil t)
+	(and ensime-net-processes
+	     (y-or-n-p "Close old connections first? "))))
+  (when disconnect
     (ensime-disconnect-all))
   (message "Connecting to Swank on port %S.." port)
   (let* ((process (ensime-net-connect host port))
@@ -397,8 +398,6 @@ This doesn't mean it will connect right after Ensime is loaded."
   (let ((ensime-dispatching-connection connection))
     (ensime-restart-inferior-lisp)))
 
-
-(defvar ensime-connections-buffer-name "*ENSIME Connections*")
 
 (defun ensime-list-connections ()
   "Display a list of all connections."
@@ -470,16 +469,6 @@ This doesn't mean it will connect right after Ensime is loaded."
   (setf (ensime-config connection) config))
 
 ;;; Network protocol
-
-(defvar ensime-net-processes nil
-  "List of processes (sockets) connected to Lisps.")
-
-(defvar ensime-server-processes nil
-  "List of (active) ensime server processes spawned by emacs.")
-
-(defvar ensime-net-process-close-hooks '()
-  "List of functions called when a ensime network connection closes.
-The functions are called with the process as their argument.")
 
 (defun ensime-net-connect (host port)
   "Establish a connection with a CL."
@@ -631,15 +620,6 @@ This is more compatible with the CL reader."
 ;;; purposes. Optionally you can enable outline-mode in that buffer,
 ;;; which is convenient but slows things down significantly.
 
-(defvar ensime-log-events nil
-  "*Log protocol events to the *ensime-events* buffer.")
-
-(defvar ensime-outline-mode-in-events-buffer nil
-  "*Non-nil means use outline-mode in *ensime-events*.")
-
-(defvar ensime-event-buffer-name "*ensime-events*"
-  "The name of the ensime event buffer.")
-
 (defun ensime-log-event (event)
   "Record the fact that EVENT occurred."
   (when ensime-log-events
@@ -699,8 +679,6 @@ copies. All other objects are used unchanged. List must not contain cycles."
 ;;; arguments. The keyword identifies the type of event. Events
 ;;; originating from Emacs have names starting with :emacs- and events
 ;;; from the ENSIME server don't.
-
-(defvar ensime-event-hooks)
 
 (defun ensime-dispatch-event (event &optional process)
   (let ((ensime-dispatching-connection (or process (ensime-connection))))
@@ -789,7 +767,7 @@ copies. All other objects are used unchanged. List must not contain cycles."
                            (ensime-with-popup-buffer
                             ("*Ensime Error*")
                             (princ (format "Invalid protocol message:\n%s\n\n%S"
-                                           condition packet))
+                                           code detail))
                             (goto-char (point-min)))
                            (error "Invalid protocol message"))
                           ))))
@@ -837,50 +815,10 @@ copies. All other objects are used unchanged. List must not contain cycles."
 
 ;;; RPC calls and support functions
 
-;;; `ensime-rex' is the RPC primitive which is used to implement both
-;;; `ensime-eval' and `ensime-eval-async'. You can use it directly if
-;;; you need to, but the others are usually more convenient.
-
-(defmacro* ensime-rex ((&rest saved-vars)
-                       sexp
-                       &rest continuations)
-  "(ensime-rex (VAR ...) SEXP CLAUSES ...)
-
-Remote EXecute SEXP.
-
-VARs are a list of saved variables visible in the other forms.  Each
-VAR is either a symbol or a list (VAR INIT-VALUE).
-
-SEXP is evaluated and the princed version is sent to Lisp.
-
-CLAUSES is a list of patterns with same syntax as
-`destructure-case'.  The result of the evaluation of SEXP is
-dispatched on CLAUSES.  The result is either a sexp of the
-form (:ok VALUE) or (:abort REASON).  CLAUSES is executed
-asynchronously.
-
-Note: don't use backquote syntax for SEXP, because various Emacs
-versions cannot deal with that."
-  (let ((result (gensym)))
-    `(lexical-let ,(loop for var in saved-vars
-                         collect (etypecase var
-                                   (symbol (list var var))
-                                   (cons var)))
-       (ensime-dispatch-event
-        (list :swank-rpc ,sexp
-              (lambda (,result)
-                (destructure-case ,result
-                                  ,@continuations)))))))
-
-(put 'ensime-rex 'lisp-indent-function 2)
-
 ;;; Synchronous requests are implemented in terms of asynchronous
 ;;; ones. We make an asynchronous request with a continuation function
 ;;; that `throw's its result up to a `catch' and then enter a loop of
 ;;; handling I/O until that happens.
-
-(defvar ensime-stack-eval-tags nil
-  "List of stack-tags of continuations waiting on the stack.")
 
 (defun ensime-eval (sexp)
   "Evaluate EXPR on the superior Lisp and return the result."
@@ -1172,7 +1110,6 @@ with the current project's dependencies loaded. Returns a property list."
   (ensime-eval-async `(swank:exec-refactor ,proc-id , refactor-type) continue))
 
 (defun ensime-rpc-refactor-cancel (proc-id)
-  ;(ensime-eval-async `(swank:cancel-refactor ,proc-id) #'identity))
   (ensime-eval-async
    `(swank:cancel-refactor ,proc-id)
    (lambda (result)
@@ -1228,6 +1165,5 @@ with the current project's dependencies loaded. Returns a property list."
 (provide 'ensime-client)
 
 ;; Local Variables:
-;; no-byte-compile: t
 ;; End:
 

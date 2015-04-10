@@ -1,5 +1,9 @@
 ;;; ensime-var.el --- Customizaton variables
 
+(eval-when-compile
+  (require 'cl)
+  (require 'ensime-macros))
+
 (require 's)
 
 (defgroup ensime nil
@@ -224,5 +228,4 @@ name (case sensitive), and CONFIG-PLIST has the same format as
 (provide 'ensime-vars)
 
 ;; Local Variables:
-;; no-byte-compile: t
 ;; End:

@@ -1,5 +1,9 @@
 ;;; ensime-popup.el --- popup buffer
 
+(eval-when-compile
+  (require 'cl)
+  (require 'ensime-macros))
+
 ;;;;; Temporary popup buffers
 
 (defvar ensime-popup-buffer-map
@@ -34,6 +38,10 @@ See `view-return-to-alist' for a similar idea.")
 (make-variable-buffer-local
  (defvar ensime-is-popup-buffer nil
    "So we can query later whether this is a popup buffer."))
+
+(make-variable-buffer-local
+ (defvar ensime-popup-buffer-quit-function 'ensime-popup-buffer-quit
+   "The function that is used to quit a temporary popup buffer."))
 
 ;; Interface
 (defun ensime-make-popup-buffer (name buffer-vars &optional major-mode-fn)
@@ -98,24 +106,6 @@ The buffer also uses the minor-mode `ensime-popup-buffer-mode'."
 	(select-window selected-window)))
     ))
 
-
-(defmacro ensime-save-local-variables (vars &rest body)
-  (let ((vals (make-symbol "vals")))
-    `(let ((,vals (mapcar (lambda (var)
-			    (if (ensime-local-variable-p var)
-				(cons var (eval var))))
-			  ',vars)))
-       (prog1 (progn . ,body)
-	 (mapc (lambda (var+val)
-		 (when (consp var+val)
-		   (set (make-local-variable (car var+val)) (cdr var+val))))
-	       ,vals)))))
-
-
-(make-variable-buffer-local
- (defvar ensime-popup-buffer-quit-function 'ensime-popup-buffer-quit
-   "The function that is used to quit a temporary popup buffer."))
-
 (defun ensime-popup-buffer-quit-function (&optional kill-buffer-p)
   "Wrapper to invoke the value of `ensime-popup-buffer-quit-function'."
   (interactive)
@@ -136,5 +126,4 @@ The buffer also uses the minor-mode `ensime-popup-buffer-mode'."
 (provide 'ensime-popup)
 
 ;; Local Variables:
-;; no-byte-compile: t
 ;; End:

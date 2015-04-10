@@ -1,5 +1,9 @@
 ;;; ensime-goto-testfile.el  -- Navigate to test classes
 
+(eval-when-compile
+  (require 'cl)
+  (require 'ensime-macros))
+
 (require 'scala-mode2-syntax)
 
 (defun ensime-goto-test (&optional other-window-p)
@@ -321,5 +325,4 @@ class %TESTCLASS% extends Specification {
 (provide 'ensime-goto-testfile)
 
 ;; Local Variables:
-;; no-byte-compile: t
 ;; End:

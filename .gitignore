@@ -1,5 +1,7 @@
 .#*
 *.*#
+*~
 
 TAGS
 emacs.d
+*.elc

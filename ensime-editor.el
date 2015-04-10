@@ -1,5 +1,55 @@
 ;;; ensime-editor.el  -- Editor and navigation commands
 
+(eval-when-compile
+  (require 'cl)
+  (require 'ensime-macros))
+
+(defvar ensime-compile-result-buffer-name "*ENSIME-Compilation-Result*")
+
+(defvar ensime-compile-result-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "g") 'ensime-show-all-errors-and-warnings)
+    (define-key map (kbd "TAB") 'forward-button)
+    (define-key map (kbd "<backtab>") 'backward-button)
+    (define-key map (kbd "M-n") 'forward-button)
+    (define-key map (kbd "M-p") 'backward-button)
+    map)
+  "Key bindings for the build result popup.")
+
+(defface ensime-compile-warnline
+  '((t (:inherit compilation-warning)))
+  "Face used for marking the line on which an warning occurs."
+  :group 'ensime-ui)
+
+(defface ensime-compile-errline
+  '((t (:inherit compilation-error)))
+  "Face used for marking the line on which an error occurs."
+  :group 'ensime-ui)
+
+(defvar ensime-selection-overlay nil)
+
+(defvar ensime-selection-stack nil)
+
+(defvar ensime-ui-method-bytecode-handler
+  (list
+   :init (lambda (info)
+	   (ensime-ui-insert-method-bytecode info))
+   :update (lambda (info))
+   :help-text "Press q to quit."
+   :writable nil
+   :keymap `()))
+
+(defvar ensime-uses-buffer-name "*Uses*")
+
+(defvar ensime-uses-buffer-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map [?\t] 'forward-button)
+    (define-key map (kbd "M-n") 'forward-button)
+    (define-key map (kbd "M-p") 'backward-button)
+    map)
+  "Key bindings for the uses popup.")
+
+
 
 (defun ensime-goto-line (line)
   (goto-char (point-min))
@@ -106,7 +156,8 @@
  to all edits in all elements of changes."
   (let ((range-start most-positive-fixnum)
 	(range-end most-negative-fixnum)
-	(edits '()))
+	(edits '())
+	(file nil))
 
     (dolist (ch changes)
       (let ((from (plist-get ch :from))
@@ -116,7 +167,7 @@
 	(setq edits (append (plist-get ch :edits)
 			    edits))))
     (list
-     :file (plist-get ch :file)
+     :file (plist-get (first changes) :file)
      :from range-start
      :to range-end
      :edits edits)))
@@ -293,28 +344,6 @@
         (setq buffer-read-only t)))))
 
 ;; Compilation result interface
-
-(defvar ensime-compile-result-buffer-name "*ENSIME-Compilation-Result*")
-
-(defvar ensime-compile-result-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "g") 'ensime-show-all-errors-and-warnings)
-    (define-key map (kbd "TAB") 'forward-button)
-    (define-key map (kbd "<backtab>") 'backward-button)
-    (define-key map (kbd "M-n") 'forward-button)
-    (define-key map (kbd "M-p") 'backward-button)
-    map)
-  "Key bindings for the build result popup.")
-
-(defface ensime-compile-errline
-  '((t (:inherit compilation-error)))
-  "Face used for marking the line on which an error occurs."
-  :group 'ensime-ui)
-
-(defface ensime-compile-warnline
-  '((t (:inherit compilation-warning)))
-  "Face used for marking the line on which an warning occurs."
-  :group 'ensime-ui)
 
 (defun ensime-show-compile-result-buffer (notes-in)
   "Show a popup listing the results of the last build."
@@ -591,9 +620,6 @@ currently open in emacs."
 
 ;; Expand selection
 
-(defvar ensime-selection-overlay nil)
-(defvar ensime-selection-stack nil)
-
 (defun ensime-set-selection-overlay (start end)
   "Set the current selection overlay, creating if needed."
   (ensime-clear-selection-overlay)
@@ -675,15 +701,6 @@ currently open in emacs."
       (progn
 	(ensime-ui-show-nav-buffer "*ensime-method-bytecode-buffer*" bc t)))))
 
-(defvar ensime-ui-method-bytecode-handler
-  (list
-   :init (lambda (info)
-	   (ensime-ui-insert-method-bytecode info))
-   :update (lambda (info))
-   :help-text "Press q to quit."
-   :writable nil
-   :keymap `()))
-
 (defun ensime-ui-insert-method-bytecode (val)
   (destructuring-bind
       (&key class-name name bytecode &allow-other-keys) val
@@ -698,16 +715,6 @@ currently open in emacs."
       (insert "\n"))))
 
 ;; Uses UI
-
-(defvar ensime-uses-buffer-name "*Uses*")
-
-(defvar ensime-uses-buffer-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map [?\t] 'forward-button)
-    (define-key map (kbd "M-n") 'forward-button)
-    (define-key map (kbd "M-p") 'backward-button)
-    map)
-  "Key bindings for the uses popup.")
 
 (defun ensime-show-uses-of-symbol-at-point ()
   "Display a hyperlinked list of the source locations
@@ -770,5 +777,4 @@ currently open in emacs."
 (provide 'ensime-editor)
 
 ;; Local Variables:
-;; no-byte-compile: t
 ;; End:

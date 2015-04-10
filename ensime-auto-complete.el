@@ -19,7 +19,12 @@
 ;;     Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
 ;;     MA 02111-1307, USA.
 
+(eval-when-compile
+  (require 'cl)
+  (require 'ensime-macros))
 (require 'ensime-completion-util)
+(require 'ensime-model)
+(require 'ensime-util)
 (require 'auto-complete)
 
 (defcustom ensime-ac-enable-argument-placeholders t
@@ -251,6 +256,5 @@ be used later to give contextual help when entering arguments."
 (provide 'ensime-auto-complete)
 
 ;; Local Variables:
-;; no-byte-compile: t
 ;; End:
 

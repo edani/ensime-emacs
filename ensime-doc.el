@@ -19,6 +19,10 @@
 ;;     Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
 ;;     MA 02111-1307, USA.
 
+(eval-when-compile
+  (require 'cl)
+  (require 'ensime-macros))
+
 (defun ensime-make-doc-url (type &optional member)
   "Given a type and an optional member object, yields an http url for
  browsing the documentation for those objects."
@@ -35,6 +39,5 @@
 
 (provide 'ensime-doc)
 ;; Local Variables:
-;; no-byte-compile: t
 ;; End:
 

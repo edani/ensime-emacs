@@ -38,7 +38,10 @@
 ;; - Removed global manipulations.
 ;; - Removed colorization attempts to use base sbt anis colorization.
 
-(eval-when-compile (require 'cl))
+(eval-when-compile
+  (require 'cl)
+  (require 'ensime-macros))
+
 (require 'sbt-mode)
 
 (defgroup ensime-sbt nil
@@ -109,6 +112,5 @@
 (provide 'ensime-sbt)
 
 ;; Local Variables:
-;; no-byte-compile: t
 ;; End:
 

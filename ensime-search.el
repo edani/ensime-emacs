@@ -23,7 +23,6 @@
   (require 'cl)
   (require 'ensime-macros))
 
-
 (defvar ensime-search-mode nil
   "Enables the ensime-search minor mode.")
 
@@ -90,6 +89,9 @@
     (define-key map [(return)] 'ensime-search-choose-current-result)
     map)
   "Keymap used by ensime-search.")
+
+(defvar ensime-search-selection-overlay nil
+  "Overlay that highlights the currently selected search result.")
 
 
 (defstruct ensime-search-result
@@ -266,9 +268,6 @@
 
 
 
-(defvar ensime-search-selection-overlay nil
-  "Overlay that highlights the currently selected search result.")
-
 (defun ensime-search-update-result-selection ()
   "Move cursor to current result selection in target buffer."
   (when (and ensime-search-current-results
@@ -425,6 +424,5 @@
 
 
 ;; Local Variables:
-;; no-byte-compile: t
 ;; End:
 

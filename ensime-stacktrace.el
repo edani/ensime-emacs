@@ -1,5 +1,9 @@
 ;;; ensime-stacktrace.el - Paste buffer for stack traces
 
+(eval-when-compile
+  (require 'cl)
+  (require 'ensime-macros))
+
 (defconst ensime-stacktrace-buffer-name-base "*ensime-stacktrace*")
 
 (defvar ensime-stacktrace-buffer-map
@@ -52,6 +56,5 @@ Create links to the source code."
 (provide 'ensime-stacktrace)
 
 ;; Local Variables:
-;; no-byte-compile: t
 ;; End:
 

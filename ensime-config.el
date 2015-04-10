@@ -20,7 +20,11 @@
 ;;     MA 02111-1307, USA.
 
 
-(eval-and-compile (require 'ensime-macros))
+(eval-when-compile
+  (require 'cl)
+  (require 'ensime-macros))
+
+(require 'dash)
 
 (defvar ensime-config-file-name ".ensime"
   "The default file name for ensime project configurations.")
@@ -46,9 +50,6 @@
 				(list dir)))))))
       (-first (lambda (dir) (ensime-path-includes-dir-p file dir))
 	      source-roots))))
-
-(defmacro ensime-set-key (conf key val)
-  `(setq ,conf (plist-put ,conf ,key ,val)))
 
 (defun ensime-config-find-file (file-name)
   "Search up the directory tree starting at file-name
@@ -186,6 +187,5 @@ only sbt projects are supported."
 (provide 'ensime-config)
 
 ;; Local Variables:
-;; no-byte-compile: t
 ;; End:
 

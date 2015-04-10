@@ -19,10 +19,18 @@
 ;;     Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
 ;;     MA 02111-1307, USA.
 
+(eval-when-compile
+  (require 'cl)
+  (require 'ensime-macros))
+
 (require 'ensime-completion-util)
+(require 'ensime-util)
 (require 'company)
 (require 'yasnippet)
 (require 'scala-mode2-syntax)
+(require 'auto-complete)
+(require 's)
+(require 'dash)
 
 (defcustom ensime-company-case-sensitive nil
   "If non-nil, omit completions that don't match the case of prefix."
@@ -226,5 +234,4 @@
 (provide 'ensime-company)
 
 ;; Local Variables:
-;; no-byte-compile: t
 ;; End:

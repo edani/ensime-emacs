@@ -1,5 +1,20 @@
 ;;; ensime-util.el --- helper functions
 
+(eval-when-compile
+  (require 'cl)
+  (require 'ensime-macros))
+
+(defvar ensime-dir (file-name-directory load-file-name)
+  "The root dir of the Ensime distribution.")
+
+(defvar ensime-ch-fix 1
+  "Single character offset to convert between emacs and
+ 0-based character indexing.")
+
+(defvar ensime-message-function 'message)
+
+(defvar ensime-background-message-function 'ensime-display-oneliner)
+
 ;;;;; Link/test insertion
 
 (defun ensime-make-code-link (start end file-path offset &optional face line)
@@ -125,11 +140,6 @@ argument is supplied) is a .scala or .java file."
 	    (throw 'return nil))
 	  )))))
 
-(defun ensime-temp-file-name (name)
-  "Return the path of a temp file with filename 'name'."
-  (expand-file-name
-   (ensime--join-paths (ensime-temp-directory name))))
-
 ; TODO deprecate and rewrite callers to use the cache-dir
 (defun ensime-temp-directory ()
   "Return the directory name of the system's temporary file dump."
@@ -137,15 +147,10 @@ argument is supplied) is a .scala or .java file."
 	((boundp 'temporary-file-directory) temporary-file-directory)
 	(t "/tmp/")))
 
-(defmacro* ensime-with-buffer-written-to-tmp ((file-sym) &rest body)
-  "Write latest buffer state to a temp file, bind the temp filename
- to file-sym, and eval body. The idea is to not disturb the original
- file's state."
-  `(let ((,file-sym (ensime-temp-file-name
-		     (concat ".tmp_" (file-name-nondirectory
-				      buffer-file-name)))))
-     (ensime-write-buffer ,file-sym)
-     ,@body))
+(defun ensime-temp-file-name (name)
+  "Return the path of a temp file with filename 'name'."
+  (expand-file-name
+   (ensime--join-paths (ensime-temp-directory) name)))
 
 (defun ensime-assert-executable-on-path (name)
   (when (null (executable-find name))
@@ -217,9 +222,6 @@ This idiom is preferred over `lexical-let'."
   "Like `ensime-curry' but ARGS on the right are applied."
   `(lambda (&rest more) (apply ',fun (append more ',args))))
 
-(defvar ensime-dir (file-name-directory load-file-name)
-  "The root dir of the Ensime distribution.")
-
 (defun ensime-recompile-el ()
   "Byte-recompilation of all Emacs Lisp files."
   (interactive)
@@ -265,7 +267,7 @@ This idiom is preferred over `lexical-let'."
 (defun ensime-short-local-name (local-name)
   (if (integerp (string-match "^\\(.*\\$\\)?\\([^$]+\\)\\$?$" local-name))
       (match-string 2 local-name)
-    str))
+    local-name))
 
 (defun ensime-strip-dollar-signs (str)
   (replace-regexp-in-string
@@ -273,10 +275,6 @@ This idiom is preferred over `lexical-let'."
    (replace-regexp-in-string "\\$$" "" str)))
 
 ;; Portability
-
-(defvar ensime-ch-fix 1
-  "Single character offset to convert between emacs and
- 0-based character indexing.")
 
 (defun ensime-computed-point ()
   "Subtract one to convert to 0-indexed buffer offsets.
@@ -399,8 +397,6 @@ offset of each line's last character, to the line number"
 
 ;; Interface
 
-(defvar ensime-message-function 'message)
-
 (defun ensime-minibuffer-respecting-message (format &rest format-args)
   "Display TEXT as a message, without hiding any minibuffer contents."
   (let ((text (format " [%s]" (apply #'format format format-args))))
@@ -417,8 +413,6 @@ Single-line messages use the echo area."
 
 (defun ensime-display-warning (message &rest args)
   (display-warning '(ensime warning) (apply #'format message args)))
-
-(defvar ensime-background-message-function 'ensime-display-oneliner)
 
 
 (defun ensime-background-message (format-string &rest format-args)
@@ -442,15 +436,6 @@ It should be used for \"background\" messages such as argument lists."
 
 ;; Interface Helpers
 
-(defmacro ensime-propertize-region (props &rest body)
-  "Execute BODY and add PROPS to all the text it inserts.
-More precisely, PROPS are added to the region between the point's
-positions before and after executing BODY."
-  (let ((start (gensym)))
-    `(let ((,start (point)))
-       (prog1 (progn ,@body)
-	 (add-text-properties ,start (point) ,props)))))
-
 (defun ensime-add-face (face string)
   (add-text-properties 0 (length string) (list 'face face) string)
   string)
@@ -458,16 +443,6 @@ positions before and after executing BODY."
 (defsubst ensime-insert-propertized (props &rest args)
   "Insert all ARGS and then add text-PROPS to the inserted text."
   (ensime-propertize-region props (apply #'insert args)))
-
-(defmacro ensime-with-rigid-indentation (level &rest body)
-  "Execute BODY and then rigidly indent its text insertions.
-Assumes all insertions are made at point."
-  (let ((start (gensym)) (l (gensym)))
-    `(let ((,start (point)) (,l ,(or level '(current-column))))
-       (prog1 (progn ,@body)
-	 (ensime-indent-rigidly ,start (point) ,l)))))
-
-(put 'ensime-with-rigid-indentation 'lisp-indent-function 1)
 
 (defun ensime-indent-rigidly (start end column)
   ;; Similar to `indent-rigidly' but doesn't inherit text props.
@@ -545,5 +520,4 @@ PROP is the name of a text property."
 (provide 'ensime-util)
 
 ;; Local Variables:
-;; no-byte-compile: t
 ;; End:
