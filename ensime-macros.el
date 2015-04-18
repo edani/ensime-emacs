@@ -200,8 +200,116 @@ corresponding values in the CDR of VALUE."
 	 ,@body))))
 
 
+(defmacro* ensime-with-buffer-written-to-tmp ((file-sym) &rest body)
+  "Write latest buffer state to a temp file, bind the temp filename
+ to file-sym, and eval body. The idea is to not disturb the original
+ file's state."
+  `(let ((,file-sym (ensime-temp-file-name
+		     (concat ".tmp_" (file-name-nondirectory
+				      buffer-file-name)))))
+     (ensime-write-buffer ,file-sym)
+     ,@body))
+
+(defmacro ensime-propertize-region (props &rest body)
+  "Execute BODY and add PROPS to all the text it inserts.
+More precisely, PROPS are added to the region between the point's
+positions before and after executing BODY."
+  (let ((start (gensym)))
+    `(let ((,start (point)))
+       (prog1 (progn ,@body)
+	 (add-text-properties ,start (point) ,props)))))
+
+(defmacro ensime-with-rigid-indentation (level &rest body)
+  "Execute BODY and then rigidly indent its text insertions.
+Assumes all insertions are made at point."
+  (let ((start (gensym)) (l (gensym)))
+    `(let ((,start (point)) (,l ,(or level '(current-column))))
+       (prog1 (progn ,@body)
+	 (ensime-indent-rigidly ,start (point) ,l)))))
+
+(put 'ensime-with-rigid-indentation 'lisp-indent-function 1)
+
+(defmacro ensime-def-connection-var (varname &rest initial-value-and-doc)
+  "Define a connection-local variable.
+The value of the variable can be read by calling the function of the
+same name (it must not be accessed directly). The accessor function is
+setf-able.
+
+The actual variable bindings are stored buffer-local in the
+process-buffers of connections. The accessor function refers to
+the binding for `ensime-connection'."
+  (let ((real-var (intern (format "%s:connlocal" varname)))
+        (store-var (gensym)))
+    `(progn
+       ;; Variable
+       (make-variable-buffer-local
+       (defvar ,real-var ,@initial-value-and-doc))
+       ;; Accessor
+       (defun ,varname (&optional process)
+         (ensime-with-connection-buffer (process) ,real-var))
+       ;; Setf
+       (defsetf ,varname (&optional process) (store)
+         `(let ((,',store-var ,store))
+            (ensime-with-connection-buffer (,process)
+              (setq ,',real-var ,',store-var)
+              ,',store-var)))
+       '(\, varname))))
+
+(put 'ensime-def-connection-var 'lisp-indent-function 2)
+(put 'ensime-indulge-pretty-colors 'ensime-def-connection-var t)
+
+;;; `ensime-rex' is the RPC primitive which is used to implement both
+;;; `ensime-eval' and `ensime-eval-async'. You can use it directly if
+;;; you need to, but the others are usually more convenient.
+
+(defmacro* ensime-rex ((&rest saved-vars)
+                       sexp
+                       &rest continuations)
+  "(ensime-rex (VAR ...) SEXP CLAUSES ...)
+
+Remote EXecute SEXP.
+
+VARs are a list of saved variables visible in the other forms.  Each
+VAR is either a symbol or a list (VAR INIT-VALUE).
+
+SEXP is evaluated and the princed version is sent to Lisp.
+
+CLAUSES is a list of patterns with same syntax as
+`destructure-case'.  The result of the evaluation of SEXP is
+dispatched on CLAUSES.  The result is either a sexp of the
+form (:ok VALUE) or (:abort REASON).  CLAUSES is executed
+asynchronously.
+
+Note: don't use backquote syntax for SEXP, because various Emacs
+versions cannot deal with that."
+  (let ((result (gensym)))
+    `(lexical-let ,(loop for var in saved-vars
+                         collect (etypecase var
+                                   (symbol (list var var))
+                                   (cons var)))
+       (ensime-dispatch-event
+        (list :swank-rpc ,sexp
+              (lambda (,result)
+                (destructure-case ,result
+                                  ,@continuations)))))))
+
+(put 'ensime-rex 'lisp-indent-function 2)
+
+(defmacro ensime-set-key (conf key val)
+  `(setq ,conf (plist-put ,conf ,key ,val)))
+
+(defmacro* ensime-db-with-active-thread ((tid-sym) &rest body)
+  `(if ensime-db-active-thread-id
+       (let ((,tid-sym ensime-db-active-thread-id))
+         ,@body)
+     (message "No active debug thread.")))
+
+(defmacro ensime--propertize-inserted-text (prop-list &rest body)
+  `(let ((start-props-point (point)))
+     ,@body
+     (add-text-properties start-props-point (point) (list ,@prop-list))))
+
 (provide 'ensime-macros)
 
 ;; Local Variables:
-;; no-byte-compile: t
 ;; End:

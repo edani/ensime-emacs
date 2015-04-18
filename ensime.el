@@ -33,10 +33,9 @@
   (when (<= emacs-major-version 21)
     (error "Ensime requires Emacs 22 or higher")))
 
-(eval-when-compile
+(eval-and-compile
   (require 'cl)
-  (require 'ensime-macros)
-  (require 'ensime-client))
+  (require 'ensime-macros))
 
 (require 'url-gw)
 (require 'dash)
@@ -51,6 +50,7 @@
 (require 'font-lock)
 (require 'auto-complete)
 (require 'easymenu)
+(require 'ensime-client)
 (require 'ensime-util)
 (require 'ensime-vars)
 (require 'ensime-config)
@@ -77,9 +77,6 @@
 (require 'ensime-semantic-highlight)
 (require 'ensime-ui)
 (require 'timer)
-(eval-when (compile)
-  (require 'apropos)
-  (require 'compile))
 
 (defvar ensime-protocol-version "0.7")
 
@@ -119,6 +116,5 @@
 (provide 'ensime)
 
 ;; Local Variables:
-;; no-byte-compile: t
 ;; End:
 

@@ -1383,34 +1383,12 @@
       (let* ((candidates (ensime--test-completions)))
         (ensime-assert (member "immutable" candidates)))
       (insert "utable.List")
-      (ensime-typecheck-current-file)
-      ))
 
-    ;; ((:full-typecheck-finished val)
-    ;;  (ensime-test-with-proj
-    ;;   (proj src-files)
-    ;;   ;; complete package member by class name
-    ;;   (ensime-test-eat-label "3")
-    ;;   (let* ((candidates (ensime--test-completions))
-    ;;          (to-inserts (mapcar (lambda (c) (get-text-property 0 'to-insert c))
-	;; 			candidates)))
-    ;;     (ensime-assert (member "scala.collection.immutable.Vector" to-inserts)))
-    ;;   (ensime-typecheck-current-file)
-    ;;   ))
-
-    ((:full-typecheck-finished val)
-     (ensime-test-with-proj
-      (proj src-files)
       ;; complete package member by class name in name list
       (ensime-test-eat-label "4")
       (let* ((candidates (ensime--test-completions)))
         (ensime-assert (member "Vector" candidates)))
-      (ensime-typecheck-current-file)
-      ))
 
-    ((:full-typecheck-finished val)
-     (ensime-test-with-proj
-      (proj src-files)
       ;; complete scala package in class body
       (ensime-test-eat-label "2")
       (let* ((candidates (ensime--test-completions)))
@@ -2108,5 +2086,4 @@ Must run the run-all script first to update the server."
 (provide 'ensime-test)
 
 ;; Local Variables:
-;; no-byte-compile: t
 ;; End:

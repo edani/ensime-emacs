@@ -1,5 +1,9 @@
 ;;; ensime-model.el --- Data-structure accessors
 
+(eval-when-compile
+  (require 'cl)
+  (require 'ensime-macros))
+
 (defun ensime-search-sym-name (sym)
   (plist-get sym :name))
 
@@ -216,5 +220,4 @@
 (provide 'ensime-model)
 
 ;; Local Variables:
-;; no-byte-compile: t
 ;; End:

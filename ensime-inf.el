@@ -51,10 +51,11 @@
 ;;; Code
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(provide 'ensime-inf)
+(eval-when-compile
+  (require 'cl)
+  (require 'ensime-macros))
 
 (require 'comint)
-
 
 (defgroup ensime-inf nil
   "Support for running scala as an inferior process."
@@ -79,6 +80,11 @@ server."
   :type 'boolean)
 
 (defconst ensime-inf-buffer-name "*ensime-inferior-scala*")
+
+(defvar ensime-inf-prev-l/c-dir/file nil
+  "Caches the last (directory . file) pair.
+Caches the last pair used in the last ensime-inf-load-file.
+Used for determining the default in the next one.")
 
 
 (define-derived-mode ensime-inf-mode comint-mode "ENSIME Inferior Scala"
@@ -238,11 +244,6 @@ the current project's dependencies. Returns list of form (cmd [arg]*)"
   (interactive)
   (ensime-inf-eval-region (point-min) (point-max)))
 
-(defvar ensime-inf-prev-l/c-dir/file nil
-  "Caches the last (directory . file) pair.
-Caches the last pair used in the last ensime-inf-load-file.
-Used for determining the default in the next one.")
-
 (defun ensime-inf-load-file (file-name)
   "Load a file in the Scala interpreter."
   (interactive (comint-get-source "Load Scala file: " ensime-inf-prev-l/c-dir/file
@@ -328,6 +329,5 @@ Used for determining the default in the next one.")
 (provide 'ensime-inf)
 
 ;; Local Variables:
-;; no-byte-compile: t
 ;; End:
 

@@ -1,11 +1,38 @@
 ;; ensime-inspector.el --- type and package inspectors
 
+(eval-when-compile
+  (require 'cl)
+  (require 'ensime-macros))
+
 ;; Type Inspector UI
 
 (defvar ensime-inspector-buffer-name "*Inspector*")
 
 (defvar ensime-indent-level 0
   "In inspector UI, how much to indent.")
+
+(defvar ensime-inspector-history '()
+  "Maintain a history of the info objects viewed in the inspector buffer.")
+
+(defvar ensime-inspector-history-cursor 0
+  "Where are we in the history?")
+
+(defvar ensime-inspector-paging-in-progress nil
+  "A dynamic variable to inform dynamic extant of user's intent.
+   Are we moving in history, or inspecting a new info?")
+
+(defvar ensime-inspector-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map [?\t] 'forward-button)
+    (define-key map (kbd "M-n") 'forward-button)
+    (define-key map (kbd "M-p") 'backward-button)
+    (define-key map (kbd ".") 'ensime-inspector-forward-page)
+    (define-key map (kbd ",") 'ensime-inspector-backward-page)
+    (define-key map (kbd "M-.") 'ensime-inspector-browse-source)
+    (define-key map (kbd "C-c C-v d") 'ensime-inspector-browse-doc)
+    map)
+  "Type and package inspector key bindings.")
+
 
 (defun ensime-print-type-at-point ()
   "Echo the type at point to the minibuffer."
@@ -50,11 +77,6 @@
     `(lambda (x)
        (ensime-type-inspector-show
         (ensime-rpc-inspect-type-by-id ,type-id)))))
-
-(defmacro ensime--propertize-inserted-text (prop-list &rest body)
-  `(let ((start-props-point (point)))
-     ,@body
-     (add-text-properties start-props-point (point) (list ,@prop-list))))
 
 (defun ensime-inspector-insert-link-to-type (text type-id type-full-name is-obj)
   "A helper for type link insertion. See usage in
@@ -447,16 +469,6 @@ inspect the package of the current source file."
        (goto-char (point-min))
        ))))
 
-(defvar ensime-inspector-history '()
-  "Maintain a history of the info objects viewed in the inspector buffer.")
-
-(defvar ensime-inspector-history-cursor 0
-  "Where are we in the history?")
-
-(defvar ensime-inspector-paging-in-progress nil
-  "A dynamic variable to inform dynamic extant of user's intent.
-   Are we moving in history, or inspecting a new info?")
-
 (defun ensime-inspector-backward-page ()
   "Inspect the info object preceding current in history."
   (interactive)
@@ -530,18 +542,6 @@ inspect the package of the current source file."
   (interactive)
   (browse-url (ensime--inspector-doc-url-at-point)))
 
-(defvar ensime-inspector-mode-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map [?\t] 'forward-button)
-    (define-key map (kbd "M-n") 'forward-button)
-    (define-key map (kbd "M-p") 'backward-button)
-    (define-key map (kbd ".") 'ensime-inspector-forward-page)
-    (define-key map (kbd ",") 'ensime-inspector-backward-page)
-    (define-key map (kbd "M-.") 'ensime-inspector-browse-source)
-    (define-key map (kbd "C-c C-v d") 'ensime-inspector-browse-doc)
-    map)
-  "Type and package inspector key bindings.")
-
 (define-derived-mode ensime-inspector-mode fundamental-mode
   "Ensime-Inspector"
   "Ensime Inspector Mode.
@@ -552,5 +552,4 @@ inspect the package of the current source file."
 (provide 'ensime-inspector)
 
 ;; Local Variables:
-;; no-byte-compile: t
 ;; End:

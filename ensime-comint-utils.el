@@ -19,6 +19,10 @@
 ;;     Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
 ;;     MA 02111-1307, USA.
 
+(eval-when-compile
+  (require 'cl)
+  (require 'ensime-macros))
+
 (require 'comint)
 
 (defvar ensime-comint-filter-buffer " *ensime-comint-filter-buffer*"
@@ -48,7 +52,7 @@ the output received after a call to `ensime-comint-complete'.")
          (cand-max-length
           (+ 1 (apply 'max (mapcar 'length candidates))))
          (nbr-cols (/ wwidth cand-max-length)))
-    (mapcar '(lambda (cand)
+    (mapcar #'(lambda (cand)
                (ensime-comint-shape-candidate
                 cand cand-max-length nbr-cols candidates))
             candidates)))
@@ -129,6 +133,5 @@ the output received after a call to `ensime-comint-complete'.")
 (provide 'ensime-comint-utils)
 
 ;; Local Variables:
-;; no-byte-compile: t
 ;; End:
 

@@ -1,52 +1,14 @@
 ;;; ensime-mode.el --- ensime mode
 
-;;;;; ensime-mode
-(defun ensime-scala-mode-hook ()
-  "Conveniance hook function that just starts ensime-mode."
-  (ensime-mode 1))
+(eval-when-compile
+  (require 'cl)
+  (require 'ensime-macros))
 
 (defvar ensime-source-buffer-saved-hook nil
   "Hook called whenever an ensime source buffer is saved.")
 
 (defvar ensime-source-buffer-loaded-hook nil
   "Hook called whenever an ensime source buffer is loaded.")
-
-(defun ensime-run-after-save-hooks ()
-  "Things to run whenever a source buffer is saved."
-  (when (and (ensime-connected-p) (ensime-analyzer-ready))
-    (condition-case err-info
-        (run-hooks 'ensime-source-buffer-saved-hook)
-      (error
-       (message
-        "Error running ensime-source-buffer-saved-hook: %s"
-        err-info)))))
-
-(defun ensime-run-find-file-hooks ()
-  "Things to run whenever a source buffer is opened."
-  (when (and (ensime-connected-p) (ensime-analyzer-ready))
-    (condition-case err-info
-        (run-hooks 'ensime-source-buffer-loaded-hook)
-      (error
-       (message
-        "Error running ensime-source-buffer-loaded-hook: %s"
-        err-info)))))
-
-(defun ensime-save-buffer-no-hooks ()
-  "Just save the buffer per usual, don't type-check!"
-  (let ((after-save-hook nil)
-        (before-save-hook nil))
-    (save-buffer)))
-
-(defun ensime-delete-buffer-and-file ()
-  "Kill the current buffer and delete the corresponding file!"
-  (interactive)
-  (ensime-assert-buffer-saved-interactive
-   (let ((f buffer-file-name))
-     (ensime-rpc-remove-file f)
-     (delete-file f)
-     (kill-buffer nil)
-     )))
-
 
 (defvar ensime-mode-map
   (let ((map (make-sparse-keymap)))
@@ -139,6 +101,47 @@
     map)
   "Keymap for ENSIME mode."
   )
+
+;;;;; ensime-mode
+(defun ensime-scala-mode-hook ()
+  "Conveniance hook function that just starts ensime-mode."
+  (ensime-mode 1))
+
+(defun ensime-run-after-save-hooks ()
+  "Things to run whenever a source buffer is saved."
+  (when (and (ensime-connected-p) (ensime-analyzer-ready))
+    (condition-case err-info
+        (run-hooks 'ensime-source-buffer-saved-hook)
+      (error
+       (message
+        "Error running ensime-source-buffer-saved-hook: %s"
+        err-info)))))
+
+(defun ensime-run-find-file-hooks ()
+  "Things to run whenever a source buffer is opened."
+  (when (and (ensime-connected-p) (ensime-analyzer-ready))
+    (condition-case err-info
+        (run-hooks 'ensime-source-buffer-loaded-hook)
+      (error
+       (message
+        "Error running ensime-source-buffer-loaded-hook: %s"
+        err-info)))))
+
+(defun ensime-save-buffer-no-hooks ()
+  "Just save the buffer per usual, don't type-check!"
+  (let ((after-save-hook nil)
+        (before-save-hook nil))
+    (save-buffer)))
+
+(defun ensime-delete-buffer-and-file ()
+  "Kill the current buffer and delete the corresponding file!"
+  (interactive)
+  (ensime-assert-buffer-saved-interactive
+   (let ((f buffer-file-name))
+     (ensime-rpc-remove-file f)
+     (delete-file f)
+     (kill-buffer nil)
+     )))
 
 (easy-menu-define ensime-mode-menu ensime-mode-map
   "Menu for ENSIME mode"
@@ -430,5 +433,4 @@
 (provide 'ensime-mode)
 
 ;; Local Variables:
-;; no-byte-compile: t
 ;; End:

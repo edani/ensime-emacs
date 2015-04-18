@@ -1,5 +1,52 @@
 ;;; ensime-startup.el --- download and launch ENSIME server
 
+(eval-when-compile
+  (require 'cl)
+  (require 'ensime-macros))
+
+(defvar ensime-idle-typecheck-timer nil
+  "Timer called when emacs is idle")
+
+(defvar ensime-last-change-time 0
+  "Time of last buffer change")
+
+(defvar ensime-server-process-start-hook nil
+  "Hook called whenever a new process gets started.")
+
+(defvar ensime--classpath-separator
+  (if (find system-type '(cygwin windows-nt)) ";" ":")
+  "Separator used in Java classpaths")
+
+(defvar ensime--abort-connection nil)
+
+(defconst ensime--sbt-start-template
+"
+import sbt._
+import IO._
+import java.io._
+
+scalaVersion := \"_scala_version_\"
+
+ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) }
+
+resolvers += Resolver.sonatypeRepo(\"snapshots\")
+
+resolvers += \"Typesafe repository\" at \"http://repo.typesafe.com/typesafe/releases/\"
+
+resolvers += \"Akka Repo\" at \"http://repo.akka.io/repository\"
+
+libraryDependencies += \"org.ensime\" %% \"ensime\" % \"_server_version_\"
+
+val saveClasspathTask = TaskKey[Unit](\"saveClasspath\", \"Save the classpath to a file\")
+
+saveClasspathTask := {
+  val managed = (managedClasspath in Runtime).value.map(_.data.getAbsolutePath)
+  val unmanaged = (unmanagedClasspath in Runtime).value.map(_.data.getAbsolutePath)
+  val out = file(\"_classpath_file_\")
+  write(out, (unmanaged ++ managed).mkString(File.pathSeparator))
+}
+")
+
 (defun ensime--get-cache-dir (config)
   (let ((cache-dir (plist-get config :cache-dir)))
     (unless cache-dir
@@ -30,7 +77,10 @@
   (if (and host port)
       ;; When both host and port are provided, we assume we're connecting to
       ;; an existing, listening server.
-      (ensime--retry-connect nil host (lambda () port) config cache-dir)
+      (let* ((config-file (ensime-config-find))
+	     (config (ensime-config-load config-file))
+	     (cache-dir (file-name-as-directory (ensime--get-cache-dir config))))
+	(ensime--retry-connect nil host (lambda () port) config cache-dir))
     (let* ((config-file (ensime-config-find))
            (config (ensime-config-load config-file))
            (scala-version (plist-get config :scala-version)))
@@ -75,12 +125,6 @@
 
 
 ;; typecheck continually when idle
-
-(defvar ensime-idle-typecheck-timer nil
-  "Timer called when emacs is idle")
-
-(defvar ensime-last-change-time 0
-  "Time of last buffer change")
 
 (defun ensime-idle-typecheck-set-timer ()
   (when (timerp ensime-idle-typecheck-timer)
@@ -190,13 +234,6 @@ Analyzer will be restarted."
             (message "Updating ENSIME server..."))
         (error "sbt command not found")))))
 
-(defvar ensime-server-process-start-hook nil
-  "Hook called whenever a new process gets started.")
-
-(defvar ensime--classpath-separator
-  (if (find system-type '(cygwin windows-nt)) ";" ":")
-  "Separator used in Java classpaths")
-
 (defun ensime--start-server (buffer java-home scala-version flags user-env config-file cache-dir)
   "Start an ensime server in the given buffer and return the created process.
 BUFFER is the buffer to receive the server output.
@@ -252,34 +289,6 @@ CACHE-DIR is the server's persistent output directory."
                        (cons "_classpath_file_" (ensime--classpath-file scala-version)))
                  ensime--sbt-start-template))
 
-
-(defconst ensime--sbt-start-template
-"
-import sbt._
-import IO._
-import java.io._
-
-scalaVersion := \"_scala_version_\"
-
-ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) }
-
-resolvers += Resolver.sonatypeRepo(\"snapshots\")
-
-resolvers += \"Typesafe repository\" at \"http://repo.typesafe.com/typesafe/releases/\"
-
-resolvers += \"Akka Repo\" at \"http://repo.akka.io/repository\"
-
-libraryDependencies += \"org.ensime\" %% \"ensime\" % \"_server_version_\"
-
-val saveClasspathTask = TaskKey[Unit](\"saveClasspath\", \"Save the classpath to a file\")
-
-saveClasspathTask := {
-  val managed = (managedClasspath in Runtime).value.map(_.data.getAbsolutePath)
-  val unmanaged = (unmanagedClasspath in Runtime).value.map(_.data.getAbsolutePath)
-  val out = file(\"_classpath_file_\")
-  write(out, (unmanaged ++ managed).mkString(File.pathSeparator))
-}
-")
 
 (defun ensime-shutdown()
   "Request that the current ENSIME server kill itself."
@@ -347,12 +356,10 @@ defined."
       (apply fun args)
     (error (debug nil (list "Error in timer" fun args data)))))
 
-(defvar ensime--abort-connection nil)
-
 (defun ensime--abort-connection ()
   "Abort connection the current connection attempt."
   (interactive)
-  (setq ensime-abort-connection 't))
+  (setq ensime--abort-connection 't))
 
 (defun ensime-init-project (conn)
   "Notify the server that we are ready for project events."
@@ -367,5 +374,4 @@ defined."
 (provide 'ensime-startup)
 
 ;; Local Variables:
-;; no-byte-compile: t
 ;; End:

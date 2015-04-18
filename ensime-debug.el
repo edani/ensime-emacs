@@ -19,11 +19,11 @@
 ;;     Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
 ;;     MA 02111-1307, USA.
 
-(eval-and-compile
-  (require 'gdb-mi)
-  (require 'cl))
+(eval-when-compile
+  (require 'cl)
+  (require 'ensime-macros))
 
-(eval-and-compile (require 'ensime-macros))
+(require 'gdb-mi)
 
 (defgroup ensime-db nil
   "Customization of ensime debugger support."
@@ -77,6 +77,54 @@
 (defvar ensime-db-thread-suspended-hook nil
   "Hook called whenever the debugger suspends a thread.")
 
+(defvar ensime-db-marker-overlays '())
+
+(defvar ensime-db-breakpoint-overlays '())
+
+(make-variable-buffer-local
+ (defvar ensime-db-buffer-value-expansion '()
+   "The value expansion associated with this buffer."))
+
+(make-variable-buffer-local
+ (defvar ensime-db-buffer-root-value nil
+   "The value expansion associated with this buffer."))
+
+(defvar ensime-db-ui-value-handler
+  (list
+   :init (lambda (info)
+           (setq ensime-db-buffer-root-value info)
+           (setq ensime-db-buffer-value-expansion (plist-get info :expansion))
+           (ensime-db-ui-insert-value
+            info ensime-db-buffer-value-expansion))
+   :update (lambda (info))
+   :help-text "Press q to quit, use n,s,o,c to control debugger."
+   :keymap `(
+             (,(kbd "<mouse-1>") ,'push-button)
+             (,(kbd "n") ,'ensime-db-next)
+             (,(kbd "s") ,'ensime-db-step)
+             (,(kbd "o") ,'ensime-db-step-out)
+             (,(kbd "c") ,'ensime-db-continue)
+             )
+   ))
+
+
+(defvar ensime-db-ui-backtrace-handler
+  (list
+   :init (lambda (info)
+           (ensime-db-ui-insert-backtrace
+            info))
+   :update (lambda (info))
+   :help-text "Press q to quit, use n,s,o,c to control debugger."
+   :writable t
+   :keymap `(
+             (,(kbd "<mouse-1>") ,'push-button)
+             (,(kbd "n") ,'ensime-db-next)
+             (,(kbd "s") ,'ensime-db-step)
+             (,(kbd "o") ,'ensime-db-step-out)
+             (,(kbd "c") ,'ensime-db-continue)
+             (,(kbd "C-c C-c") ,'ensime-db-commit-writable-values)
+             )
+   ))
 
 ;; Helpers for building DebugLocation structures
 (defun ensime-db-make-obj-ref-location (obj-id)
@@ -239,27 +287,16 @@
            :fringe 'breakpoint-disabled))))
 
 
-(defvar ensime-db-breakpoint-overlays '())
-
 (defun ensime-db-clear-breakpoint-overlays ()
   "Remove all overlays that ensime-debug has created."
   (mapc #'delete-overlay ensime-db-breakpoint-overlays)
   (setq ensime-db-breakpoint-overlays '()))
 
 
-(defvar ensime-db-marker-overlays '())
-
 (defun ensime-db-clear-marker-overlays ()
   "Remove all overlays that ensime-debug has created."
   (mapc #'delete-overlay ensime-db-marker-overlays)
   (setq ensime-db-marker-overlays '()))
-
-(defmacro* ensime-db-with-active-thread ((tid-sym) &rest body)
-  `(if ensime-db-active-thread-id
-       (let ((,tid-sym ensime-db-active-thread-id))
-         ,@body)
-     (message "No active debug thread.")))
-
 
 
 (defun ensime-db-value-p (val)
@@ -493,54 +530,6 @@
 
     )))
 
-
-
-(make-variable-buffer-local
- (defvar ensime-db-buffer-value-expansion '()
-   "The value expansion associated with this buffer."))
-
-(make-variable-buffer-local
- (defvar ensime-db-buffer-root-value nil
-   "The value expansion associated with this buffer."))
-
-(defvar ensime-db-ui-value-handler
-  (list
-   :init (lambda (info)
-           (setq ensime-db-buffer-root-value info)
-           (setq ensime-db-buffer-value-expansion (plist-get info :expansion))
-           (ensime-db-ui-insert-value
-            info ensime-db-buffer-value-expansion))
-   :update (lambda (info))
-   :help-text "Press q to quit, use n,s,o,c to control debugger."
-   :keymap `(
-             (,(kbd "<mouse-1>") ,'push-button)
-             (,(kbd "n") ,'ensime-db-next)
-             (,(kbd "s") ,'ensime-db-step)
-             (,(kbd "o") ,'ensime-db-step-out)
-             (,(kbd "c") ,'ensime-db-continue)
-             )
-   ))
-
-
-(defvar ensime-db-ui-backtrace-handler
-  (list
-   :init (lambda (info)
-           (ensime-db-ui-insert-backtrace
-            info))
-   :update (lambda (info))
-   :help-text "Press q to quit, use n,s,o,c to control debugger."
-   :writable t
-   :keymap `(
-             (,(kbd "<mouse-1>") ,'push-button)
-             (,(kbd "n") ,'ensime-db-next)
-             (,(kbd "s") ,'ensime-db-step)
-             (,(kbd "o") ,'ensime-db-step-out)
-             (,(kbd "c") ,'ensime-db-continue)
-             (,(kbd "C-c C-c") ,'ensime-db-commit-writable-values)
-             )
-   ))
-
-
 (defun ensime-db-update-backtraces ()
   (when (get-buffer ensime-db-backtrace-buffer)
     (ensime-db-backtrace t)))
@@ -580,8 +569,8 @@
                                   expansion
                                   path
                                   visitor)
-  (let ((field-name (plist-get f :name)))
-    (funcall (plist-get visitor :object-field) val f path)
+  (let ((field-name (plist-get field :name)))
+    (funcall (plist-get visitor :object-field) val field path)
     (when-let (sub-expansion (ensime-db-sub-expansion
                               expansion field-name))
               (let ((sub-val (ensime-rpc-debug-value
@@ -858,6 +847,5 @@ the current project's dependencies. Returns list of form (cmd [arg]*)"
 (provide 'ensime-debug)
 
 ;; Local Variables:
-;; no-byte-compile: t
 ;; End:
 

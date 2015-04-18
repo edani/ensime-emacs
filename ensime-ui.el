@@ -19,7 +19,9 @@
 ;;     Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
 ;;     MA 02111-1307, USA.
 
-
+(eval-when-compile
+  (require 'cl)
+  (require 'ensime-macros))
 
 ;; Event Handling
 
@@ -244,6 +246,5 @@
 (provide 'ensime-ui)
 
 ;; Local Variables:
-;; no-byte-compile: t
 ;; End:
 

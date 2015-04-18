@@ -19,27 +19,11 @@
 ;;     Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
 ;;     MA 02111-1307, USA.
 
+(eval-when-compile
+  (require 'cl)
+  (require 'ensime-macros))
+
 (require 'scala-mode2-syntax)
-
-(defun ensime--annotate-completions (completions)
-  "Maps plist structures to propertized strings that will survive
- being passed through the innards of auto-complete or company."
-  (mapcar
-   (lambda (m)
-     (let* ((type-sig (plist-get m :type-sig))
-	    (type-id (plist-get m :type-id))
-	    (is-callable (plist-get m :is-callable))
-	    (to-insert (plist-get m :to-insert))
-	    (name (plist-get m :name))
-	    (candidate name))
-       (propertize candidate
-		   'symbol-name name
-		   'type-sig type-sig
-		   'type-id type-id
-		   'is-callable is-callable
-		   'to-insert to-insert
-		   ))) completions))
-
 
 ;; In order to efficiently and accurately match completion prefixes, we construct
 ;; a regular expression which matches scala identifiers in reverse.
@@ -73,6 +57,26 @@
 	  scala-syntax:letterOrDigit-group
 	  scala-syntax:opchar-group
 	  "]"))
+
+(defun ensime--annotate-completions (completions)
+  "Maps plist structures to propertized strings that will survive
+ being passed through the innards of auto-complete or company."
+  (mapcar
+   (lambda (m)
+     (let* ((type-sig (plist-get m :type-sig))
+	    (type-id (plist-get m :type-id))
+	    (is-callable (plist-get m :is-callable))
+	    (to-insert (plist-get m :to-insert))
+	    (name (plist-get m :name))
+	    (candidate name))
+       (propertize candidate
+		   'symbol-name name
+		   'type-sig type-sig
+		   'type-id type-id
+		   'is-callable is-callable
+		   'to-insert to-insert
+		   ))) completions))
+
 
 (defun ensime-completion-prefix-at-point ()
   "Returns the prefix to complete."
@@ -150,5 +154,4 @@
 (provide 'ensime-completion-util)
 
 ;; Local Variables:
-;; no-byte-compile: t
 ;; End:

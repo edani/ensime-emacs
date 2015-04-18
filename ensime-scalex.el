@@ -20,8 +20,11 @@
 ;;     MA 02111-1307, USA.
 
 (require 'json)
-(eval-when-compile (require 'cl))
 (require 'url)
+
+(eval-when-compile
+  (require 'cl)
+  (require 'ensime-macros))
 
 (defvar ensime-scalex-mode nil
   "Enables the ensime-scalex minor mode.")
@@ -460,6 +463,5 @@
 (provide 'ensime-scalex)
 
 ;; Local Variables:
-;; no-byte-compile: t
 ;; End:
 
