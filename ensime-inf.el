@@ -62,7 +62,7 @@
   :group 'ensime
   :prefix "ensime-inf-")
 
-(defcustom ensime-inf-cmd-template '("scala" "-classpath" :classpath)
+(defcustom ensime-inf-cmd-template '(:java :java-flags "-classpath" :classpath "-Dscala.usejavacp=true" "scala.tools.nsc.MainGenericRunner" "-Xnojline")
   "The command to launch the scala interpreter. Keywords will be replaced
 with data loaded from server."
   :type 'string
@@ -159,8 +159,26 @@ the current project's dependencies. Returns list of form (cmd [arg]*)"
   (if (and (ensime-connected-p) (ensime-analyzer-ready))
       (ensime-replace-keywords
        ensime-inf-cmd-template
-       (ensime-rpc-repl-config))
+       (ensime-inf-repl-config))
     ensime-inf-default-cmd-line))
+
+(defun ensime-inf-repl-config (&optional config)
+  (let ((config (or config (ensime-config)))
+        (get-deps (lambda (c)
+                    (cons (plist-get c :target)
+                          (append (plist-get c :test-targets)
+                                  (plist-get c :compile-deps)
+                                  (plist-get c :runtime-deps)
+                                  (plist-get c :test-deps))))))
+    (list
+     :java (concat (plist-get config :java-home) "/bin/java")
+     :java-flags (or (plist-get config :java-flags) ensime-default-java-flags)
+     :classpath (ensime--build-classpath
+                 (apply #'append
+                        (ensime--scan-classpath (ensime-read-from-file (ensime--classpath-file (plist-get config :scala-version)))
+                                                "\\(scala-compiler\\|scala-reflect\\)-[.[:digit:]]+\\.jar$")
+                        (funcall get-deps config)
+                        (mapcar get-deps (plist-get config :subprojects)))))))
 
 (defun ensime-inf-switch ()
   "Switch to buffer containing the interpreter"

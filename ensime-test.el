@@ -878,7 +878,41 @@
         (assert (ensime-path-includes-dir-p (concat d "/proj/src/main/scala/Things.scala")
                                             (concat d "/tmp/scala_misc")))
         (assert (not (ensime-path-includes-dir-p (concat d "/proj/src/main/scala/Things.scala")
-                                                 (concat d "/proj/x")))))))))
+                                                 (concat d "/proj/x")))))))
+
+   (ensime-test
+    "Test ensime-replace-keywords"
+    (ensime-assert-equal (ensime-replace-keywords '("str1" :key1 "str2" "str3" :key2 :key3)
+                                                  '(:key1 "foo" :key2 ("a" "b" "c") :key3 "bar"))
+                         '("str1" "foo" "str2" "str3" "a" "b" "c" "bar")))
+
+   (ensime-test
+    "Test ensime--scan-classpath"
+    (ensime-assert-equal (ensime--scan-classpath
+                          (ensime--build-classpath '("/x/y/foo-1.2.jar" "/x/y/bar-3.4.jar" "/x/y/baz-2.3.jar"))
+                          "\\(foo\\|baz\\)-[.[:digit:]]+\\.jar$")
+                         '("/x/y/foo-1.2.jar" "/x/y/baz-2.3.jar")))
+
+   (ensime-test
+    "Test ensime-inf-repl-config"
+    (let ((test-config
+           '(:scala-version "test-inf-repl-config"
+             :java-home "/x/y/jdk" :target "a" :compile-deps ("b" "c") :runtime-deps ("d" "e")
+             :java-flags ("flag1" "flag2")
+             :subprojects
+             ((:target "f" :compile-deps ("g") :runtime-deps ("h"))
+              (:target "i" :compile-deps ("j" "k") :runtime-deps ("l" "m"))))))
+      (unwind-protect
+          (progn
+            (ensime-write-to-file (ensime--classpath-file "test-inf-repl-config")
+                                  "/x/y/scala-compiler-2.11.5.jar:/x/y/something-else-1.2.jar:/x/y/scala-reflect-2.11.5.jar")
+            (ensime-assert-equal (ensime-inf-repl-config test-config)
+                                 `(:java "/x/y/jdk/bin/java"
+                                   :java-flags ("flag1" "flag2")
+                                   :classpath ,(ensime--build-classpath
+                                                '("/x/y/scala-compiler-2.11.5.jar" "/x/y/scala-reflect-2.11.5.jar"
+                                                  "a" "b" "c" "d" "e" "f" "g" "h" "i" "j" "k" "l" "m")))))
+        (delete-file (ensime--classpath-file "test-inf-repl-config")))))))
 
 (defun ensime--test-completions ()
   "Helper for completion testing."
@@ -1660,22 +1694,6 @@
         (ensime-assert-equal
          (ensime-pos-offset pos)
          (ensime-externalize-offset (ensime-test-after-label "2"))))
-      (ensime-test-cleanup proj))))
-
-   (ensime-async-test
-    "Test get repl config."
-    (let* ((proj (ensime-create-tmp-project
-                  ensime-tmp-project-hello-world)))
-      (ensime-test-init-proj proj))
-
-    ((:connected :compiler-ready :full-typecheck-finished)
-     (ensime-test-with-proj
-      (proj src-files)
-      (let ((conf (ensime-rpc-repl-config)))
-        (ensime-assert (not (null conf)))
-        (ensime-assert
-         (not (null (plist-get conf :classpath)))))
-
       (ensime-test-cleanup proj))))
 
    (ensime-async-test
