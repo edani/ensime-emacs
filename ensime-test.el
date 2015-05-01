@@ -242,26 +242,32 @@
                (handler (car ensime-async-handler-stack))
                (handler-event (plist-get handler :event))
                (guard-func (plist-get handler :guard-func)))
-          (if (and (equal event handler-event)
-                   (or (null guard-func) (funcall guard-func value)))
-              (let ((handler-func (plist-get handler :func))
-                    (is-last (plist-get handler :is-last)))
-                (message "Handling test event: %s" event)
-                (pop ensime-async-handler-stack)
-                (save-excursion
-                  (condition-case signal
-                      (funcall handler-func value)
-                    (ensime-test-interrupted
-                     (message
-                      "Error executing test: %s, moving to next." signal)
-                     (setq is-last t))))
-                (when is-last
-                  (setq ensime-async-handler-stack nil)
-                  (pop ensime-test-queue)
-                  (ensime-run-next-test)))
+          (cond
+           (ensime-stack-eval-tags
+            (message "Got %s while in a synchronous call, ignoring"
+                     event))
+
+           ((and (equal event handler-event)
+                 (or (null guard-func) (funcall guard-func value)))
+            (let ((handler-func (plist-get handler :func))
+                  (is-last (plist-get handler :is-last)))
+              (message "Handling test event: %s" event)
+              (pop ensime-async-handler-stack)
+              (save-excursion
+                (condition-case signal
+                    (funcall handler-func value)
+                  (ensime-test-interrupted
+                   (message
+                    "Error executing test: %s, moving to next." signal)
+                   (setq is-last t))))
+              (when is-last
+                (setq ensime-async-handler-stack nil)
+                (pop ensime-test-queue)
+                (ensime-run-next-test))))
+
+           (t
             (message "Got %s, expecting %s. Ignoring event."
-                     event handler-event))
-	  )))))
+                     event handler-event))))))))
 
 
 (defun ensime-run-suite (suite)
