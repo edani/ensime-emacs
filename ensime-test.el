@@ -235,23 +235,23 @@
   "Driver for asynchonous tests. This function is invoked from ensime core,
    signaling events to events handlers installed by asynchronous tests."
   (when (buffer-live-p (get-buffer ensime-testing-buffer))
-    (message "Received test event: %s with value %s" event value)
+    (message "Received test event: %s" event)
     (with-current-buffer ensime-testing-buffer
       (when (not (null ensime-async-handler-stack))
         (let* ((ensime-prefer-noninteractive t)
                (handler (car ensime-async-handler-stack))
-               (handler-event (plist-get handler :event))
-               (guard-func (plist-get handler :guard-func)))
+               (guard-func (plist-get handler :guard-func))
+               (handler-events (plist-get handler :events)))
           (cond
            (ensime-stack-eval-tags
             (message "Got %s while in a synchronous call, ignoring"
                      event))
 
-           ((and (equal event handler-event)
+           ((and (equal (list event) handler-events)
                  (or (null guard-func) (funcall guard-func value)))
             (let ((handler-func (plist-get handler :func))
                   (is-last (plist-get handler :is-last)))
-              (message "Handling test event: %s" event)
+              (message "Handling test event: %s/%s" event handler)
               (pop ensime-async-handler-stack)
               (save-excursion
                 (condition-case signal
@@ -265,9 +265,16 @@
                 (pop ensime-test-queue)
                 (ensime-run-next-test))))
 
+           ((member event handler-events)
+            (message "Received %s expecting %s. Waiting for the rest"
+                     event handler-events)
+            (setq handler-events (cl-remove event handler-events :count 1))
+            (setq handler (plist-put handler :events handler-events))
+            (setcar ensime-async-handler-stack handler))
+
            (t
             (message "Got %s, expecting %s. Ignoring event."
-                     event handler-event))))))))
+                     event handler-events))))))))
 
 
 (defun ensime-run-suite (suite)
@@ -318,22 +325,27 @@
    trigger-expression is some expression that either constitutes the entire
      test, or (as is more common) invokes some process that will yield an
      asynchronous event.
-   handler is of the form (head body)
-     Where:
-     head is of the form (event-type value-name guard-expression?)
-        Where:
-        event-type is a keyword that identifies the event class
-        value-name is the symbol to which to bind the event payload
-        guard-expression is an expression evaluated with value-name bound to
+   handler can be of one of two forms:
+    1) (event-types body...) where:
+     event-types is a list keywords that identifies event classes ; or a single keyword
+     body... is a list of arbitrary expressions
+
+    2) (event-type value-name guard-expr body...) where
+     event-type  is a single keyword that identifies the expected event class
+     value-name  is the symbol to which to bind the event payload
+     guard-expression is an expression evaluated with value-name bound to
           the payload.
-     body is an arbitrary expression evaluated with value-name bound to the
+     body... is a list of arbitrary expressions evaluated with value-name bound to the
        payload of the event.
 
    When the test is executed, trigger-expression is evaluated. The test then
    waits for an asynchronous test event. When an event is signalled, the next
-   handler in line is considered. If the event type of the handler's head
-   matches the type of the event and the guard-expression evaluates to true,
-   the corresponding handler body is executed.
+   handler in line is considered.
+   - If the type of the event doesn't belong to the event-types of the handler head,
+     it is ignored
+   - Otherwise the event is recorded as being seen
+   - Once all the events in the handler's event-types have been seen, the corresponding
+     handler body is executed. The order in which the events are seen doesn't matter.
 
    Handlers must be executed in order, they cannot be skipped. The test will
    wait in an unfinished state until an event is signalled that matches the
@@ -343,22 +355,17 @@
          (handler-structs
           (mapcar
            (lambda (h)
-             (let* ((head (car h))
-                    (evt (car head))
-                    (val-sym (car (cdr head)))
-                    (guard-expr (car (cdr (cdr head))))
-                    (func-body (cdr h))
-                    (func `(lambda (,val-sym)
-                             (ensime-test-run-with-handlers
-                              ,title
-                              ,@func-body))))
-               (list
-                :event evt
-                :val-sym val-sym
-                :guard-func (when guard-expr
-                              (list 'lambda (list val-sym) guard-expr))
-                :func func
-                :is-last (eq h last-handler))))
+             (if (listp (car h))
+                 (list
+                  :events (car h)
+                  :func `(lambda (,(gensym)) (ensime-test-run-with-handlers ,title ,@(cdr h)))
+                  :is-last (eq h last-handler))
+               (let ((value-sym (nth 1 h)))
+                 (list
+                  :events (list (car h))
+                  :guard-func `(lambda (,value-sym) ,(nth 2 h))
+                  :func `(lambda (,value-sym) (ensime-test-run-with-handlers ,title ,@(nthcdr 3 h)))
+                  :is-last (eq h last-handler)))))
            handlers))
          (trigger-func
           `(lambda ()
@@ -896,9 +903,7 @@
                                  "}"))))))
       (ensime-test-init-proj proj))
 
-    ((:connected connection-info))
-
-    ((:indexer-ready val)
+    ((:connected :compiler-ready :full-typecheck-finished :indexer-ready)
      (ensime-test-with-proj
       (proj src-files)
       (setq ensime--test-cached-project proj)
@@ -915,14 +920,7 @@
                                  "}"))))))
       (ensime-test-init-proj proj))
 
-    ((:connected connection-info))
-
-    ((:indexer-ready val)
-     (ensime-test-with-proj
-      (proj src-files)
-      (ensime-typecheck-current-file)))
-
-    ((:full-typecheck-finished val)
+    ((:connected :compiler-ready :indexer-ready :full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
       (find-file (car src-files))
@@ -948,14 +946,7 @@
                                  "}"))))))
       (ensime-test-init-proj proj))
 
-    ((:connected connection-info))
-
-    ((:indexer-ready val)
-     (ensime-test-with-proj
-      (proj src-files)
-      (ensime-typecheck-current-file)))
-
-    ((:full-typecheck-finished val)
+    ((:connected :compiler-ready :indexer-ready :full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
       (find-file (car src-files))
@@ -980,21 +971,14 @@
       (ensime-test-init-proj proj))
 
 
-    ((:connected connection-info))
-
-    ((:full-typecheck-finished val)
-     (ensime-test-with-proj
-      (proj src-files)
-      (ensime-typecheck-current-file)))
-
-    ((:full-typecheck-finished val)
+    ((:connected :compiler-ready :full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
       (find-file (car src-files))
       (goto-char (ensime-test-after-label "1"))
       (ensime-inspect-type-at-point)))
 
-    ((:type-inspector-shown info)
+    ((:type-inspector-shown)
      (ensime-test-with-proj
       (proj src-files)
       (switch-to-buffer ensime-inspector-buffer-name)
@@ -1077,14 +1061,7 @@
            (src-files (plist-get proj :src-files)))
       (ensime-test-init-proj proj))
 
-    ((:connected connection-info))
-
-    ((:full-typecheck-finished val)
-     (ensime-test-with-proj
-      (proj src-files)
-      (ensime-typecheck-current-file)))
-
-    ((:full-typecheck-finished val)
+    ((:connected :compiler-ready :full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
       ;; object method completion
@@ -1141,14 +1118,7 @@
            (src-files (plist-get proj :src-files)))
       (ensime-test-init-proj proj))
 
-    ((:connected connection-info))
-
-    ((:full-typecheck-finished val)
-     (ensime-test-with-proj
-      (proj src-files)
-      (ensime-typecheck-current-file)))
-
-    ((:full-typecheck-finished val)
+    ((:connected :compiler-ready :full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
 
@@ -1209,14 +1179,7 @@
            (src-files (plist-get proj :src-files)))
       (ensime-test-init-proj proj))
 
-    ((:connected connection-info))
-
-    ((:full-typecheck-finished val)
-     (ensime-test-with-proj
-      (proj src-files)
-      (ensime-typecheck-current-file)))
-
-    ((:full-typecheck-finished val)
+    ((:connected :compiler-ready :full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
       ;; Expand simple, two argument list.
@@ -1231,7 +1194,7 @@
 	 (buffer-substring-no-properties pt (point)) "d(2, 3)"))
       (ensime-typecheck-current-file)))
 
-    ((:full-typecheck-finished val)
+    ((:full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
       ;; Expand operator.
@@ -1246,7 +1209,7 @@
 	 (buffer-substring-no-properties pt (point)) "+ 5"))
       (ensime-typecheck-current-file)))
 
-    ((:full-typecheck-finished val)
+    ((:full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
       ;; Expand operator after typing '.'
@@ -1261,7 +1224,7 @@
 	 (buffer-substring-no-properties (- pt 1) (point)) " + 8"))
       (ensime-typecheck-current-file)))
 
-    ((:full-typecheck-finished val)
+    ((:full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
       ;; Expand a function taking a named function as argument.
@@ -1276,7 +1239,7 @@
 	 (buffer-substring-no-properties pt (point)) "ck(str)"))
       (ensime-typecheck-current-file)))
 
-    ((:full-typecheck-finished val)
+    ((:full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
       ;; Expand a function taking a function block as argument.
@@ -1291,7 +1254,7 @@
 	 (buffer-substring-no-properties pt (point)) "ck { i => str }"))
       (ensime-typecheck-current-file)))
 
-    ((:full-typecheck-finished val)
+    ((:full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
       ;; Expand a function taking a by name block.
@@ -1306,7 +1269,7 @@
 	(insert "\"bla\""))
       (ensime-typecheck-current-file)))
 
-    ((:full-typecheck-finished val)
+    ((:full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
       ;; Expand a field assignment
@@ -1321,7 +1284,7 @@
 	 (buffer-substring-no-properties pt (point)) "ld = 2"))
       (ensime-typecheck-current-file)))
 
-    ((:full-typecheck-finished val)
+    ((:full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
       ;; Expand an empty argument list for java method.
@@ -1335,7 +1298,7 @@
 	 (buffer-substring-no-properties pt (point)) "de()"))
       (ensime-typecheck-current-file)))
 
-    ((:full-typecheck-finished val)
+    ((:full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
       ;; Expand an no argument list for nullary scala method
@@ -1349,7 +1312,7 @@
 	 (buffer-substring-no-properties pt (point)) "ng"))
       (ensime-typecheck-current-file)))
 
-    ((:full-typecheck-finished val)
+    ((:full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
       (ensime-test-cleanup proj))))
@@ -1371,14 +1334,7 @@
            (src-files (plist-get proj :src-files)))
       (ensime-test-init-proj proj))
 
-    ((:connected connection-info))
-
-    ((:indexer-ready status)
-     (ensime-test-with-proj
-      (proj src-files)
-      (ensime-typecheck-current-file)))
-
-    ((:full-typecheck-finished val)
+    ((:connected :compiler-ready :full-typecheck-finished :indexer-ready)
      (ensime-test-with-proj
       (proj src-files)
 
@@ -1414,23 +1370,16 @@
                                  "}"))))))
       (ensime-test-init-proj proj))
 
-    ((:connected connection-info))
-
-    ((:full-typecheck-finished val)
-     (ensime-test-with-proj
-      (proj src-files)
-      (ensime-typecheck-current-file)))
-
-    ((:full-typecheck-finished val)
+    ((:connected :compiler-ready :full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
       (ensime-refactor-organize-imports)))
 
-    ((:refactor-at-confirm-buffer val)
+    ((:refactor-at-confirm-buffer)
      (switch-to-buffer ensime-refactor-info-buffer-name)
      (funcall (key-binding (kbd "c"))))
 
-    ((:refactor-done touched-files)
+    (:refactor-done touched-files t
      (ensime-test-with-proj
       (proj src-files)
       (ensime-assert
@@ -1459,15 +1408,13 @@
                                  "}"))))))
       (ensime-test-init-proj proj))
 
-    ((:connected connection-info))
-
-    ((:full-typecheck-finished val)
+    ((:connected :compiler-ready :full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
       ;; refactor-rename needs all files to be typechecked
       (ensime-typecheck-all)))
 
-    ((:full-typecheck-finished val)
+    ((:full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
       (ensime-assert (null (ensime-all-notes))))
@@ -1475,19 +1422,16 @@
      (forward-char)
      (ensime-refactor-rename "DudeFace"))
 
-    ((:refactor-at-confirm-buffer val)
+    ((:refactor-at-confirm-buffer)
      (switch-to-buffer ensime-refactor-info-buffer-name)
      (funcall (key-binding (kbd "c"))))
 
-    ((:refactor-done touched-files)
+    ((:refactor-done :full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
       (ensime-assert-file-contains-string (car src-files) "class /*1*/DudeFace")
-      (ensime-assert-file-contains-string (cadr src-files) "new DudeFace()")))
+      (ensime-assert-file-contains-string (cadr src-files) "new DudeFace()")
 
-    ((:full-typecheck-finished val)
-     (ensime-test-with-proj
-      (proj src-files)
       ;; Do a followup refactoring to make sure compiler reloaded
       ;; all touched files after the first rename...
       (find-file (car src-files))
@@ -1495,19 +1439,16 @@
       (search-forward "Dude" nil t)
       (ensime-refactor-rename "Horse")))
 
-    ((:refactor-at-confirm-buffer val)
+    ((:refactor-at-confirm-buffer)
      (switch-to-buffer ensime-refactor-info-buffer-name)
      (funcall (key-binding (kbd "c"))))
 
-    ((:refactor-done touched-files)
+    ((:refactor-done :full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
       (ensime-assert-file-contains-string (car src-files) "class /*1*/Horse")
-      (ensime-assert-file-contains-string (cadr src-files) "new Horse()")))
+      (ensime-assert-file-contains-string (cadr src-files) "new Horse()")
 
-    ((:full-typecheck-finished val)
-     (ensime-test-with-proj
-      (proj src-files)
       (ensime-assert (null (ensime-all-notes)))
       (ensime-test-cleanup proj))))
 
@@ -1528,26 +1469,24 @@
                                  "}"))))))
       (ensime-test-init-proj proj))
 
-    ((:connected connection-info))
-
-    ((:full-typecheck-finished val)
+    ((:connected :compiler-ready :full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
       ;; find-references requires all files to be typechecked
       (ensime-typecheck-all)))
 
-    ((:full-typecheck-finished val)
+    ((:full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
       (ensime-test-eat-label "1")
       (save-buffer)))
 
-    ((:full-typecheck-finished val)
+    ((:full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
       (ensime-show-uses-of-symbol-at-point)))
 
-    ((:references-buffer-shown val)
+    ((:references-buffer-shown)
      (switch-to-buffer ensime-uses-buffer-name)
      (goto-char (point-min))
      (ensime-assert (search-forward "class B(value:String) extends A" nil t))
@@ -1571,14 +1510,12 @@
                                  "}"))))))
       (ensime-test-init-proj proj))
 
-    ((:connected connection-info))
-
-    ((:full-typecheck-finished val)
+    ((:connected :compiler-ready :full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
       (ensime-typecheck-all)))
 
-    ((:full-typecheck-finished val)
+    ((:full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
       (let* ((notes (ensime-all-notes)))
@@ -1602,14 +1539,12 @@
                                  "}"))))))
       (ensime-test-init-proj proj))
 
-    ((:connected connection-info))
-
-    ((:full-typecheck-finished val)
+    ((:connected :compiler-ready :full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
       (ensime-typecheck-all)))
 
-    ((:full-typecheck-finished val)
+    ((:full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
       (let* ((notes (ensime-all-notes)))
@@ -1618,12 +1553,12 @@
       (delete-file (car src-files))
       (find-file (cadr src-files))))
 
-    ((:full-typecheck-finished val)
+    ((:full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
       (ensime-typecheck-all)))
 
-    ((:full-typecheck-finished val)
+    ((:full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
       (let* ((notes (ensime-all-notes)))
@@ -1642,14 +1577,7 @@
                                  ""))))))
       (ensime-test-init-proj proj))
 
-    ((:connected connection-info))
-
-    ((:full-typecheck-finished val)
-     (ensime-test-with-proj
-      (proj src-files)
-      (ensime-typecheck-current-file)))
-
-    ((:full-typecheck-finished val)
+    ((:connected :compiler-ready :full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
       (find-file (car src-files))
@@ -1671,14 +1599,7 @@
                   ensime-tmp-project-hello-world)))
       (ensime-test-init-proj proj))
 
-    ((:connected connection-info))
-
-    ((:full-typecheck-finished val)
-     (ensime-test-with-proj
-      (proj src-files)
-      (ensime-typecheck-current-file)))
-
-    ((:full-typecheck-finished val)
+    ((:connected :compiler-ready :full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
       (let ((info (ensime-rpc-inspect-package-by-path
@@ -1697,14 +1618,7 @@
                   ensime-tmp-project-hello-world)))
       (ensime-test-init-proj proj))
 
-    ((:connected connection-info))
-
-    ((:full-typecheck-finished val)
-     (ensime-test-with-proj
-      (proj src-files)
-      (ensime-typecheck-current-file)))
-
-    ((:full-typecheck-finished val)
+    ((:connected :compiler-ready :full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
       (let* ((notes (ensime-all-notes)))
@@ -1716,7 +1630,7 @@
         ;; save-buffer should trigger a recheck...
         (save-buffer))))
 
-    ((:full-typecheck-finished val)
+    ((:full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
       (let ((notes (ensime-all-notes)))
@@ -1737,14 +1651,7 @@
                                  "}"))))))
       (ensime-test-init-proj proj))
 
-    ((:connected connection-info))
-
-    ((:full-typecheck-finished val)
-     (ensime-test-with-proj
-      (proj src-files)
-      (ensime-typecheck-current-file)))
-
-    ((:full-typecheck-finished val)
+    ((:connected :compiler-ready :full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
       (goto-char (ensime-test-before-label "1"))
@@ -1761,9 +1668,7 @@
                   ensime-tmp-project-hello-world)))
       (ensime-test-init-proj proj))
 
-    ((:connected connection-info))
-
-    ((:compiler-ready status)
+    ((:connected :compiler-ready :full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
       (let ((conf (ensime-rpc-repl-config)))
@@ -1779,14 +1684,7 @@
                   ensime-tmp-project-hello-world)))
       (ensime-test-init-proj proj))
 
-    ((:connected connection-info))
-
-    ((:indexer-ready status)
-     (ensime-test-with-proj
-      (proj src-files)
-      (ensime-typecheck-current-file)))
-
-    ((:full-typecheck-finished val)
+    ((:connected :compiler-ready :full-typecheck-finished :indexer-ready)
      (ensime-test-with-proj
       (proj src-files)
       ;; Prevent a previous search from affecting this test
@@ -1794,7 +1692,7 @@
       (ensime-search)
       (insert "scala.collection.immutable.Vector")))
 
-    ((:search-buffer-populated val)
+    ((:search-buffer-populated)
      (ensime-test-with-proj
       (proj src-files)
 
@@ -1825,14 +1723,7 @@
                                  "}"))))))
       (ensime-test-init-proj proj))
 
-    ((:connected connection-info))
-
-    ((:indexer-ready status)
-     (ensime-test-with-proj
-      (proj src-files)
-      (ensime-typecheck-current-file)))
-
-    ((:full-typecheck-finished val)
+    ((:connected :compiler-ready :full-typecheck-finished :indexer-ready)
      (ensime-test-with-proj
       (proj src-files)
       (goto-char 1)
@@ -1860,9 +1751,7 @@
                                  "}"))))))
       (ensime-test-init-proj proj))
 
-    ((:connected connection-info))
-
-    ((:compiler-ready status)
+    ((:connected :compiler-ready :full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
       (ensime-test-eat-label "1")
@@ -1916,19 +1805,7 @@
                                  "}"))))))
       (ensime-test-init-proj proj))
 
-    ((:compiler-ready val)
-     (ensime-test-with-proj
-      (proj src-files)))
-
-    ((:region-sem-highlighted val)
-     (ensime-test-with-proj
-      (proj src-files)
-
-      ;; Don't check highlights immediately, as
-      ;; overlays might not be rendered yet... (it seems)
-      (ensime-typecheck-current-file)))
-
-    ((:full-typecheck-finished val)
+    ((:connected :compiler-ready :full-typecheck-finished :region-sem-highlighted)
      (ensime-test-with-proj
       (proj src-files)
       (let ((check-sym-is (lambda (sym-type)
@@ -2008,24 +1885,17 @@
       (assert (directory-files (concat (plist-get proj :target) "/test") nil "class$"))
       (ensime-test-init-proj proj))
 
-    ((:connected connection-info))
-
-    ((:indexer-ready status)
-     (ensime-test-with-proj
-      (proj src-files)
-      (ensime-typecheck-current-file)))
-
-    ((:full-typecheck-finished val)
+    ((:connected :compiler-ready :full-typecheck-finished :indexer-ready)
      (ensime-test-with-proj
       (proj src-files)
       (ensime-rpc-debug-set-break buffer-file-name 7)
       (ensime-rpc-debug-start "test.Test")))
 
-    ((:debug-event evt (equal (plist-get evt :type) 'start)))
+    (:debug-event evt (equal (plist-get evt :type) 'start))
 
-    ((:debug-event evt (equal (plist-get evt :type) 'threadStart)))
+    (:debug-event evt (equal (plist-get evt :type) 'threadStart))
 
-    ((:debug-event evt (equal (plist-get evt :type) 'breakpoint))
+    (:debug-event evt (equal (plist-get evt :type) 'breakpoint)
      (ensime-test-with-proj
       (proj src-files)
       (let* ((thread-id (plist-get evt :thread-id))
@@ -2052,7 +1922,7 @@
 		   :this-object-id "NA"))))
       (ensime-rpc-debug-stop)))
 
-    ((:debug-event evt (equal (plist-get evt :type) 'disconnect))
+    (:debug-event evt (equal (plist-get evt :type) 'disconnect)
      (ensime-test-with-proj
       (proj src-files)
       (ensime-test-cleanup proj))))
