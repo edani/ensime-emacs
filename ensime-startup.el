@@ -29,13 +29,21 @@ scalaVersion := \"_scala_version_\"
 
 ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) }
 
+// allows local builds of scala
+resolvers += Resolver.mavenLocal
+
 resolvers += Resolver.sonatypeRepo(\"snapshots\")
 
 resolvers += \"Typesafe repository\" at \"http://repo.typesafe.com/typesafe/releases/\"
 
 resolvers += \"Akka Repo\" at \"http://repo.akka.io/repository\"
 
-libraryDependencies += \"org.ensime\" %% \"ensime\" % \"_server_version_\"
+libraryDependencies ++= Seq(
+  \"org.ensime\" %% \"ensime\" % \"_server_version_\",
+  \"org.scala-lang\" % \"scala-compiler\" % scalaVersion.value force(),
+  \"org.scala-lang\" % \"scala-reflect\" % scalaVersion.value force(),
+  \"org.scala-lang\" % \"scalap\" % scalaVersion.value force()
+)
 
 val saveClasspathTask = TaskKey[Unit](\"saveClasspath\", \"Save the classpath to a file\")
 
