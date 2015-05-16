@@ -289,6 +289,35 @@ class %TESTCLASS% extends FunSpec with ShouldMatchers {
 }
 ")
 
+(defun ensime-goto-test--test-template-scalatest-wordspec ()
+  "ENSIME template for a ScalaCheck WordSpec style test."
+  "package %TESTPACKAGE%
+
+import org.scalatest._
+
+class %TESTCLASS% extends WordSpec with Matchers {
+  \"%IMPLCLASS%\" should {
+    \"have a test!\" in {
+      fail(\"no test\")
+    }
+  }
+}
+")
+
+(defun ensime-goto-test--test-template-scalatest-flatspec ()
+  "ENSIME template for a ScalaCheck FlatSpec style test."
+  "package %TESTPACKAGE%
+
+import org.scalatest._
+
+class %TESTCLASS% extends FlatSpec with Matchers {
+  \"%IMPLCLASS%\" should \"have a test!\" in {
+    fail(\"no test\")
+  }
+}
+")
+
+
 (defun ensime-goto-test--test-template-scalacheck ()
   ""
   "package %TESTPACKAGE%
