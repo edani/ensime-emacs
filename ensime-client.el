@@ -973,12 +973,6 @@ copies. All other objects are used unchanged. List must not contain cycles."
   (ensime-eval
    `(swank:symbol-at-point ,buffer-file-name ,(ensime-computed-point))))
 
-(defun ensime-rpc-repl-config ()
-  "Get the configuration information needed to launch the scala interpreter
-with the current project's dependencies loaded. Returns a property list."
-  (ensime-eval
-   `(swank:repl-config)))
-
 (defun ensime-rpc-remove-file (file-name)
   (ensime-eval `(swank:remove-file ,file-name)))
 

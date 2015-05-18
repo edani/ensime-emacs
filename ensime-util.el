@@ -211,6 +211,15 @@ Do not show 'Writing..' message."
        (rest paths))
     base))
 
+(defun ensime--build-classpath (paths)
+  "Build a classpath string from a list of paths"
+  (mapconcat #'identity paths ensime--classpath-separator))
+
+(defun ensime--scan-classpath (classpath pattern)
+  "Search through a classpath and extract paths that match the regexp specified"
+  (delq nil (mapcar (lambda (p) (and (string-match pattern p) p))
+                    (split-string classpath ensime--classpath-separator))))
+
 ;; Commonly used functions
 
 (defun ensime-curry (fun &rest args)
@@ -254,7 +263,10 @@ This idiom is preferred over `lexical-let'."
     (dolist (ea template)
       (cond
        ((keywordp ea)
-	(setq result (cons (plist-get proplist ea) result)))
+        (let ((val (plist-get proplist ea)))
+          (setq result (if (listp val)
+                           (append (reverse val) result)
+                         (cons val result)))))
        (t
 	(setq result (cons ea result)))))
     (reverse result)))
