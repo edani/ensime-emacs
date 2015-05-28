@@ -8,8 +8,8 @@
     (yasnippet "0.8.0")
     (popup "0.5.0")
     (scala-mode2 "0.21")
+    (fold-this "0.3.0")
     ))
 
 ;; Local Variables:
 ;; End:
-

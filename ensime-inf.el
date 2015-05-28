@@ -305,12 +305,12 @@ the current project's dependencies. Returns list of form (cmd [arg]*)"
     (goto-char (point-at-bol 0)) ;; back up one line
     (when (search-forward-regexp "^[^ \t]" (point-at-eol) t)
       (put-text-property (point-at-bol) (point-at-eol)
-                         'font-lock-face 'compilation-error-face)))
+                         'font-lock-face 'compilation-warning)))
 
   (save-excursion
     (goto-char (point-at-bol))
     (put-text-property (point-at-bol) (point-at-eol)
-                       'font-lock-face 'compilation-error-face)
+                       'font-lock-face 'compilation-warning)
     (when
         (search-forward-regexp
          "^[ \t]+at \\([a-zA-Z0-9_$.]+\\)\\.\\([^.]+\\)(\\(.+\\):\\([0-9]+\\))[ \t]*$"
@@ -348,4 +348,3 @@ the current project's dependencies. Returns list of form (cmd [arg]*)"
 
 ;; Local Variables:
 ;; End:
-
