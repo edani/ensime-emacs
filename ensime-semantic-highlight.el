@@ -35,7 +35,16 @@
 		 (start (nth 1 sym))
 		 (end (nth 2 sym))
 		 (face (cdr (assoc type ensime-sem-high-faces))))
+            (when (eq type 'implicitParams)
+              (setq start end)
+              (setq end (1+ end)))
 	    (let ((ov (make-overlay start end buf)))
+              (when (or (eq type 'implicitParams)
+                        (eq type 'implicitConversion))
+                (overlay-put ov 'before-string
+                             (propertize "."
+                                         'display
+                                         '(left-fringe breakpoint ensime-compile-infoline))))
 	      (overlay-put ov 'face face)
 	      (overlay-put ov 'ensime-sem-high-overlay t)
 	      (overlay-put ov 'ensime-sym-type type))))))))
@@ -124,9 +133,9 @@
 			     (overlay-get ov 'ensime-sym-type)))
 		   ovs))))
 
-(defun ensime-sem-high-sym-types-at-point ()
+(defun ensime-sem-high-sym-types-at-point (&optional point)
   (interactive)
-  (let ((ovs (overlays-at (point))))
+  (let ((ovs (overlays-at (or point (point)))))
     (mapcar
      (lambda (ov)
        (overlay-get ov 'ensime-sym-type))

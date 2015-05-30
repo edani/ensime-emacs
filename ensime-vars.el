@@ -140,7 +140,9 @@ is saved."
     (class . font-lock-type-face)
     (trait .  (:inherit font-lock-type-face :slant italic))
     (object . font-lock-constant-face)
-    (package . font-lock-preprocessor-face))
+    (package . font-lock-preprocessor-face)
+    (implicitConversion . ensime-implicit-highlight)
+    (implicitParams . ensime-implicit-highlight))
   "Faces for semantic highlighting. Symbol types not mentioned here
 will not be requested from server.  The format is an alist of the form
   ( SYMBOL-TYPE . FACE-SPEC )

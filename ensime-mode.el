@@ -340,16 +340,19 @@
    or warning overlay exists at point, show the description
    of that error or warning. Otherwise try to inspect the
    type of the expression under the cursor."
+
   (when (and (eventp event)
              ensime-mode
              (ensime-connected-p)
              (ensime-analyzer-ready)
              (posn-point (event-end event)))
 
+
     (let* ((point (posn-point (event-end event)))
            (external-pos (ensime-externalize-offset point))
            (ident (tooltip-identifier-from-point point))
            (note-overlays (ensime-overlays-at point))
+           (sem-high-overlays (ensime-sem-high-sym-types-at-point point))
            (val-at-pt (ensime-db-tooltip point)))
 
       (cond
@@ -365,6 +368,11 @@
                          (overlay-get (car note-overlays) 'help-echo))
                         t))
 
+       ;; Show implicit conversions if present
+       ((or (find 'implicitConversion sem-high-overlays)
+            (find 'implicitParams sem-high-overlays))
+        (ensime-tooltip-show-message
+         (mapconcat 'identity (ensime-implicit-notes-at point) "\n")))
 
        ;; Otherwise show a type hint..
        ((and ident ensime-tooltip-type-hints)
