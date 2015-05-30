@@ -19,6 +19,10 @@
 
 (defvar ensime--abort-connection nil)
 
+(defvar user-emacs-ensime-directory "ensime"
+  "The directory to store the calculated classpaths for the ensime server
+  when running `ensime-update' or starting a server for the first time.")
+
 (defconst ensime--sbt-start-template
 "
 import sbt._
@@ -179,7 +183,7 @@ Analyzer will be restarted."
 
 (defun ensime--user-directory ()
   (file-name-as-directory
-   (expand-file-name "ensime" user-emacs-directory)))
+   (expand-file-name user-emacs-ensime-directory user-emacs-directory)))
 
 (defun ensime--classpath-file (scala-version)
   (expand-file-name
