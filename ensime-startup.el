@@ -347,7 +347,11 @@ defined."
 		 ;; visible.
 		 (when-let
 		  (win (get-buffer-window (process-buffer server-proc)))
-		  (delete-window win)))
+                  (cond
+                   ((window-parent)
+                    (delete-window win))
+                   (t
+                    (switch-to-prev-buffer nil t)))))
 	     (run-at-time
 	      "6 sec" nil 'ensime-timer-call 'ensime--retry-connect
 	      server-proc host port-fn config cache-dir))))))
