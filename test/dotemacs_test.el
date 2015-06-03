@@ -53,6 +53,7 @@
   (when (require 'undercover nil t)
     (undercover "ensime*.el"
                 (:report-file "coveralls.json")
+                (:send-report nil)
                 (:exclude "ensime-test.el" "dotemacs_test.el" "ensime-inspector.el"))))
 
 (add-to-list 'load-path "./")
