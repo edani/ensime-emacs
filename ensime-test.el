@@ -912,7 +912,27 @@
                                    :classpath ,(ensime--build-classpath
                                                 '("/x/y/scala-compiler-2.11.5.jar" "/x/y/scala-reflect-2.11.5.jar"
                                                   "a" "b" "c" "d" "e" "f" "g" "h" "i" "j" "k" "l" "m")))))
-        (delete-file (ensime--classpath-file "test-inf-repl-config")))))))
+        (delete-file (ensime--classpath-file "test-inf-repl-config")))))
+   (ensime-test
+    "Test ensime-stacktrace-pick-lines-to-fold"
+    (with-temp-buffer
+      (insert (concat "java.util.NoSuchElementException: None.get\n"
+	"\tat scala.None$.get(Option.scala:347)\n"
+	"\tat scala.None$.get(Option.scala:345)\n"
+	"\tat akka.actor.ActorCell.invoke(ActorCell.scala:487)\n"
+	"\tat akka.dispatch.Mailbox.processMailbox(Mailbox.scala:254)\n"
+	"\tat akka.dispatch.Mailbox.run(Mailbox.scala:221)\n"
+	"\tat akka.dispatch.Mailbox.exec(Mailbox.scala:231)\n"
+	"\tat scala.concurrent.forkjoin.ForkJoinTask.doExec(ForkJoinTask.java:260)\n"
+	"\tat scala.concurrent.forkjoin.ForkJoinPool$WorkQueue.pollAndExecAll(ForkJoinPool.java:1253)\n"
+	"\tat scala.concurrent.forkjoin.ForkJoinPool$WorkQueue.runTask(ForkJoinPool.java:1346)\n"
+	"\tat scala.concurrent.forkjoin.ForkJoinPool.runWorker(ForkJoinPool.java:1979)\n"))
+      (let ((lines-to-fold (ensime-stacktrace-pick-lines-to-fold '("at akka\\.*"))))
+        (ensime-assert-equal '(7 6 5 4) lines-to-fold))))
+   (ensime-test
+    "Test ensime-stacktrace-groups-lines-to-fold"
+    (let ((grouped-lines (ensime-stacktrace-group-lines-to-fold '(10 9 8 6 5 3 1))))
+      (ensime-assert-equal '((1) (3) (5 6) (8 9 10)) grouped-lines)))))
 
 (defun ensime--test-completions ()
   "Helper for completion testing."
