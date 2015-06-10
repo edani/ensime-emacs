@@ -879,7 +879,7 @@ copies. All other objects are used unchanged. List must not contain cycles."
 
 (defun ensime-rpc-doc-uri-at-point (file point)
   (ensime-eval
-   `(swank:doc-uri-at-point ,file ,point)))
+   `(swank:doc-uri-at-point ,file ,(ensime-externalize-offset point))))
 
 (defun ensime-rpc-doc-uri-for-symbol (fqn &optional member-name member-signature)
   (ensime-eval
