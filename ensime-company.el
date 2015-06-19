@@ -195,7 +195,9 @@
   (pcase command
     (`interactive (company-begin-backend 'ensime-company))
 
-    (`prefix (ensime-completion-prefix-at-point))
+    (`prefix (if (ensime-connected-p)
+                 (ensime-completion-prefix-at-point)
+               nil))
 
     (`candidates
      ;; Just ignore if there's no connection.
