@@ -879,7 +879,7 @@ copies. All other objects are used unchanged. List must not contain cycles."
 
 (defun ensime-rpc-doc-uri-at-point (file point)
   (ensime-eval
-   `(swank:doc-uri-at-point ,file ,point)))
+   `(swank:doc-uri-at-point ,file ,(ensime-externalize-offset point))))
 
 (defun ensime-rpc-doc-uri-for-symbol (fqn &optional member-name member-signature)
   (ensime-eval
@@ -1115,8 +1115,17 @@ copies. All other objects are used unchanged. List must not contain cycles."
   (ensime-eval `(swank:shutdown-server)))
 
 (defun ensime-rpc-symbol-designations (file start end requested-types continue)
+  (when (version< (ensime-protocol-version) "0.8.16")
+    (setq requested-types (remove 'implicitParams requested-types))
+    (setq requested-types (remove 'implicitConversion requested-types)))
   (ensime-eval-async `(swank:symbol-designations ,file ,start ,end ,requested-types)
 		     continue))
+
+(defun ensime-rpc-implicit-info-in-range (start end)
+  (when (version<= "0.8.16" (ensime-protocol-version))
+    (ensime-eval `(swank:implicit-info
+                   ,(buffer-file-name)
+                   (,(ensime-externalize-offset start) ,(ensime-externalize-offset end))))))
 
 (defun ensime-rpc-get-call-completion (id)
   (if (and (integerp id) (> id -1))

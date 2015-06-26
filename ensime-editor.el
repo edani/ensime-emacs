@@ -26,6 +26,11 @@
   "Face used for marking the line on which an error occurs."
   :group 'ensime-ui)
 
+(defface ensime-compile-infoline
+  '((t (:inherit compilation-info)))
+  "Face used for marking a line on which there is information available."
+  :group 'ensime-ui)
+
 (defvar ensime-selection-overlay nil)
 
 (defvar ensime-selection-stack nil)

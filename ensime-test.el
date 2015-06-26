@@ -905,7 +905,11 @@
       (unwind-protect
           (progn
             (ensime-write-to-file (ensime--classpath-file "test-inf-repl-config")
-                                  "/x/y/scala-compiler-2.11.5.jar:/x/y/something-else-1.2.jar:/x/y/scala-reflect-2.11.5.jar")
+                                  (mapconcat #'identity
+                                             '("/x/y/scala-compiler-2.11.5.jar"
+                                               "/x/y/something-else-1.2.jar"
+                                               "/x/y/scala-reflect-2.11.5.jar")
+                                             ensime--classpath-separator))
             (ensime-assert-equal (ensime-inf-repl-config test-config)
                                  `(:java "/x/y/jdk/bin/java"
                                    :java-flags ("flag1" "flag2")
@@ -1825,21 +1829,26 @@
                                  "package pack"
                                  "import java.io.File"
                                  "class A(value:String) extends /*9*/Object{"
-                                 "case class Dude(name:Integer)"
-                                 "val myTick/*7*/ = 0"
-                                 "var myTock/*8*/ = 0"
-                                 "def hello(){"
-                                 "  var tick/*2*/ = 1"
-                                 "  val tock/*6*/ = 2"
-                                 "  /*5*/println(new /*1*/File(\".\"))"
-                                 "  /*3*/tick = /*4*/tick + 1"
-                                 "  val d = /*10*/Dude(1)"
-                                 "  d match{"
-                                 "    case /*11*/Dude(i) => {}"
-                                 "    case o:/*12*/Object => {}"
-                                 "    case _ => {}"
+                                 "  case class Dude(name:Integer)"
+                                 "  val myTick/*7*/ = 0"
+                                 "  var myTock/*8*/ = 0"
+                                 "  def hello(){"
+                                 "    var tick/*2*/ = 1"
+                                 "    val tock/*6*/ = 2"
+                                 "    /*5*/println(new /*1*/File(\".\"))"
+                                 "    /*3*/tick = /*4*/tick + 1"
+                                 "    val d = /*10*/Dude(1)"
+                                 "    d match{"
+                                 "      case /*11*/Dude(i) => {}"
+                                 "      case o:/*12*/Object => {}"
+                                 "      case _ => {}"
+                                 "    }"
                                  "  }"
                                  "}"
+                                 "class B {}"
+                                 "class C{"
+                                 " implicit def stringToB(s: String) = new B"
+                                 " val x: B = \"xxx\"/*13*/"
                                  "}"))))))
       (ensime-test-init-proj proj))
 
@@ -1885,10 +1894,39 @@
         (funcall check-sym-is 'object)
 
         (goto-char (ensime-test-after-label "12"))
-        (funcall check-sym-is 'class))
+        (funcall check-sym-is 'class)
+
+        (goto-char (ensime-test-before-label "13"))
+        (funcall check-sym-is 'implicitConversion))
+
+       (ensime-test-cleanup proj))))
+
+   (ensime-async-test
+    "Test implicit notes."
+    (let* ((proj (ensime-create-tmp-project
+                  `((:name
+                     "pack/a.scala"
+                     :contents ,(ensime-test-concat-lines
+                                 "package pack"
+                                 "class B {}"
+                                 "class C{"
+                                 " implicit def stringToB(s: String)(implicit x: Int) = new B"
+                                 " implicit val zz: Int = 1"
+                                 " val xx: B = \"xxx\"/*1*/"
+                                 "}"))))))
+      (ensime-test-init-proj proj))
+
+    ((:connected :compiler-ready :full-typecheck-finished)
+     (ensime-test-with-proj
+      (proj src-files)
+
+      (goto-char (ensime-test-before-label "1"))
+      (ensime-assert-equal
+       (ensime-implicit-notes-at (point))
+       '("Implicit parameters added to call of stringToB(\"xxx\"): (zz: scala.Int)"
+         "Implicit conversion of \"xxx\" using stringToB: (s: String)(implicit x: Int)pack.B"))
 
       (ensime-test-cleanup proj))))
-
    (ensime-async-test
     "Test debugging scala project."
     (let* ((proj (ensime-create-tmp-project

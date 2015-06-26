@@ -379,9 +379,13 @@ defined."
 
 (defun ensime-init-project (conn)
   "Notify the server that we are ready for project events."
-  ;; TODO(back_compat)
-  (when (version<= (ensime-protocol-version conn) "0.8.9")
-    (ensime-eval-async `(swank:init-project (:name "NA")) 'identity)))
+  (cond
+   ;; TODO(back_compat)
+   ((version<= (ensime-protocol-version conn) "0.8.9")
+    (ensime-eval-async `(swank:init-project (:name "NA")) 'identity))
+
+   ((version<= (ensime-protocol-version conn) "0.8.14")
+    (ensime-eval-async `(swank:init-project) 'identity))))
 
 
 (provide 'ensime-startup)
