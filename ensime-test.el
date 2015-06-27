@@ -2002,6 +2002,20 @@
      (ensime-test-with-proj
       (proj src-files)
       (ensime-test-cleanup proj))))
+
+   (ensime-test
+    "REPL without server."
+    (let ((proj (ensime-create-tmp-project '((:name "test.scala" :contents "")))))
+      (unwind-protect
+          (progn
+            (find-file (car (plist-get proj :src-files)))
+            (let* ((ensime-prefer-noninteractive t)
+                   (proc (ensime-inf-run-scala)))
+              (ensime-inf-quit-interpreter)
+              (while (process-live-p proc) (accept-process-output proc))
+              (ensime-assert-equal (process-status proc) 'exit)
+              (ensime-assert-equal (process-exit-status proc) 0)))
+        (ensime-cleanup-tmp-project proj))))
   ))
 
 
