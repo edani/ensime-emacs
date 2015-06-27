@@ -80,8 +80,8 @@
 		  guess
 		  nil
 		  (if guess (file-name-nondirectory guess) "")))))
-
-    (if (and (file-exists-p file)
+    (if (and file
+             (file-exists-p file)
              (not (file-directory-p file)))
         file
       (warn (concat
