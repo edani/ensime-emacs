@@ -1847,8 +1847,16 @@
                                  "}"
                                  "class B {}"
                                  "class C{"
-                                 " implicit def stringToB(s: String) = new B"
-                                 " val x: B = \"xxx\"/*13*/"
+                                 "  implicit def stringToB(s: String) = new B"
+                                 "  val x: B = \"xxx\"/*13*/"
+                                 "}"
+                                 "class D {"
+                                 "  @deprecated(\"BadClass\", \"1.0\")"
+                                 "  class BadClass {}"
+                                 "  class Subclass extends BadClass/*14*/"
+                                 "  @deprecated(\"foo\", \"1.0\")"
+                                 "  def foo(x: Int) = x + 1"
+                                 "  val x = foo/*15*/(41)"
                                  "}"))))))
       (ensime-test-init-proj proj))
 
@@ -1897,7 +1905,13 @@
         (funcall check-sym-is 'class)
 
         (goto-char (ensime-test-before-label "13"))
-        (funcall check-sym-is 'implicitConversion))
+        (funcall check-sym-is 'implicitConversion)
+
+        (goto-char (ensime-test-before-label "14"))
+        (funcall check-sym-is 'deprecated)
+
+        (goto-char (ensime-test-before-label "15"))
+        (funcall check-sym-is 'deprecated))
 
        (ensime-test-cleanup proj))))
 

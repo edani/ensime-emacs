@@ -142,13 +142,15 @@ is saved."
     (object . font-lock-constant-face)
     (package . font-lock-preprocessor-face)
     (implicitConversion . ensime-implicit-highlight)
-    (implicitParams . ensime-implicit-highlight))
+    (implicitParams . ensime-implicit-highlight)
+    (deprecated . (:strike-through "dark gray")))
+  
   "Faces for semantic highlighting. Symbol types not mentioned here
 will not be requested from server.  The format is an alist of the form
   ( SYMBOL-TYPE . FACE-SPEC )
 where SYMBOL-TYPE is one of:
-  var val varField valField functionCall
-  operator params class trait object package"
+  var val varField valField functionCall operator params class trait
+  object package implicitConversion implicitParams deprecated"
   :type 'alist
   :group 'ensime-ui)
 
