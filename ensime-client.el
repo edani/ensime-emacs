@@ -1118,6 +1118,8 @@ copies. All other objects are used unchanged. List must not contain cycles."
   (when (version< (ensime-protocol-version) "0.8.16")
     (setq requested-types (remove 'implicitParams requested-types))
     (setq requested-types (remove 'implicitConversion requested-types)))
+  (when (version< (ensime-protocol-version) "0.8.17")
+    (setq requested-types (remove 'deprecated requested-types)))
   (ensime-eval-async `(swank:symbol-designations ,file ,start ,end ,requested-types)
 		     continue))
 
