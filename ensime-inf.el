@@ -139,8 +139,13 @@ Used for determining the default in the next one.")
 
     (let ((proc (get-buffer-process (current-buffer))))
       (ensime-set-query-on-exit-flag proc)
+      (set-process-sentinel proc 'ensime--inf-process-sentinel)
       proc)))
 
+(defun ensime--inf-process-sentinel (proc ev)
+  (unless (process-live-p proc)
+    (ensime-event-sig :inf-repl-exit))
+  (internal-default-process-sentinel proc ev))
 
 (defun ensime-inf-get-project-root ()
   "Return root path of the current project."
@@ -275,8 +280,11 @@ the current project's dependencies. Returns list of form (cmd [arg]*)"
   (ensime-inf-assert-running)
   (ensime-inf-send-string "\n:quit"))
 
-
-(defun ensime-inf-postoutput-filter (ignored)
+(defun ensime-inf-postoutput-filter (str)
+  ;; Ideally we'd base this on comint's decision on whether it's seen
+  ;; a prompt, but that decision hasn't been made by this stage
+  (unless (or (string-equal str "") (string-equal "\n" (substring str -1)))
+    (ensime-event-sig :inf-repl-ready))
   (ensime-inf-highlight-stack-traces
    comint-last-output-start
    (process-mark (get-buffer-process (current-buffer)))))

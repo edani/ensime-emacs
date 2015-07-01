@@ -468,13 +468,13 @@
        (find-file (car existing)))
      ,@body))
 
-(defun ensime-test-init-proj (proj)
+(defun ensime-test-init-proj (proj &optional no-init)
   "Store the project in a test var. Load the source files, switch to
- the first source file, and init ensime."
+ the first source file, and optionally init ensime."
   (let ((src-files (plist-get proj :src-files)))
     (ensime-test-var-put :proj proj)
     (find-file (car src-files))
-    (ensime)))
+    (unless no-init (ensime))))
 
 (defun ensime-test-cleanup (proj &optional no-del)
   "Delete temporary project files. Kill ensime buffers."
@@ -2017,19 +2017,22 @@
       (proj src-files)
       (ensime-test-cleanup proj))))
 
-   (ensime-test
+   (ensime-async-test
     "REPL without server."
-    (let ((proj (ensime-create-tmp-project '((:name "test.scala" :contents "")))))
-      (unwind-protect
-          (progn
-            (find-file (car (plist-get proj :src-files)))
-            (let* ((ensime-prefer-noninteractive t)
-                   (proc (ensime-inf-run-scala)))
-              (ensime-inf-quit-interpreter)
-              (while (process-live-p proc) (accept-process-output proc))
-              (ensime-assert-equal (process-status proc) 'exit)
-              (ensime-assert-equal (process-exit-status proc) 0)))
-        (ensime-cleanup-tmp-project proj))))
+    (progn
+      (ensime-test-init-proj
+       (ensime-create-tmp-project '((:name "test.scala" :contents "")))
+       t)
+      (let* ((ensime-prefer-noninteractive t)
+             (proc (ensime-inf-run-scala)))
+        (ensime-test-var-put :repl-proc proc)))
+    ((:inf-repl-ready)
+     (ensime-inf-quit-interpreter))
+    ((:inf-repl-exit)
+     (let ((proc (ensime-test-var-get :repl-proc)))
+       (ensime-assert-equal (process-status proc) 'exit)
+       (ensime-assert-equal (process-exit-status proc) 0)
+       (ensime-test-with-proj (proj src-files) (ensime-cleanup-tmp-project proj)))))
   ))
 
 
