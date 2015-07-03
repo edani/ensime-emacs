@@ -25,7 +25,7 @@ make -C src emacs || exit 125
 
 cd $TEST_DIR
 
-CONTINUOUS_INTEGRATION=true `dirname $0`/run_emacs_tests.sh
+`dirname $0`/run_emacs_tests.sh
 
 RET=$?
 
