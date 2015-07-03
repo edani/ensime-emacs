@@ -1,0 +1,12 @@
+image: ensime/ensime:latest
+
+script:
+  - test/run_emacs_tests.sh &&
+    if [ -n "$UNDERCOVER" ] ; then
+      curl -v -include --form json_file=@coveralls.json https://coveralls.io/api/v1/jobs ;
+    fi
+
+env:
+  - SCALA_VERSION=2.11.7
+  - EMACS=/opt/emacs-24.4/bin/emacs
+  - UNDERCOVER=true

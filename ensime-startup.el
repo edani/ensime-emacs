@@ -231,12 +231,6 @@ Analyzer will be restarted."
           (let ((process (start-process "*ensime-update*" (current-buffer)
                                         ensime-sbt-command "saveClasspath" "clean")))
             (display-buffer (current-buffer) nil)
-            (when (getenv "CONTINUOUS_INTEGRATION")
-              (set-process-filter process
-                                  ;; Log output on CI testing runs.
-                                  `(lambda (process text)
-                                     (when (not (null window-system))
-                                       (princ text 'external-debugging-output)))))
             (set-process-sentinel process
                                   `(lambda (process event)
                                      (ensime--update-sentinel process
