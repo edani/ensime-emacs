@@ -1,3 +1,4 @@
+(setq debug-on-error t)
 (add-hook 'kill-emacs-hook
           (lambda() (message "Exiting ENSIME tests at %s" (backtrace))))
 

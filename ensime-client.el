@@ -1115,6 +1115,10 @@ copies. All other objects are used unchanged. List must not contain cycles."
   (ensime-eval `(swank:shutdown-server)))
 
 (defun ensime-rpc-symbol-designations (file start end requested-types continue)
+  (while (not (ensime-protocol-version))
+    ;; workaround startup timing issue
+    (message "Waiting for connection-info")
+    (sit-for 1))
   (when (version< (ensime-protocol-version) "0.8.16")
     (setq requested-types (remove 'implicitParams requested-types))
     (setq requested-types (remove 'implicitConversion requested-types)))
