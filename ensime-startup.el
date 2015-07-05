@@ -355,6 +355,9 @@ defined."
     (ensime-set-config c config)
     (let ((ensime-dispatching-connection c))
       (ensime-eval-async
+       ;; hmm, this poses a problem... we can't really do anything
+       ;; until we know the protocol version. This shouldn't be async,
+       ;; but making it sync gives us "error in timer" errors.
        '(swank:connection-info)
        (ensime-curry #'ensime-handle-connection-info c)))))
 
