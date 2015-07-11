@@ -242,6 +242,8 @@ implementation class."
   (let ((case-fold-search nil))
     (or
      (string-match-p "src/test/scala/$" dir)
+     (string-match-p "src/it/scala/$" dir)
+     (string-match-p "src/fun/scala/$" dir)
      (string-match-p "/tests?/$" dir))))
 
 (defun ensime-goto-test--test-template-default ()
