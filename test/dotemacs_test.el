@@ -1,21 +1,23 @@
-(setq debug-on-error t)
+(setq debug-on-error t
+      debug-on-quit t
+      ensime-log-events t ;; how can we see this in batch mode?
+      ensime-typecheck-when-idle nil
+      user-emacs-directory (expand-file-name "./emacs.d")
+      package-archives '(("gnu" . "http://elpa.gnu.org/packages/")
+                         ("melpa" . "http://melpa.org/packages/")))
+
 (add-hook 'kill-emacs-hook
           (lambda() (message "Exiting ENSIME tests at %s" (backtrace))))
 
-(setq user-emacs-directory (expand-file-name "./emacs.d"))
 (require 'package)
-(add-to-list 'package-archives
-             '("melpa" . "http://melpa.milkbox.net/packages/") t)
-(when (< emacs-major-version 24)
-  (add-to-list 'package-archives '("gnu" . "http://elpa.gnu.org/packages/")))
-(package-initialize)
 (require 'cl)
+
+(package-initialize)
 
 (defun pkg-installed-p (pkg)
   (package-installed-p (car pkg) (version-to-list (cadr pkg))))
 
 ;; Load all package dependencies
-
 (condition-case err
     (let* ((pkg-info
 	    (with-temp-buffer
@@ -34,10 +36,10 @@
 	  (unless (pkg-installed-p p)
 	    (package-install (car p))
 	    (when (not (pkg-installed-p p))
-	      (error (message "Failed to install %s at %s." p)))
-	    ))))
+	      (error (message "Failed to install %s." p)))))))
   (error (message "Error loading dependencies: %s" err)))
 
+;; enable coverage
 (when (getenv "UNDERCOVER")
   (unless (package-installed-p 'undercover)
     (package-install 'undercover))
@@ -47,24 +49,11 @@
                 (:send-report nil)
                 (:exclude "ensime-test.el" "dotemacs_test.el" "ensime-inspector.el"))))
 
-(add-to-list 'load-path "./")
+(add-to-list 'load-path (expand-file-name "./"))
 (require 'ensime)
 (require 'ensime-test)
-(setq ensime-test-dev-home (expand-file-name "./"))
-(setq ensime-log-events t)
-(setq ensime-typecheck-when-idle nil)
+
 (message "Using ensime-test-dev-home of %s" ensime-test-dev-home)
 (add-hook 'scala-mode-hook 'ensime-scala-mode-hook)
 
-(setq inhibit-startup-message t)
-(setq debug-on-quit nil)
-(setq visible-bell t)
-(setq visual-line-mode nil)
-(setq mark-even-if-inactive t)
-(show-paren-mode t)
-(setq x-select-enable-clipboard t)
-(setq interprogram-paste-function 'x-cut-buffer-or-selection-value)
-(tool-bar-mode 0)
-(menu-bar-mode 0)
-(toggle-scroll-bar 0)
-(setq backup-directory-alist '(("." . (ensime-temp-directory))))
+;;(setq backup-directory-alist '(("." . (ensime-temp-directory))))
