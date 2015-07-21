@@ -39,8 +39,8 @@
 (make-variable-buffer-local 'ensime-shared-test-state)
 
 (defvar ensime-test-dev-home
-  (expand-file-name "~/features")
-  "The local development root. This")
+  (expand-file-name "./")
+  "The local development root.")
 
 (defvar ensime-test-env-classpath '()
   "Extra jars to include on testing classpath")
