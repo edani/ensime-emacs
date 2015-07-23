@@ -4,6 +4,7 @@
   (require 'cl)
   (require 'ensime-macros))
 
+(require 'cl-lib)
 (require 'scala-mode2-syntax)
 
 (defun ensime-goto-test (&optional other-window-p)
@@ -79,7 +80,7 @@ ensime configuration."
 or (if the point isn't inside a class definition) the class that follows
 the point. Return nil if no class can be found."
   ;; TODO use an RPC call instead of this cheesy search
-  (labels
+  (cl-labels
       ((pos-of-top-level-class (&optional last-try)
          (save-excursion
            (save-restriction
