@@ -117,6 +117,7 @@
                     :name "test"
                     :scala-version ,ensime--test-scala-version
                     :java-home ,(getenv "JDK_HOME")
+                    :java-flags ("-Xmx1g" "-Xss2m" "-XX:MaxPermSize=128m")
                     :subprojects
                       ((:name "test"
                         :module-name "test"
@@ -848,7 +849,7 @@
    (ensime-test
     "Test ensime-path-includes-dir-p"
     (unless (find system-type '(windows-nt cygwin))
-      (let ((d (make-temp-file "foo" t)))
+      (let ((d (make-temp-file "ensime_test_proj" t)))
         (make-directory (concat d "/proj/src/main") t)
         (make-directory (concat d "/proj/src/main/java") t)
         (ensime-create-file (concat d "/proj/src/main/java/Test.java") "import java.util.bla")
@@ -878,7 +879,9 @@
         (assert (ensime-path-includes-dir-p (concat d "/proj/src/main/scala/Things.scala")
                                             (concat d "/tmp/scala_misc")))
         (assert (not (ensime-path-includes-dir-p (concat d "/proj/src/main/scala/Things.scala")
-                                                 (concat d "/proj/x")))))))
+                                                 (concat d "/proj/x"))))
+        ;; intentionally not in an unwind-protect so it exists on failure
+        (delete-directory d t))))
 
    (ensime-test
     "Test ensime-replace-keywords"

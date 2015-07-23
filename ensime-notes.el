@@ -4,6 +4,8 @@
   (require 'cl)
   (require 'ensime-macros))
 
+(require 'cl-lib)
+
 ;; Note: This might better be a connection-local variable, but
 ;; afraid that might lead to hanging overlays..
 
@@ -249,7 +251,7 @@ any buffer visiting the given file."
       (message (mapconcat 'identity msgs "\n")))))
 
 (defun ensime-implicit-notes-at (point)
-  (labels
+  (cl-labels
       ((format-body (s)
          (let ((lines (split-string s "\n")))
            (if (>= (length lines) 5)

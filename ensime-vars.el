@@ -87,6 +87,11 @@ version."
   :type '(repeat string)
   :group 'ensime-server)
 
+(defcustom ensime-server-logback nil
+  "The logback file to use when starting the server."
+  :type 'string
+  :group 'ensime-server)
+
 (defun ensime--parent-dir (dir)
   (unless (equal "/" dir)
     (file-name-directory (directory-file-name dir))))

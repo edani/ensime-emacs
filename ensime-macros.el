@@ -21,6 +21,8 @@
 
 (eval-when-compile (require 'cl))
 
+(require 'cl-lib)
+
 (defmacro ensime-with-conn-interactive (conn-sym &rest body)
   "Surround body forms with a check to see if we're connected.
 If not, message the user."
@@ -153,7 +155,7 @@ corresponding values in the CDR of VALUE."
 (defmacro* with-struct ((conc-name &rest slots) struct &body body)
   "Like with-slots but works only for structs.
 \(fn (CONC-NAME &rest SLOTS) STRUCT &body BODY)"
-  (flet ((reader (slot) (intern (concat (symbol-name conc-name)
+  (cl-flet ((reader (slot) (intern (concat (symbol-name conc-name)
 					(symbol-name slot)))))
     (let ((struct-var (gensym "struct")))
       `(let ((,struct-var ,struct))

@@ -24,7 +24,7 @@ fi
 export JAVA_HOME="$JDK_HOME/jre"
 
 if [ $# -ge 1 ]; then
-  exec "$EMACS" --no-init-file --load test/dotemacs_test.el --eval "(ensime-run-one-test \"${*}\")"
+  exec "$EMACS" --no-site-file --no-init-file --load test/dotemacs_test.el --eval "(ensime-run-one-test \"${*}\")"
 else
-  exec "$EMACS" -batch --no-init-file --load test/dotemacs_test.el --funcall ensime-run-all-tests
+  exec "$EMACS" -batch --no-site-file --no-init-file --load test/dotemacs_test.el --funcall ensime-run-all-tests
 fi
