@@ -52,8 +52,9 @@
 (add-to-list 'load-path (expand-file-name "./"))
 (require 'ensime)
 (require 'ensime-test)
+(setq ensime-server-logback (concat ensime-test-dev-home "/test/logback.xml"))
 
 (message "Using ensime-test-dev-home of %s" ensime-test-dev-home)
 (add-hook 'scala-mode-hook 'ensime-scala-mode-hook)
 
-;;(setq backup-directory-alist '(("." . (ensime-temp-directory))))
+;;; dotemacs_test.el ends here

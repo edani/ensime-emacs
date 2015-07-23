@@ -260,11 +260,9 @@ CACHE-DIR is the server's persistent output directory."
            (args (-flatten (list
                             "-classpath" classpath
                             flags
-                            (concat
-                             "-Densime.config=" (expand-file-name config-file))
-                            (when (boundp 'ensime-test-dev-home)
-                              ;; debugging when testing
-                              (concat "-Dlogback.configurationFile=" ensime-test-dev-home "test/logback.xml"))
+                            (concat "-Densime.config=" (expand-file-name config-file))
+                            (when ensime-server-logback
+                              (concat "-Dlogback.configurationFile=" ensime-server-logback))
                             "org.ensime.server.Server"))))
 
       (set (make-local-variable 'comint-process-echoes) nil)
