@@ -145,7 +145,8 @@ Used for determining the default in the next one.")
 (defun ensime--inf-process-sentinel (proc ev)
   (unless (process-live-p proc)
     (ensime-event-sig :inf-repl-exit))
-  (internal-default-process-sentinel proc ev))
+  (when (functionp 'internal-default-process-sentinel)
+    (internal-default-process-sentinel proc ev)))
 
 (defun ensime-inf-get-project-root ()
   "Return root path of the current project."

@@ -245,8 +245,8 @@
                (handler-events (plist-get handler :events)))
           (cond
            (ensime-stack-eval-tags
-            (message "Got %s while in a synchronous call, ignoring"
-                     event))
+            (message "Got %s/%s while in a synchronous call, ignoring"
+                     event value))
 
            ((and (equal (list event) handler-events)
                  (or (null guard-func) (funcall guard-func value)))
@@ -266,16 +266,17 @@
                 (pop ensime-test-queue)
                 (ensime-run-next-test))))
 
-           ((member event handler-events)
-            (message "Received %s expecting %s. Waiting for the rest"
-                     event handler-events)
+           ((and (> (length handler-events) 1)
+		 (member event handler-events))
+            (message "Received %s/%s expecting %s with guard func %s. Waiting for the rest"
+                     event value handler-events guard-func)
             (setq handler-events (cl-remove event handler-events :count 1))
             (setq handler (plist-put handler :events handler-events))
             (setcar ensime-async-handler-stack handler))
 
            (t
-            (message "Got %s, expecting %s. Ignoring event."
-                     event handler-events))))))))
+            (message "Got %s/%s, expecting %s with guard %s. Ignoring event."
+                     event value handler-events guard-func))))))))
 
 
 (defun ensime-run-suite (suite)
@@ -1944,6 +1945,7 @@
          "Implicit conversion of \"xxx\" using stringToB: (s: String)(implicit x: Int)pack.B"))
 
       (ensime-test-cleanup proj))))
+
    (ensime-async-test
     "Test debugging scala project."
     (let* ((proj (ensime-create-tmp-project
@@ -1978,7 +1980,7 @@
       (assert (directory-files (concat (plist-get proj :target) "/test") nil "class$"))
       (ensime-test-init-proj proj))
 
-    ((:connected :compiler-ready :full-typecheck-finished :indexer-ready)
+    ((:connected :compiler-ready :full-typecheck-finished)
      (ensime-test-with-proj
       (proj src-files)
       (ensime-rpc-debug-set-break buffer-file-name 7)
@@ -2013,11 +2015,7 @@
 		   :method-name "main"
 		   :pc-location (:file ,pc-file :line 7)
 		   :this-object-id "NA"))))
-      (ensime-rpc-debug-stop)))
-
-    (:debug-event evt (equal (plist-get evt :type) 'disconnect)
-     (ensime-test-with-proj
-      (proj src-files)
+      (ensime-rpc-debug-stop)
       (ensime-test-cleanup proj))))
 
    (ensime-async-test
