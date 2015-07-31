@@ -511,6 +511,7 @@ This doesn't mean it will connect right after Ensime is loaded."
   (let* ((msg (concat (ensime-prin1-to-string sexp) "\n"))
 	 (string (concat (ensime-net-encode-length (length msg)) msg))
 	 (coding-system (cdr (process-coding-system proc))))
+    (when ensime--debug-messages (message "--> %s" sexp))
     (ensime-log-event sexp)
     (process-send-string proc string)))
 
@@ -545,6 +546,7 @@ This doesn't mean it will connect right after Ensime is loaded."
 	    (ensime-net-have-input-p))
       (let ((event (ensime-net-read-or-lose process))
 	    (ok nil))
+        (when ensime--debug-messages (message "<-- %s" event))
 	(when ensime-log-events
 	  (ensime-log-event event))
 	(unwind-protect
