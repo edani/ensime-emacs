@@ -147,11 +147,6 @@
 (defun ensime-member-pos (member)
   (plist-get member :pos))
 
-(defun ensime-source-jars-dir ()
-  (when (ensime-connected-p)
-    (let ((config (ensime-config (ensime-connection))))
-      (plist-get config :source-jars-dir))))
-
 (defun ensime-pos-file (pos)
   (plist-get pos :file))
 

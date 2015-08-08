@@ -31,22 +31,45 @@
 
 (add-to-list 'auto-mode-alist '("\\.ensime$" . emacs-lisp-mode))
 
+(defun ensime--get-cache-dir (config)
+  (let ((cache-dir (plist-get config :cache-dir)))
+    (unless cache-dir
+      (error "Cache dir in ensime configuration file appears to be unset"))
+    cache-dir))
+
+(defun ensime--get-root-dir (config)
+  (let ((root-dir (plist-get config :root-dir)))
+    (unless root-dir
+      (error "Root dir in ensime configuration file appears to be unset"))
+    root-dir))
+
+(defun ensime--get-name (config)
+  (let ((name (plist-get config :name)))
+    (unless name
+      (error "Name in ensime configuration file appears to be unset"))
+    name))
+
 (defun ensime-config-source-roots (conf)
   "Returns a list of all directories mentioned in :source-roots directives."
   (let ((subs (plist-get conf :subprojects)))
     (-mapcat (lambda (sub) (plist-get sub :source-roots)) subs)))
 
+(defun ensime-source-jars-dir (config)
+  "Directory containing extracted dependency sources for the given CONFIG."
+  (let ((cache-dir (ensime--get-cache-dir config)))
+    (concat cache-dir "/dep-src/source-jars/")))
+
 (defun ensime-config-includes-source-file
     (conf file &optional no-ref-sources)
-  "Returns t if the given file is contained in the :source-roots or (if "
-  "no-ref-sources is nil) :source-jars-dir of the given project."
+  "`t' if FILE is contained in `:source-roots' or the extracted dependencies.
+NO-REF-SOURCES allows skipping the extracted dependencies."
   (when file
     (let ((source-roots
 	   (-filter
 	    'file-directory-p
 	    (append (ensime-config-source-roots conf)
 		    (unless no-ref-sources
-		      (when-let (dir (plist-get conf :source-jars-dir))
+		      (when-let (dir (ensime-source-jars-dir conf))
 				(list dir)))))))
       (-first (lambda (dir) (ensime-path-includes-dir-p file dir))
 	      source-roots))))
@@ -55,11 +78,6 @@
   "Search up the directory tree starting at file-name
    for a suitable config file to load, return it's path. Return nil if
    no such file found."
-  ;;(ensime-config-find-file "~/projects/ensime/")
-  ;;(ensime-config-find-file "~/projects/ensime/src/main")
-  ;;(ensime-config-find-file "~/projects/ensime/src/main/scala")
-  ;;(ensime-config-find-file "~/projects/ensime/src/main/scala/")
-  ;;(ensime-config-find-file "~/projects/ensime/.ensime")
   (let* ((dir (file-name-directory file-name))
 	 (possible-path (concat dir ensime-config-file-name)))
     (when (and dir (file-directory-p dir))
@@ -107,13 +125,6 @@
 		 (error
 		  (error "Error reading configuration file, %s: %s" src error)
 		  )))))
-        (ensime-set-key config
-                        ;; bit of a hack: for extracted sources from jars
-                        :source-jars-dir
-                        (file-name-as-directory
-                         (concat dir
-                                 (file-name-as-directory ".ensime_cache/dep-src")
-                                 (file-name-as-directory "source-jars"))))
         config))))
 
 
