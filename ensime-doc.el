@@ -26,15 +26,16 @@
 (defun ensime-make-doc-url (type &optional member)
   "Given a type and an optional member object, yields an http url for
  browsing the documentation for those objects."
-  (ensime-rpc-doc-uri-for-symbol (ensime-type-full-name type)
-				 (when member (ensime-member-name member))
-				 (when member (ensime-type-id (ensime-member-type member)))))
+  (ensime--normalise-url
+   (ensime-rpc-doc-uri-for-symbol (ensime-type-full-name type)
+                                  (when member (ensime-member-name member))
+                                  (when member (ensime-type-id (ensime-member-type member))))))
 
 (defun ensime-show-doc-for-symbol-at-point ()
   "Browse to documentation for the symbol at current point."
   (interactive)
   (let* ((url (ensime-rpc-doc-uri-at-point buffer-file-name (point))))
-    (if url (browse-url (url-encode-url url))
+    (if url (browse-url (ensime--normalise-url url))
       (message "No documentation found."))))
 
 (provide 'ensime-doc)

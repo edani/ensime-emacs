@@ -532,10 +532,10 @@ inspect the package of the current source file."
 	 (member-name (plist-get props :ensime-member-name))
 	 (member-sig (plist-get props :ensime-member-signature))
 	 (package (plist-get props :ensime-package)))
-    (if package
-	(ensime-rpc-doc-uri-for-symbol package)
-      (ensime-rpc-doc-uri-for-symbol
-       type-full-name member-name member-sig))))
+    (ensime--normalise-url
+     (if package
+         (ensime-rpc-doc-uri-for-symbol package)
+       (ensime-rpc-doc-uri-for-symbol type-full-name member-name member-sig)))))
 
 (defun ensime-inspector-browse-doc ()
   "Browse the documentation of the symbol at point (in an external browser)."

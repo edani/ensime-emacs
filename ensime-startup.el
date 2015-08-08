@@ -59,24 +59,6 @@ saveClasspathTask := {
 }
 ")
 
-(defun ensime--get-cache-dir (config)
-  (let ((cache-dir (plist-get config :cache-dir)))
-    (unless cache-dir
-      (error "Cache dir in ensime configuration file appears to be unset"))
-    cache-dir))
-
-(defun ensime--get-root-dir (config)
-  (let ((root-dir (plist-get config :root-dir)))
-    (unless root-dir
-      (error "Root dir in ensime configuration file appears to be unset"))
-    root-dir))
-
-(defun ensime--get-name (config)
-  (let ((name (plist-get config :name)))
-    (unless name
-      (error "Name in ensime configuration file appears to be unset"))
-    name))
-
 (defun ensime-update ()
   "Install the most recent version of ENSIME server."
   (interactive)
@@ -124,7 +106,7 @@ saveClasspathTask := {
              config-file
              cache-dir))
            (host "127.0.0.1")
-           (port (lambda () (ensime-read-swank-port
+           (port-fn (lambda () (ensime--read-portfile
                              (concat cache-dir "/port")))))
 
       ;; Surface the server buffer so user can observe the startup progress.
@@ -133,7 +115,7 @@ saveClasspathTask := {
       ;; Store the config on the server process so we can identify it later.
       (process-put server-proc :ensime-config config)
       (push server-proc ensime-server-processes)
-      (ensime--retry-connect server-proc host port config cache-dir))))
+      (ensime--retry-connect server-proc host port-fn config cache-dir))))
 
 
 ;; typecheck continually when idle
@@ -313,17 +295,14 @@ defined."
     (let ((config (ensime-config (ensime-connection))))
       (plist-get config :root-dir))))
 
-(defun ensime-read-swank-port (portfile)
-  "Read the Swank server port number from the `cache-dir',
-   or nil if none was found."
+(defun ensime--read-portfile (portfile)
+  "Read the contents of PORTFILE."
   (when (file-exists-p portfile)
     (save-excursion
       (with-temp-buffer
-	(insert-file-contents portfile)
-	(goto-char (point-min))
-	(let ((port (read (current-buffer))))
-	  (assert (integerp port))
-	  port)))))
+        (insert-file-contents portfile)
+        (goto-char (point-min))
+        (read (current-buffer))))))
 
 (defun ensime--retry-connect (server-proc host port-fn config cache-dir)
   "When application of port-fn yields a valid port, connect to the port at the
