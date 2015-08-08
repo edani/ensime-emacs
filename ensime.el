@@ -72,7 +72,6 @@
 (require 'ensime-startup)
 (require 'ensime-undo)
 (require 'ensime-search)
-(require 'ensime-scalex)
 (require 'ensime-doc)
 (require 'ensime-semantic-highlight)
 (require 'ensime-ui)

@@ -25,7 +25,6 @@
       (define-key prefix-map (kbd "C-v f") 'ensime-format-source)
       (define-key prefix-map (kbd "C-v u") 'ensime-undo-peek)
       (define-key prefix-map (kbd "C-v v") 'ensime-search)
-      (define-key prefix-map (kbd "C-v x") 'ensime-scalex)
       (define-key prefix-map (kbd "C-v d") 'ensime-show-doc-for-symbol-at-point)
       (define-key prefix-map (kbd "C-v t") 'ensime-print-type-at-point)
       (define-key prefix-map (kbd "C-v e") 'ensime-print-errors-at-point)
@@ -181,8 +180,7 @@
      ["Backward compilation note" ensime-backward-note]
      ["Forward compilation note" ensime-forward-note]
      ["Expand selection" ensime-expand-selection-command]
-     ["Search" ensime-search]
-     ["Scalex-Search" ensime-scalex])
+     ["Search" ensime-search])
 
     ("Documentation"
      ["Browse documentation of symbol" ensime-show-doc-for-symbol-at-point])
