@@ -14,6 +14,10 @@
 ;;
 ;;; Code:
 
+(defun ensime-project-docs ()
+  "Open the project's documentation splash screen in a browser."
+  (interactive)
+  (browse-url (ensime--normalise-url "docs")))
 
 (defun ensime--normalise-url (url-or-path)
   "Convert URL-OR-PATH into a full URL.

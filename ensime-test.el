@@ -1064,7 +1064,7 @@
       (ensime-assert-equal (plist-get (text-properties-at (point)) :ensime-member-signature)
 			   "(x$1: String): Boolean")
       (ensime-assert (let ((url (ensime--inspector-doc-url-at-point)))
-		       (s-ends-with-p "java/lang/String.html#equalsIgnoreCase%28java.lang.String%29" (url-encode-url url))))
+		       (s-ends-with-p "java/lang/String.html#equalsIgnoreCase(java.lang.String)" (url-unhex-string url))))
 
       (goto-char 1)
       (ensime-assert (search-forward-regexp "^offsetByCodePoints" nil t))

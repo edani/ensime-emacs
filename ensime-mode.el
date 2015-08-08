@@ -26,6 +26,7 @@
       (define-key prefix-map (kbd "C-v u") 'ensime-undo-peek)
       (define-key prefix-map (kbd "C-v v") 'ensime-search)
       (define-key prefix-map (kbd "C-v d") 'ensime-show-doc-for-symbol-at-point)
+      (define-key prefix-map (kbd "C-v D") 'ensime-project-docs)
       (define-key prefix-map (kbd "C-v t") 'ensime-print-type-at-point)
       (define-key prefix-map (kbd "C-v e") 'ensime-print-errors-at-point)
       (define-key prefix-map (kbd "C-v .") 'ensime-expand-selection-command)
@@ -183,7 +184,8 @@
      ["Search" ensime-search])
 
     ("Documentation"
-     ["Browse documentation of symbol" ensime-show-doc-for-symbol-at-point])
+     ["Browse documentation of symbol" ensime-show-doc-for-symbol-at-point]
+     ["Browse all documentation" ensime-project-docs])
 
     ("SBT"
      ["Start or switch to" ensime-sbt-switch]
