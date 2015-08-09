@@ -1,33 +1,20 @@
 ;;; ensime.el --- ENhanced Scala Interaction Mode for Emacs
-;;
-;;;; License
-;;
-;;     Copyright (C) 2010 Aemon Cannon
-;;
-;;     This file includes code from slime.el of the SLIME project
-;;     (also licensend under the GNU General Public License.) The
-;;     following copyrights therefore apply:
-;;
-;;     Copyright (C) 2003  Eric Marsden, Luke Gorrie, Helmut Eller
-;;     Copyright (C) 2004,2005,2006  Luke Gorrie, Helmut Eller
-;;     Copyright (C) 2007,2008,2009  Helmut Eller, Tobias C. Rittweiler
-;;
-;;
-;;     This program is free software; you can redistribute it and/or
-;;     modify it under the terms of the GNU General Public License as
-;;     published by the Free Software Foundation; either version 2 of
-;;     the License, or (at your option) any later version.
-;;
-;;     This program is distributed in the hope that it will be useful,
-;;     but WITHOUT ANY WARRANTY; without even the implied warranty of
-;;     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-;;     GNU General Public License for more details.
-;;
-;;     You should have received a copy of the GNU General Public
-;;     License along with this program; if not, write to the Free
-;;     Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-;;     MA 02111-1307, USA.
 
+;; Copyright (C) 2003 - 2015 the SLIME and ENSIME authors
+;; License: http://www.gnu.org/licenses/gpl.html
+
+;; Homepage: https://github.com/ensime/ensime-emacs
+;; Keywords: languages
+;; Package-Version:  0.9.10
+;; Package-Requires: ((scala-mode2 "0.21") (sbt-mode "0.03") (popup "0.5.0") (yasnippet "0.8.0") (company "0.8.7") (auto-complete "1.5.0") (dash "2.10.0") (s "1.3.0"))
+
+;;; Commentary:
+;;
+;;  ENSIME has a server component which can read the AST of your
+;;  project and its dependencies, providing features that are simply
+;;  not possible with emacs-lisp pattern matching.
+;;
+;;; Code:
 
 (eval-and-compile
   (when (<= emacs-major-version 21)
@@ -115,6 +102,4 @@
 
 (provide 'ensime)
 
-;; Local Variables:
-;; End:
-
+;;; ensime.el ends here
