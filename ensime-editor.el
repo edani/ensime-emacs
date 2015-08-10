@@ -344,9 +344,11 @@
         (find-file-other-window effective-file)
       (find-file effective-file))
 
-    (when (ensime-path-includes-dir-p effective-file (ensime-source-jars-dir))
-      (with-current-buffer (get-file-buffer effective-file)
-        (setq buffer-read-only t)))))
+    (let* ((config (ensime-config-for-buffer))
+           (dep-src-dir (ensime-source-jars-dir config)))
+      (when (ensime-path-includes-dir-p effective-file dep-src-dir)
+        (with-current-buffer (get-file-buffer effective-file)
+          (setq buffer-read-only t))))))
 
 ;; Compilation result interface
 

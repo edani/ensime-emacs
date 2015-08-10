@@ -28,8 +28,7 @@ URL is absolute but PATH is relative to the ENSIME server's HTTP port for this b
 
 (defun ensime--http-for-buffer ()
   "The ENSIME HTTP server location as `http://localhost:port' for the current buffer."
-  (let* ((connection (ensime-connection))
-         (config (ensime-config connection))
+  (let* ((config (ensime-config-for-buffer))
          (cache-dir (ensime--get-cache-dir config))
          (port (ensime--read-portfile (concat cache-dir "/http"))))
     (concat "http://localhost:" (format "%S" port))))
