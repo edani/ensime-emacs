@@ -31,6 +31,11 @@
 
 (add-to-list 'auto-mode-alist '("\\.ensime$" . emacs-lisp-mode))
 
+(defun ensime-config-for-buffer ()
+  "Resolve the config for the current buffer via the ENSIME connection."
+  (let ((connection (ensime-connection)))
+    (ensime-config connection)))
+
 (defun ensime--get-cache-dir (config)
   (let ((cache-dir (plist-get config :cache-dir)))
     (unless cache-dir

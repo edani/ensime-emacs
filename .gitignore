@@ -3,6 +3,7 @@
 *~
 
 .cask
+ensime-pkg.el
 
 TAGS
 emacs.d
