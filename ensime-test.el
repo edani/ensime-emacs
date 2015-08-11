@@ -49,6 +49,8 @@
 
 (defvar ensime--test-exit-on-finish noninteractive)
 
+(defvar ensime--test-pending-rpcs nil)
+
 (put 'ensime-test-assert-failed
      'error-conditions '(error ensime-test-assert-failed))
 (put 'ensime-test-assert-failed 'error-message "Assertion Failed")
@@ -232,10 +234,20 @@
   `(with-current-buffer ensime-testing-buffer
      (plist-get ensime-shared-test-state ,var)))
 
+(defun ensime--return-event-handler (value id)
+  (setq ensime--test-pending-rpcs
+        (remove id ensime--test-pending-rpcs)))
+
+(defun ensime--send-event-handler (value id)
+  (push id ensime--test-pending-rpcs))
+
 (defun ensime-test-sig (event value)
   "Driver for asynchonous tests. This function is invoked from ensime core,
    signaling events to events handlers installed by asynchronous tests."
   (when (buffer-live-p (get-buffer ensime-testing-buffer))
+    (message "pending rpcs: %s" ensime--test-pending-rpcs)
+    (when (> (length ensime--test-pending-rpcs) 1)
+      (message "WARNING more than one pending message"))
     (message "Received test event: %s" event)
     (with-current-buffer ensime-testing-buffer
       (when (not (null ensime-async-handler-stack))
@@ -475,11 +487,22 @@
  the first source file, and optionally init ensime."
   (let ((src-files (plist-get proj :src-files)))
     (ensime-test-var-put :proj proj)
+    (ensime-test-var-put :pending-rpcs nil)
     (find-file (car src-files))
     (unless no-init (ensime))))
 
 (defun ensime-test-cleanup (proj &optional no-del)
   "Delete temporary project files. Kill ensime buffers."
+  (when ensime--test-pending-rpcs
+      (message "WARNING no response to messages: %s . Waiting some more."
+               ensime--test-pending-rpcs)
+      (sleep-for 10))
+  (if ensime--test-pending-rpcs
+      (progn
+        (message "ERROR no response to messages: %s"
+                 ensime--test-pending-rpcs)
+        (setq ensime--test-had-failures t))
+    (message "OK no unreplied messages"))
   (ensime-kill-all-ensime-servers)
   ; In Windows, we can't delete cache files until the server process has exited
   (sleep-for 1)
