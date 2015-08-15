@@ -23,4 +23,5 @@
   <logger name="akka" level="DEBUG" />
   <logger name="scala.tools" level="WARN" />
   <logger name="org.ensime.server.RichPresentationCompiler" level="WARN" />
+  <logger name="org.ensime.server.SwankProtocol" level="TRACE" />
 </configuration>

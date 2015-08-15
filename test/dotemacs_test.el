@@ -1,6 +1,7 @@
 (setq debug-on-error t
       debug-on-quit t
-      ensime-log-events t ;; how can we see this in batch mode?
+      ensime-log-events t
+      ensime--debug-messages noninteractive
       ensime-typecheck-when-idle nil
       user-emacs-directory (expand-file-name "./emacs.d")
       package-archives '(("gnu" . "http://elpa.gnu.org/packages/")

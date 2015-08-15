@@ -19,6 +19,10 @@
 
 (defvar ensime--abort-connection nil)
 
+(defvar ensime--debug-messages nil
+  "When true, show debugging information in the echo area")
+
+
 (defvar user-emacs-ensime-directory "ensime"
   "The directory to store the calculated classpaths for the ensime server
   when running `ensime-update' or starting a server for the first time.")
@@ -249,6 +253,9 @@ CACHE-DIR is the server's persistent output directory."
 
       (set (make-local-variable 'comint-process-echoes) nil)
       (set (make-local-variable 'comint-use-prompt-regexp) nil)
+      (when ensime--debug-messages
+        (make-local-variable 'comint-output-filter-functions)
+        (push #'(lambda (str) (message "%s" str)) comint-output-filter-functions))
 
       (insert (format "Starting ENSIME server: %s %s\n"
                       java-command

@@ -511,6 +511,7 @@ This doesn't mean it will connect right after Ensime is loaded."
   (let* ((msg (concat (ensime-prin1-to-string sexp) "\n"))
 	 (string (concat (ensime-net-encode-length (length msg)) msg))
 	 (coding-system (cdr (process-coding-system proc))))
+    (when ensime--debug-messages (message "--> %s" sexp))
     (ensime-log-event sexp)
     (process-send-string proc string)))
 
@@ -545,6 +546,7 @@ This doesn't mean it will connect right after Ensime is loaded."
 	    (ensime-net-have-input-p))
       (let ((event (ensime-net-read-or-lose process))
 	    (ok nil))
+        (when ensime--debug-messages (message "<-- %s" event))
 	(when ensime-log-events
 	  (ensime-log-event event))
 	(unwind-protect
@@ -686,11 +688,14 @@ copies. All other objects are used unchanged. List must not contain cycles."
 	(destructure-case event
                           ((:swank-rpc form continuation)
                            (let ((id (incf (ensime-continuation-counter))))
+                             (when (fboundp 'ensime--send-event-handler)
+                               (ensime--send-event-handler form id))
                              (ensime-send `(:swank-rpc ,form ,id))
-                             (push (cons id continuation) (ensime-rex-continuations))
-                             ))
+                             (push (cons id continuation) (ensime-rex-continuations))))
 
                           ((:return value id)
+                           (when (fboundp 'ensime--return-event-handler)
+                             (ensime--return-event-handler value id))
                            (let ((rec (assq id (ensime-rex-continuations))))
 
                              (cond (rec (setf (ensime-rex-continuations)
