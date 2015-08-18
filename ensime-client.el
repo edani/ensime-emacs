@@ -508,9 +508,11 @@ This doesn't mean it will connect right after Ensime is loaded."
   "Send a SEXP to Lisp over the socket PROC. This is the lowest
  level of communication. The sexp will be read and interpreted
  by the Ensime Server."
-  (let* ((coding-system (cdr (process-coding-system proc)))
-         (msg (concat (encode-coding-string (ensime-prin1-to-string sexp) coding-system) "\n"))
-         (string (concat (ensime-net-encode-length msg (ensime-protocol-version)) msg)))
+  (let* ((msg (concat (ensime-prin1-to-string sexp) "\n"))
+         (coding-system (cdr (process-coding-system proc)))
+         (protocol (ensime-protocol-version))
+         (length-encoding (when (and protocol (version<= "0.8.17" protocol)) coding-system))
+         (string (concat (ensime-net-encode-length msg length-encoding) msg)))
     (when ensime--debug-messages (message "--> %s" sexp))
     (ensime-log-event sexp)
     (process-send-string proc string)))
@@ -599,11 +601,11 @@ This doesn't mean it will connect right after Ensime is loaded."
   "Read a 24-bit hex-encoded integer from buffer."
   (string-to-number (buffer-substring-no-properties (point) (+ (point) 6)) 16))
 
-(defun ensime-net-encode-length (msg protocol)
+(defun ensime-net-encode-length (msg encoding)
   "Encode the length of MSG into a 24-bit hex string for PROTOCOL version."
-  (if (version< (or protocol "1.0.0") "0.8.17")
-      (format "%06x" (length msg))
-    (format "%06x" (length (encode-coding-string msg 'raw-text)))))
+  (if encoding
+      (format "%06x" (length (encode-coding-string msg encoding)))
+    (format "%06x" (length msg))))
 
 (defun ensime-prin1-to-string (sexp)
   "Like `prin1-to-string' but don't octal-escape non-ascii characters.
