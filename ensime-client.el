@@ -508,9 +508,9 @@ This doesn't mean it will connect right after Ensime is loaded."
   "Send a SEXP to Lisp over the socket PROC. This is the lowest
  level of communication. The sexp will be read and interpreted
  by the Ensime Server."
-  (let* ((msg (concat (ensime-prin1-to-string sexp) "\n"))
-	 (string (concat (ensime-net-encode-length (length msg)) msg))
-	 (coding-system (cdr (process-coding-system proc))))
+  (let* ((coding-system (cdr (process-coding-system proc)))
+         (msg (concat (encode-coding-string (ensime-prin1-to-string sexp) coding-system) "\n"))
+         (string (concat (ensime-net-encode-length msg (ensime-protocol-version)) msg)))
     (when ensime--debug-messages (message "--> %s" sexp))
     (ensime-log-event sexp)
     (process-send-string proc string)))
@@ -599,9 +599,11 @@ This doesn't mean it will connect right after Ensime is loaded."
   "Read a 24-bit hex-encoded integer from buffer."
   (string-to-number (buffer-substring-no-properties (point) (+ (point) 6)) 16))
 
-(defun ensime-net-encode-length (n)
-  "Encode an integer into a 24-bit hex string."
-  (format "%06x" n))
+(defun ensime-net-encode-length (msg protocol)
+  "Encode the length of MSG into a 24-bit hex string for PROTOCOL version."
+  (if (version< (or protocol "1.0.0") "0.8.17")
+      (format "%06x" (length msg))
+    (format "%06x" (length (encode-coding-string msg 'raw-text)))))
 
 (defun ensime-prin1-to-string (sexp)
   "Like `prin1-to-string' but don't octal-escape non-ascii characters.
