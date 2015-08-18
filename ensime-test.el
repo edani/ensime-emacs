@@ -541,6 +541,40 @@
        (ensime-assert (null conf)))))
 
    (ensime-test
+    "Encoding a UTF-8 string for SWANK"
+    (ensime-assert (equal "000001" (ensime-net-encode-length "$" "0.8.17")))
+    (ensime-assert (equal "000002" (ensime-net-encode-length "£" "0.8.17")))
+    (ensime-assert (equal "000003" (ensime-net-encode-length "€" "0.8.17")))
+    (ensime-assert (equal "00000a" (ensime-net-encode-length " $ £ € " "0.8.17")))
+
+    (ensime-assert (equal "000001" (ensime-net-encode-length "$" "0.8.16")))
+    (ensime-assert (equal "000001" (ensime-net-encode-length "£" "0.8.16")))
+    (ensime-assert (equal "000001" (ensime-net-encode-length "€" "0.8.16")))
+    (ensime-assert (equal "000007" (ensime-net-encode-length " $ £ € " "0.8.16"))))
+
+   (ensime-test
+    "Reading a UTF-8 encoded S-Expression from SWANK"
+    (with-temp-buffer
+      (insert "000001$\n")
+      (ensime-assert (string-equal "$" (ensime-net-read))))
+
+    (with-temp-buffer
+      (insert "000002£\n")
+      (ensime-assert (string-equal "£" (ensime-net-read))))
+
+    (with-temp-buffer
+      (insert "000003€\n")
+      (ensime-assert (string-equal "€" (ensime-net-read))))
+
+    (with-temp-buffer
+      (insert "00000e\"hello world!\"\n")
+      (ensime-assert (string-equal "hello world!" (ensime-net-read))))
+
+    (with-temp-buffer
+      (insert "00000c( $ £ € )\n")
+      (ensime-assert (equal '($ £ €) (ensime-net-read)))))
+
+   (ensime-test
     "Test name partitioning..."
 
     (ensime-with-name-parts
