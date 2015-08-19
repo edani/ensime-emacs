@@ -46,11 +46,12 @@ resolvers += \"Typesafe repository\" at \"http://repo.typesafe.com/typesafe/rele
 
 resolvers += \"Akka Repo\" at \"http://repo.akka.io/repository\"
 
-libraryDependencies ++= Seq(
-  \"org.ensime\" %% \"ensime\" % \"_server_version_\",
-  \"org.scala-lang\" % \"scala-compiler\" % scalaVersion.value force(),
-  \"org.scala-lang\" % \"scala-reflect\" % scalaVersion.value force(),
-  \"org.scala-lang\" % \"scalap\" % scalaVersion.value force()
+libraryDependencies += \"org.ensime\" %% \"ensime\" % \"_server_version_\"
+
+dependencyOverrides ++= Set(
+  \"org.scala-lang\" % \"scala-compiler\" % scalaVersion.value,
+  \"org.scala-lang\" % \"scalap\" % scalaVersion.value,
+  \"org.scala-lang\" % \"scala-reflect\" % scalaVersion.value
 )
 
 val saveClasspathTask = TaskKey[Unit](\"saveClasspath\", \"Save the classpath to a file\")
