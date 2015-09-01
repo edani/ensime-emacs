@@ -550,7 +550,7 @@ currently open in emacs."
 	 (name (plist-get sym :name))
 	 (name-start (plist-get sym :start))
 	 (name-end (plist-get sym :end))
-	 (suggestions (ensime-rpc-import-suggestions-at-point (list name) 10)))
+	 (suggestions (when name (ensime-rpc-import-suggestions-at-point (list name) 10))))
     (when suggestions
       (let* ((names (mapcar
 		     (lambda (s)
