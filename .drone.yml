@@ -1,13 +1,15 @@
-image: ensime/ensime:latest
+build:
+  image: ensime/ensime:latest
+  environment:
+    - SCALA_VERSION=2.11.7
+  commands:
+    - cask pkg-file &&
+      test/run_emacs_tests.sh &&
+      if [ -n "$UNDERCOVER" ] && [ -f "coveralls.json" ] ; then
+        curl -v -include --form json_file=@coveralls.json https://coveralls.io/api/v1/jobs || true ;
+      fi
 
-script:
-  - cask pkg-file &&
-    test/run_emacs_tests.sh &&
-    if [ -n "$UNDERCOVER" ] ; then
-      curl -v -include --form json_file=@coveralls.json https://coveralls.io/api/v1/jobs || true ;
-    fi
-
-env:
-  - SCALA_VERSION=2.11.7
-  - EMACS=/opt/emacs-24.4/bin/emacs
-  - UNDERCOVER=true
+matrix:
+  EMACS:
+    - /opt/emacs-24.4/bin/emacs
+    - /opt/emacs-24.3/bin/emacs
