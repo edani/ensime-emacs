@@ -90,6 +90,8 @@
   (setq ensime-ui-nav-history-cursor
 	(min (- (length ensime-ui-nav-history) 1)
 	     (+ ensime-ui-nav-history-cursor 1)))
+  (setq ensime-ui-nav-history-cursor
+        (max 0 ensime-ui-nav-history-cursor))
   (ensime-ui-nav-goto-cursor))
 
 (defun ensime-ui-nav-forward-page ()
@@ -156,10 +158,10 @@
 	(when (not ensime-ui-nav-paging-in-progress)
 	  ;; Clamp the history cursor
 	  (setq ensime-ui-nav-history-cursor
-		(max 0 ensime-ui-nav-history-cursor))
-	  (setq ensime-ui-nav-history-cursor
 		(min (- (length ensime-ui-nav-history) 1)
 		     ensime-ui-nav-history-cursor))
+	  (setq ensime-ui-nav-history-cursor
+		(max 0 ensime-ui-nav-history-cursor))
 	  ;; Remove all elements preceding the cursor (the 'redo' history)
 	  (setq ensime-ui-nav-history
 		(subseq ensime-ui-nav-history

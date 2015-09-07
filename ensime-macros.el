@@ -99,10 +99,10 @@ If PROCESS is not specified, `ensime-connection' is used.
 
       ;; Clamp the history cursor
       (setq ensime-inspector-history-cursor
-	    (max 0 ensime-inspector-history-cursor))
-      (setq ensime-inspector-history-cursor
 	    (min (- (length ensime-inspector-history) 1)
 		 ensime-inspector-history-cursor))
+      (setq ensime-inspector-history-cursor
+	    (max 0 ensime-inspector-history-cursor))
 
       ;; Remove all elements preceding the cursor (the 'redo' history)
       (setq ensime-inspector-history
