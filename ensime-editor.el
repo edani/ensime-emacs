@@ -4,6 +4,8 @@
   (require 'cl)
   (require 'ensime-macros))
 
+(require 'dash)
+
 (defvar ensime-compile-result-buffer-name "*ENSIME-Compilation-Result*")
 
 (defvar ensime-compile-result-map
@@ -611,18 +613,18 @@ currently open in emacs."
 			   ((listp f) (car f))))
 	       (src (cond ((stringp f) f)
 			  ((listp f) (cadr f)))))
-	  (when-let (buf (find-buffer-visiting dest))
-                    (with-current-buffer buf
-		      (insert-file-contents src nil nil nil t)
-		      ;; Rather than pass t to 'visit' the file by way of
-		      ;; insert-file-contents, we manually clear the
-		      ;; modification flags. This way the buffer-file-name
-		      ;; is untouched.
-		      (when (equal dest src)
-			(clear-visited-file-modtime)
-			(set-buffer-modified-p nil))
-                      (when typecheck
-                        (ensime-typecheck-current-file)))))))
+	  (-when-let (buf (find-buffer-visiting dest))
+            (with-current-buffer buf
+              (insert-file-contents src nil nil nil t)
+              ;; Rather than pass t to 'visit' the file by way of
+              ;; insert-file-contents, we manually clear the
+              ;; modification flags. This way the buffer-file-name
+              ;; is untouched.
+              (when (equal dest src)
+                (clear-visited-file-modtime)
+                (set-buffer-modified-p nil))
+              (when typecheck
+                (ensime-typecheck-current-file)))))))
     (goto-char pt)))
 
 ;; Expand selection

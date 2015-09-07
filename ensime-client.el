@@ -44,6 +44,7 @@
   (require 'cl)
   (require 'ensime-macros))
 (require 'ensime-vars)
+(require 'dash)
 
 (defvar ensime-net-processes nil
   "List of processes (sockets) connected to Lisps.")
@@ -145,12 +146,12 @@ overrides `ensime-buffer-connection'.")
      the current source file (shouldn't really happen in practice)."
   (or (ensime-conn-if-alive ensime-dispatching-connection)
       (ensime-conn-if-alive ensime-buffer-connection)
-      (when-let (conn (ensime-conn-if-alive
-		       (ensime-owning-connection-for-source-file
-			buffer-file-name)))
-	  ;; Cache the connection so lookup is fast next time.
-	  (setq ensime-buffer-connection conn)
-	  conn)))
+      (-when-let (conn (ensime-conn-if-alive
+                        (ensime-owning-connection-for-source-file
+                         buffer-file-name)))
+        ;; Cache the connection so lookup is fast next time.
+        (setq ensime-buffer-connection conn)
+        conn)))
 
 (defun ensime-proc-if-alive (proc)
   "Returns proc if proc's buffer is alive and proc has not exited,
@@ -205,11 +206,11 @@ overrides `ensime-buffer-connection'.")
  the given file in their source trees."
   (let ((result '()))
     (dolist (conn ensime-net-processes)
-      (when-let (conn (ensime-conn-if-alive conn))
-		(when (ensime-config-includes-source-file
-		       (ensime-config conn) file-in no-ref-sources)
-		  (setq result (cons conn result)))))
-        result))
+      (-when-let (conn (ensime-conn-if-alive conn))
+        (when (ensime-config-includes-source-file
+               (ensime-config conn) file-in no-ref-sources)
+          (setq result (cons conn result)))))
+    result))
 
 (defvar-local ensime--buffer-unrelated-server-procs nil
   "An optimization: server processes known to not be associated with the current
@@ -220,9 +221,9 @@ overrides `ensime-buffer-connection'.")
   (when (-difference ensime-server-processes ensime--buffer-unrelated-server-procs)
     (let ((found (-find
 		  (lambda (proc)
-		    (when-let (good-proc (ensime-proc-if-alive proc))
-			      (ensime-config-includes-source-file
-			       (process-get good-proc :ensime-config) source-file)))
+		    (-when-let (good-proc (ensime-proc-if-alive proc))
+                      (ensime-config-includes-source-file
+                       (process-get good-proc :ensime-config) source-file)))
 		  ensime-server-processes)))
       (if found found
 	;; Otherwise remember the procs we've already checked.
@@ -239,9 +240,9 @@ overrides `ensime-buffer-connection'.")
   (when (-difference ensime-net-processes ensime--buffer-unrelated-connections)
     (let ((found (-find
 		  (lambda (conn)
-		    (when-let (good-conn (ensime-conn-if-alive conn))
-			      (ensime-config-includes-source-file
-			       (ensime-config good-conn) source-file)))
+		    (-when-let (good-conn (ensime-conn-if-alive conn))
+                      (ensime-config-includes-source-file
+                       (ensime-config good-conn) source-file)))
 		  ensime-net-processes)))
       (if found found
 	;; Otherwise remember the connections we've already checked.
@@ -255,9 +256,9 @@ overrides `ensime-buffer-connection'.")
 
 (defun ensime-interrupt-buffer-process (&optional buffer)
   "Send SIGINT to p if p is an active process."
-  (when-let (proc (ensime-proc-if-alive
-		   (get-buffer-process (or buffer (current-buffer)))))
-	    (interrupt-process proc)))
+  (-when-let (proc (ensime-proc-if-alive
+                    (get-buffer-process (or buffer (current-buffer)))))
+    (interrupt-process proc)))
 
 (defun ensime-prompt-for-connection ()
   "Prompt the user to select a server connection. Used in situations where

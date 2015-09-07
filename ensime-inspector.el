@@ -4,6 +4,8 @@
   (require 'cl)
   (require 'ensime-macros))
 
+(require 'dash)
+
 ;; Type Inspector UI
 
 (defvar ensime-inspector-buffer-name "*Inspector*")
@@ -285,11 +287,11 @@
 	   (insert "\n")
 
 	   ;; Insert a link to the companion object or class, if extant
-	   (when-let (id companion-id)
-                     (ensime-inspector-insert-link-to-type
-                      "(companion)" id
-                      (ensime-companion-type-name full-type-name)
-                      (not (ensime-type-is-object-p type))))
+	   (-when-let (id companion-id)
+             (ensime-inspector-insert-link-to-type
+              "(companion)" id
+              (ensime-companion-type-name full-type-name)
+              (not (ensime-type-is-object-p type))))
 
 	   ;; Display each member, arranged by owner type
 	   (dolist (interface interfaces)
@@ -404,19 +406,19 @@ read a fully qualified path from the minibuffer."
 
 (defun ensime-imported-type-path-at-point ()
   "Return the qualified name of the type being imported at point."
-  (when-let (sym (symbol-at-point))
-            (let ((sym-name (ensime-kill-txt-props
-                             (symbol-name sym))))
-              (when (and (integerp (string-match "^[A-ZA-z_]+$" sym-name))
-                         (save-excursion
-                           (beginning-of-line)
-                           (search-forward-regexp
-                            (concat
-                             "^\\s-*import \\(\\(?:[a-z0-9_]+\\.\\)*\\)"
-                             "\\(?:[A-Z][A-z0-9_\\.]+\\|{[A-z0-9_\\., \n]+}\\)$")
-                            (point-at-eol) t)))
-                (let ((path (ensime-kill-txt-props (match-string 1))))
-                  (concat path sym-name))))))
+  (-when-let (sym (symbol-at-point))
+    (let ((sym-name (ensime-kill-txt-props
+                     (symbol-name sym))))
+      (when (and (integerp (string-match "^[A-ZA-z_]+$" sym-name))
+                 (save-excursion
+                   (beginning-of-line)
+                   (search-forward-regexp
+                    (concat
+                     "^\\s-*import \\(\\(?:[a-z0-9_]+\\.\\)*\\)"
+                     "\\(?:[A-Z][A-z0-9_\\.]+\\|{[A-z0-9_\\., \n]+}\\)$")
+                    (point-at-eol) t)))
+        (let ((path (ensime-kill-txt-props (match-string 1))))
+          (concat path sym-name))))))
 
 (defun ensime-inspect-package-at-point ()
   "If cursor is over a package path, inspect that path. Otherwise,

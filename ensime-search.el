@@ -23,6 +23,8 @@
   (require 'cl)
   (require 'ensime-macros))
 
+(require 'dash)
+
 (defvar ensime-search-mode nil
   "Enables the ensime-search minor mode.")
 
@@ -353,8 +355,8 @@
      (lambda (item)
        (make-ensime-search-result
 	:summary (ensime-search-sym-name item)
-	:match-file-name (when-let (pos (ensime-search-sym-pos item))
-                                   (ensime-pos-file pos))
+	:match-file-name (-when-let (pos (ensime-search-sym-pos item))
+                           (ensime-pos-file pos))
 	:data item))
      items)))
 
@@ -391,7 +393,7 @@
 	(ensime-search-highlight-matches text p))
 
       ;; Insert filename
-      (when-let (f (ensime-search-result-match-file-name r))
+      (-when-let (f (ensime-search-result-match-file-name r))
 	(ensime-insert-with-face (format " %s" f)
 				 'font-lock-comment-face))
 

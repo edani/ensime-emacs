@@ -4,6 +4,7 @@
   (require 'cl)
   (require 'ensime-macros))
 
+(require 'dash)
 (require 'cl-lib)
 
 ;; Note: This might better be a connection-local variable, but
@@ -55,19 +56,19 @@ any buffer visiting the given file."
         (end e))
     (assert (or (integerp line)
                 (and (integerp beg) (integerp end))))
-    (when-let (buf (find-buffer-visiting file))
-              (with-current-buffer buf
-                (if (and (integerp beg) (integerp end))
-                    (progn
-                      (setq beg (ensime-internalize-offset beg))
-                      (setq end (ensime-internalize-offset end)))
-                  ;; If line provided, use line to define region
-                  (save-excursion
-                    (goto-line line)
-                    (setq beg (point-at-bol))
-                    (setq end (point-at-eol)))))
+    (-when-let (buf (find-buffer-visiting file))
+      (with-current-buffer buf
+        (if (and (integerp beg) (integerp end))
+            (progn
+              (setq beg (ensime-internalize-offset beg))
+              (setq end (ensime-internalize-offset end)))
+          ;; If line provided, use line to define region
+          (save-excursion
+            (goto-line line)
+            (setq beg (point-at-bol))
+            (setq end (point-at-eol)))))
 
-              (ensime-make-overlay beg end msg visuals nil buf))
+      (ensime-make-overlay beg end msg visuals nil buf))
     ))
 
 
@@ -98,9 +99,9 @@ any buffer visiting the given file."
 		     :bitmap 'question-mark
 		     :fringe 'ensime-compile-warnline)))))
 
-        (when-let (ov (ensime-make-overlay-at file line beg end msg visuals))
-                  (overlay-put ov 'lang lang)
-                  (push ov ensime-note-overlays))
+        (-when-let (ov (ensime-make-overlay-at file line beg end msg visuals))
+          (overlay-put ov 'lang lang)
+          (push ov ensime-note-overlays))
 
         ))))
 

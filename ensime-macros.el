@@ -33,13 +33,6 @@ If not, message the user."
        (message
 	"This command requires a connection to an ENSIME server."))))
 
-(defmacro* when-let ((var value) &rest body)
-  "Evaluate VALUE, if the result is non-nil bind it to VAR and eval BODY.
-
-\(fn (VAR VALUE) &rest BODY)"
-  `(let ((,var ,value))
-     (when ,var ,@body)))
-
 (defmacro* ensime-with-popup-buffer ((name &optional connection select major-mode-fn)
 				     &body body)
   "Similar to `with-output-to-temp-buffer'.
