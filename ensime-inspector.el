@@ -475,6 +475,8 @@ inspect the package of the current source file."
   (setq ensime-inspector-history-cursor
 	(min (- (length ensime-inspector-history) 1)
 	     (+ ensime-inspector-history-cursor 1)))
+  (setq ensime-inspector-history-cursor
+        (max 0 ensime-inspector-history-cursor))
   (ensime-inspector-goto-cursor))
 
 (defun ensime-inspector-forward-page ()
