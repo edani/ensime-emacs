@@ -4,6 +4,8 @@
   (require 'cl)
   (require 'ensime-macros))
 
+(require 'dash)
+
 (defvar ensime-idle-typecheck-timer nil
   "Timer called when emacs is idle")
 
@@ -191,9 +193,9 @@ Analyzer will be restarted."
     (let ((classpath-file (ensime--classpath-file scala-version)))
       (if (file-exists-p classpath-file)
           (progn
-            (when-let
-             (win (get-buffer-window (process-buffer process)))
-             (delete-window win))
+            (-when-let
+                (win (get-buffer-window (process-buffer process)))
+              (delete-window win))
             (funcall on-success-fn))
         (message "Could not create classpath file %s" classpath-file))))
    (t
@@ -328,13 +330,13 @@ defined."
 		 (ensime--connect host port config)
 		 ;; Kill the window displaying the server buffer if it's still
 		 ;; visible.
-		 (when-let
-		  (win (get-buffer-window (process-buffer server-proc)))
-                  (cond
-                   ((window-parent)
-                    (delete-window win))
-                   (t
-                    (switch-to-prev-buffer nil t)))))
+		 (-when-let
+                     (win (get-buffer-window (process-buffer server-proc)))
+                   (cond
+                    ((window-parent)
+                     (delete-window win))
+                    (t
+                     (switch-to-prev-buffer nil t)))))
 	     (run-at-time
 	      "6 sec" nil 'ensime-timer-call 'ensime--retry-connect
 	      server-proc host port-fn config cache-dir))))))

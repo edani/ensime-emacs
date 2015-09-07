@@ -74,8 +74,8 @@ NO-REF-SOURCES allows skipping the extracted dependencies."
 	    'file-directory-p
 	    (append (ensime-config-source-roots conf)
 		    (unless no-ref-sources
-		      (when-let (dir (ensime-source-jars-dir conf))
-				(list dir)))))))
+		      (-when-let (dir (ensime-source-jars-dir conf))
+                        (list dir)))))))
       (-first (lambda (dir) (ensime-path-includes-dir-p file dir))
 	      source-roots))))
 
@@ -154,7 +154,7 @@ only sbt projects are supported."
 
 (defun ensime--maybe-refresh-config (force after-refresh-fn no-refresh-fn)
   (let ((no-refresh-reason "couldn't detect project type"))
-    (when-let (project-root (sbt:find-root))
+    (-when-let (project-root (sbt:find-root))
       (let ((config-file (ensime--join-paths project-root ".ensime")))
         (if (or force
                 (ensime--config-sbt-needs-refresh-p project-root config-file))
@@ -185,8 +185,8 @@ only sbt projects are supported."
 (defun ensime--refresh-config-sentinel (process event on-success-fn)
   (cond
    ((equal event "finished\n")
-    (when-let (win (get-buffer-window (process-buffer process)))
-              (delete-window win))
+    (-when-let (win (get-buffer-window (process-buffer process)))
+      (delete-window win))
     (funcall on-success-fn))
    (t
     (message "Process %s exited: %s" process event))))

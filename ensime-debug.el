@@ -23,6 +23,7 @@
   (require 'cl)
   (require 'ensime-macros))
 
+(require 'dash)
 (require 'gdb-mi)
 
 (defgroup ensime-db nil
@@ -179,12 +180,12 @@
      (plist-get evt :file)
      (plist-get evt :line)))
 
-  (when-let (exc-val (ensime-rpc-debug-value
-                      (ensime-db-make-obj-ref-location
-                       (plist-get evt :exception))))
-            (ensime-ui-show-nav-buffer
-             ensime-db-value-buffer
-             exc-val t))
+  (-when-let (exc-val (ensime-rpc-debug-value
+                       (ensime-db-make-obj-ref-location
+                        (plist-get evt :exception))))
+    (ensime-ui-show-nav-buffer
+     ensime-db-value-buffer
+     exc-val t))
   ;;  (run-hooks 'ensime-db-thread-suspended-hook)
   )
 
@@ -240,14 +241,14 @@
 (defun ensime-db-set-debug-marker (file line)
   "Open location in a new window."
   (ensime-db-clear-marker-overlays)
-  (when-let (ov (ensime-make-overlay-at
-                 file line nil nil
-                 "Debug Marker"
-                 (list :face 'ensime-marker-face
-                       :char ">"
-                       :bitmap 'right-triangle
-                       :fringe 'ensime-compile-errline)))
-            (push ov ensime-db-marker-overlays))
+  (-when-let (ov (ensime-make-overlay-at
+                  file line nil nil
+                  "Debug Marker"
+                  (list :face 'ensime-marker-face
+                        :char ">"
+                        :bitmap 'right-triangle
+                        :fringe 'ensime-compile-errline)))
+    (push ov ensime-db-marker-overlays))
 
   (ensime-goto-source-location
    (list :file file :line line)
@@ -259,11 +260,11 @@
     (let ((file (ensime-pos-file pos))
           (line (ensime-pos-line pos)))
       (when (and (stringp file) (integerp line))
-        (when-let (ov (ensime-make-overlay-at
-                       file line nil nil
-                       "Breakpoint"
-                       visuals))
-                  (push ov ensime-db-breakpoint-overlays))))))
+        (-when-let (ov (ensime-make-overlay-at
+                        file line nil nil
+                        "Breakpoint"
+                        visuals))
+          (push ov ensime-db-breakpoint-overlays))))))
 
 
 (defun ensime-db-refresh-breakpoints ()
@@ -571,17 +572,17 @@
                                   visitor)
   (let ((field-name (plist-get field :name)))
     (funcall (plist-get visitor :object-field) val field path)
-    (when-let (sub-expansion (ensime-db-sub-expansion
-                              expansion field-name))
-              (let ((sub-val (ensime-rpc-debug-value
-                              (ensime-db-make-obj-field-location
-                               (plist-get val :object-id)
-                               field-name)
-                              )))
-                (ensime-db-visit-value sub-val sub-expansion
-                                       (append path (list field-name))
-                                       visitor)
-                ))))
+    (-when-let (sub-expansion (ensime-db-sub-expansion
+                               expansion field-name))
+      (let ((sub-val (ensime-rpc-debug-value
+                      (ensime-db-make-obj-field-location
+                       (plist-get val :object-id)
+                       field-name)
+                      )))
+        (ensime-db-visit-value sub-val sub-expansion
+                               (append path (list field-name))
+                               visitor)
+        ))))
 
 
 
@@ -591,15 +592,15 @@
                                  path
                                  visitor)
   (funcall (plist-get visitor :array-el) val i path)
-  (when-let (sub-expansion (ensime-db-sub-expansion
-                            expansion i))
-            (let ((sub-val (ensime-rpc-debug-value
-                            (ensime-db-make-array-el-location
-                             (plist-get val :object-id)
-                             i))))
-              (ensime-db-visit-value sub-val sub-expansion
-                                     (append path (list i))
-                                     visitor))))
+  (-when-let (sub-expansion (ensime-db-sub-expansion
+                             expansion i))
+    (let ((sub-val (ensime-rpc-debug-value
+                    (ensime-db-make-array-el-location
+                     (plist-get val :object-id)
+                     i))))
+      (ensime-db-visit-value sub-val sub-expansion
+                             (append path (list i))
+                             visitor))))
 
 
 
@@ -610,13 +611,13 @@
 
   (case (plist-get val :val-type)
 
-    (ref (when-let (looked-up (ensime-rpc-debug-value
-                               (ensime-db-make-obj-ref-location
-                                (plist-get val :object-id))))
-                   (ensime-db-visit-value looked-up
-                                          expansion
-                                          path
-                                          visitor)))
+    (ref (-when-let (looked-up (ensime-rpc-debug-value
+                                (ensime-db-make-obj-ref-location
+                                 (plist-get val :object-id))))
+           (ensime-db-visit-value looked-up
+                                  expansion
+                                  path
+                                  visitor)))
 
     (prim (funcall (plist-get visitor :primitive) val path))
 

@@ -23,12 +23,14 @@
   (require 'cl)
   (require 'ensime-macros))
 
+(require 'dash)
+
 (defun ensime-sem-high-apply-properties (info)
   "Use provided info to modify font-lock properties of identifiers
  in the program text."
   (let ((file (plist-get info :file))
 	(syms (plist-get info :syms)))
-    (when-let (buf (find-buffer-visiting file))
+    (-when-let (buf (find-buffer-visiting file))
       (with-current-buffer buf
 	(dolist (sym (ensime-sem-high-internalize-syms syms))
 	  (let* ((type (nth 0 sym))
