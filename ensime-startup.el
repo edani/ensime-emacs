@@ -84,8 +84,11 @@ saveClasspathTask := {
 	(ensime--retry-connect nil host (lambda () port) config cache-dir))
     (let* ((config-file (ensime-config-find))
            (config (ensime-config-load config-file))
-           (scala-version (plist-get config :scala-version)))
-      (if (ensime--classfile-needs-refresh-p (ensime--classpath-file scala-version))
+           (scala-version (plist-get config :scala-version))
+           (assembly-file (ensime--assembly-file scala-version))
+           (classpath-file (ensime--classpath-file scala-version)))
+      (if (and (not (file-exists-p assembly-file))
+               (ensime--classfile-needs-refresh-p classpath-file))
           (ensime--update-server scala-version `(lambda () (ensime--1 ,config-file)))
         (ensime--1 config-file)))))
 
@@ -174,6 +177,14 @@ Analyzer will be restarted."
   (file-name-as-directory
    (expand-file-name user-emacs-ensime-directory user-emacs-directory)))
 
+(defun ensime--assembly-file (scala-version)
+  "The expected location of a manually produced assembly file.
+If such a file is present, it will override the `ensime--classpath-file' and
+`ensime-update' will not be automatically called."
+  (expand-file-name
+   (format "ensime_%s-%s-assembly.jar" scala-version ensime-server-version)
+   (ensime--user-directory)))
+
 (defun ensime--classpath-file (scala-version)
   (expand-file-name
    (format "classpath_%s_%s" scala-version ensime-server-version)
@@ -240,10 +251,13 @@ CACHE-DIR is the server's persistent output directory."
     (comint-mode)
     (let* ((default-directory cache-dir)
            (tools-jar (concat java-home "lib/tools.jar"))
+           (assembly-file (ensime--assembly-file scala-version))
            (classpath-file (ensime--classpath-file scala-version))
            (classpath (concat tools-jar
                               ensime--classpath-separator
-                              (ensime-read-from-file classpath-file)))
+                              (if (file-exists-p assembly-file)
+                                  assembly-file
+                                (ensime-read-from-file classpath-file))))
            (process-environment (append user-env process-environment))
            (java-command (concat java-home "bin/java"))
            (args (-flatten (list
