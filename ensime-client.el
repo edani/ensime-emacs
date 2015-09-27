@@ -997,10 +997,9 @@ copies. All other objects are used unchanged. List must not contain cycles."
 (defun ensime-rpc-async-typecheck-files (file-names continue)
   (ensime-eval-async `(swank:typecheck-files ,file-names) continue))
 
-(defun ensime-rpc-async-typecheck-file-with-contents (file-name contents continue)
-  (if (version< (ensime-protocol-version) "0.8.11")
-      (ensime-eval-async `(swank:typecheck-file ,file-name ,contents) continue)
-    (ensime-eval-async `(swank:typecheck-file (:file ,file-name :contents ,contents)) continue)))
+(defun ensime-rpc-async-typecheck-buffer (continue)
+  (ensime-eval-async `(swank:typecheck-file
+		       ,(ensime-src-info-with-contents-in-temp)) continue))
 
 (defun ensime-rpc-async-typecheck-all (continue)
   (ensime-eval-async `(swank:typecheck-all) continue))
@@ -1149,36 +1148,24 @@ copies. All other objects are used unchanged. List must not contain cycles."
        `(swank:call-completion ,id))))
 
 (defun ensime-rpc-completions-at-point (&optional max-results case-sens)
-  (let* ((should-write-buffer (version< (ensime-protocol-version) "0.8.11"))
-         (file-info
-          (if should-write-buffer
-              buffer-file-name
-            `(:file ,buffer-file-name :contents ,(ensime-get-buffer-as-string)))))
-    (when should-write-buffer (ensime-write-buffer nil t))
-    (ensime-eval
-     `(swank:completions
-       ,file-info
-       ,(ensime-computed-point)
-       ,(or max-results 0)
-       ,case-sens
-       t ;; reload
-       ))))
-
-(defun ensime-rpc-async-completions-at-point (max-results case-sens continue)
-  (let* ((should-write-buffer (version< (ensime-protocol-version) "0.8.11"))
-         (file-info
-          (if should-write-buffer
-              buffer-file-name
-            `(:file ,buffer-file-name :contents ,(ensime-get-buffer-as-string)))))
-    (when should-write-buffer (ensime-write-buffer nil t))
-  (ensime-eval-async
+  (ensime-eval
    `(swank:completions
-     ,file-info
+     ,(ensime-src-info-with-contents-in-temp)
      ,(ensime-computed-point)
      ,(or max-results 0)
      ,case-sens
      t ;; reload
-     ) continue)))
+     )))
+
+(defun ensime-rpc-async-completions-at-point (max-results case-sens continue)
+  (ensime-eval-async
+   `(swank:completions
+     ,(ensime-src-info-with-contents-in-temp)
+     ,(ensime-computed-point)
+     ,(or max-results 0)
+     ,case-sens
+     t ;; reload
+     ) continue))
 
 
 (provide 'ensime-client)
