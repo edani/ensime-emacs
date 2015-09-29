@@ -249,7 +249,7 @@ any buffer visiting the given file."
   (let ((msgs (append (ensime-errors-at (point))
                       (ensime-implicit-notes-at (point)))))
     (when msgs
-      (message (mapconcat 'identity msgs "\n")))))
+      (message "%s" (mapconcat 'identity msgs "\n")))))
 
 (defun ensime-implicit-notes-at (point)
   (cl-labels
