@@ -195,6 +195,23 @@ Do not show 'Writing..' message."
     (insert-file-contents filename)
     (buffer-string)))
 
+(defun ensime-src-info-with-contents-in-temp ()
+  "Write the contents of current buffer to temp file, return a source-file-info
+ with contents in temp file."
+  (let* ((tmp-dir (concat (ensime--get-cache-dir (ensime-config-for-buffer))
+			  "/scratch"))
+	 (max-rpcs-in-flight 25) ;; random guess...
+	 (tmp-file (format "%s/source_file_contents_%s_%s_%s"
+			   tmp-dir
+			   (emacs-pid)
+			   ensime-connection-counter
+			   (% (ensime-continuation-counter)
+			      max-rpcs-in-flight))))
+    (when (not (file-directory-p tmp-dir))
+      (make-directory tmp-dir t))
+    (ensime-write-buffer tmp-file nil nil)
+    `(:file ,buffer-file-name :contents-in ,tmp-file)))
+
 (defun ensime--dependencies-newer-than-target-p (target-file dep-files-list)
   (if (file-exists-p target-file)
       (let ((target-mtime (nth 5 (file-attributes target-file))))

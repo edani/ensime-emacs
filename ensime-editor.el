@@ -428,10 +428,7 @@
       (if without-saving
           (save-restriction
             (widen)
-            (ensime-rpc-async-typecheck-file-with-contents
-             buffer-file-name
-             (ensime-get-buffer-as-string)
-             'identity))
+            (ensime-rpc-async-typecheck-buffer 'identity))
         (progn
           (ensime-rpc-async-typecheck-file buffer-file-name 'identity))))))
 
